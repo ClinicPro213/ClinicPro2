@@ -25,7 +25,15 @@
             max-width: 1400px;
             margin: 0 auto;
         }
+.subscription-days {
+    font-size: 11px;
+    margin-top: 5px;
+    color: #10b981;
+}
 
+.subscription-expired {
+    color: #ef4444;
+}
         /* Auth Cards */
         .auth-card {
             background: white;
@@ -852,52 +860,61 @@
         }
 
         async function loadDashboard() {
-            if (!currentUser) {
-                const token = getToken();
-                if (token) {
-                    const response = await fetch(`${API_URL}/auth/me`, {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
-                    if (response.ok) {
-                        const data = await response.json();
-                        currentUser = data.user;
-                    } else {
-                        logout();
-                        return;
-                    }
-                } else {
-                    showLogin();
-                    return;
-                }
-            }
-
-            document.getElementById('loginPage').style.display = 'none';
-            document.getElementById('registerPage').style.display = 'none';
-            document.getElementById('dashboard').classList.add('active');
-            document.getElementById('userName').textContent = currentUser.fullName;
-            
-            // Update subscription badge
-            const badge = document.getElementById('subscriptionBadge');
-            if (currentUser.role === 'admin') {
-                badge.textContent = '👑 مدير النظام';
-                badge.className = 'subscription-badge subscription-active';
-            } else if (currentUser.isSubscribed) {
-                badge.textContent = '✨ مشترك - غير محدود';
-                badge.className = 'subscription-badge subscription-active';
+    if (!currentUser) {
+        const token = getToken();
+        if (token) {
+            const response = await fetch(`${API_URL}/auth/me`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                currentUser = data.user;
             } else {
-                badge.textContent = '📊 مجاني - 5 مرضى';
-                badge.className = 'subscription-badge subscription-inactive';
+                logout();
+                return;
             }
-            
-            await loadPatients();
-            await loadStats();
-            
-            // Show admin panel if user is admin
-            if (currentUser.role === 'admin') {
-                await loadAdminPanel();
-            }
+        } else {
+            showLogin();
+            return;
         }
+    }
 
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('registerPage').style.display = 'none';
+    document.getElementById('dashboard').classList.add('active');
+    document.getElementById('userName').textContent = currentUser.fullName;
+    
+    // Update subscription badge with days remaining
+    const badge = document.getElementById('subscriptionBadge');
+    if (currentUser.role === 'admin') {
+        badge.innerHTML = '👑 مدير النظام';
+        badge.className = 'subscription-badge subscription-active';
+    } else if (currentUser.isSubscribed && currentUser.subscriptionExpiry) {
+        const now = new Date();
+        const expiryDate = new Date(currentUser.subscriptionExpiry);
+        const daysRemaining = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+        
+        if (daysRemaining > 0) {
+            badge.innerHTML = `✨ مشترك - متبقي ${daysRemaining} يوم`;
+            badge.className = 'subscription-badge subscription-active';
+        } else {
+            // Subscription expired
+            badge.innerHTML = '📊 مجاني - 5 مرضى (انتهى الاشتراك)';
+            badge.className = 'subscription-badge subscription-inactive';
+        }
+    } else {
+        badge.innerHTML = '📊 مجاني - 5 مرضى';
+        badge.className = 'subscription-badge subscription-inactive';
+    }
+    
+    await loadPatients();
+    await loadStats();
+    
+    // Show admin panel if user is admin
+    if (currentUser.role === 'admin') {
+        await loadAdminPanel();
+    }
+        }
         async function loadPatients(searchQuery = '') {
             try {
                 const token = getToken();
@@ -1180,52 +1197,87 @@ function contactAdmin() {
         }
 
         async function loadAdminPanel() {
-            try {
-                const token = getToken();
-                const response = await fetch(`${API_URL}/admin/users`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                
-                if (response.ok) {
-                    const users = await response.json();
-                    const adminPanelHtml = `
-                        <div class="admin-panel">
-                            <h3><i class="fas fa-crown"></i> لوحة تحكم المدير</h3>
-                            <div class="admin-table">
-                                <table>
-                                    <thead>
-                                        <tr><th>اسم المستخدم</th><th>العيادة</th><th>المرضى</th><th>المعالجات</th><th>الاشتراك</th><th>إجراءات</th></tr>
-                                    </thead>
-                                    <tbody>
-                                        ${users.map(user => `
-                                            <tr>
-                                                <td>${escapeHtml(user.fullName)}<br><small>@${user.username}</small></td>
-                                                <td>${escapeHtml(user.clinicName)}</td>
-                                                <td>${user.patientCount}</td>
-                                                <td>${user.treatmentCount}</td>
-                                                <td>
-                                                    <span class="subscription-badge ${user.isSubscribed ? 'subscription-active' : 'subscription-inactive'}" style="font-size: 11px;">
-                                                        ${user.isSubscribed ? 'مشترك' : 'مجاني'}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <button onclick="toggleSubscription('${user._id}', ${!user.isSubscribed})" class="btn" style="padding: 5px 10px; font-size: 12px; width: auto;">
-                                                        ${user.isSubscribed ? 'تعطيل' : 'تفعيل'}
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        `).join('')}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    `;
-                    document.getElementById('adminPanel').innerHTML = adminPanelHtml;
-                    document.getElementById('adminPanel').style.display = 'block';
-                }
-            } catch (error) {
-                console.error('Error loading admin panel:', error);
-            }
+    try {
+        const token = getToken();
+        const response = await fetch(`${API_URL}/admin/users`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.ok) {
+            const users = await response.json();
+            const adminPanelHtml = `
+                <div class="admin-panel">
+                    <h3><i class="fas fa-crown"></i> لوحة تحكم المدير</h3>
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #f1f5f9;">
+                                    <th style="padding: 12px; text-align: right;">المستخدم</th>
+                                    <th style="padding: 12px; text-align: right;">العيادة</th>
+                                    <th style="padding: 12px; text-align: right;">المرضى</th>
+                                    <th style="padding: 12px; text-align: right;">المعالجات</th>
+                                    <th style="padding: 12px; text-align: right;">الاشتراك</th>
+                                    <th style="padding: 12px; text-align: right;">المتبقي</th>
+                                    <th style="padding: 12px; text-align: right;">إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${users.map(user => {
+                                    let subscriptionHtml = '';
+                                    let daysRemainingHtml = '';
+                                    
+                                    if (user.isSubscribed && user.subscriptionExpiry) {
+                                        const now = new Date();
+                                        const expiryDate = new Date(user.subscriptionExpiry);
+                                        const daysRemaining = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+                                        
+                                        if (daysRemaining > 0) {
+                                            subscriptionHtml = '<span style="background: #10b981; color: white; padding: 4px 8px; border-radius: 20px; font-size: 12px;">✅ مشترك</span>';
+                                            daysRemainingHtml = `<span style="color: #10b981;">${daysRemaining} يوم</span>`;
+                                        } else {
+                                            subscriptionHtml = '<span style="background: #ef4444; color: white; padding: 4px 8px; border-radius: 20px; font-size: 12px;">⚠️ منتهي</span>';
+                                            daysRemainingHtml = '<span style="color: #ef4444;">انتهى</span>';
+                                        }
+                                    } else {
+                                        subscriptionHtml = '<span style="background: #64748b; color: white; padding: 4px 8px; border-radius: 20px; font-size: 12px;">📊 مجاني</span>';
+                                        daysRemainingHtml = '<span style="color: #64748b;">-</span>';
+                                    }
+                                    
+                                    return `
+                                        <tr style="border-bottom: 1px solid #e2e8f0;">
+                                            <td style="padding: 12px;">
+                                                <strong>${escapeHtml(user.fullName)}</strong><br>
+                                                <small>@${user.username}</small>
+                                            </td>
+                                            <td style="padding: 12px;">${escapeHtml(user.clinicName)}</td>
+                                            <td style="padding: 12px;">${user.patientCount}</td>
+                                            <td style="padding: 12px;">${user.treatmentCount}</td>
+                                            <td style="padding: 12px;">${subscriptionHtml}</td>
+                                            <td style="padding: 12px;">${daysRemainingHtml}</td>
+                                            <td style="padding: 12px;">
+                                                <button onclick="toggleSubscription('${user._id}', ${!user.isSubscribed || (user.isSubscribed && user.subscriptionExpiry && new Date(user.subscriptionExpiry) < new Date())})" 
+                                                    style="background: ${user.isSubscribed && (!user.subscriptionExpiry || new Date(user.subscriptionExpiry) > new Date()) ? '#ef4444' : '#10b981'}; 
+                                                    color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer;">
+                                                    ${user.isSubscribed && (!user.subscriptionExpiry || new Date(user.subscriptionExpiry) > new Date()) ? 'تعطيل' : 'تفعيل لمدة شهر'}
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style="margin-top: 20px; padding: 15px; background: #f1f5f9; border-radius: 12px;">
+                        <small><i class="fas fa-info-circle"></i> عند تفعيل الاشتراك، سيكون صالحاً لمدة 30 يوماً من تاريخ التفعيل</small>
+                    </div>
+                </div>
+            `;
+            document.getElementById('adminPanel').innerHTML = adminPanelHtml;
+            document.getElementById('adminPanel').style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error loading admin panel:', error);
+    }
         }
 
         async function toggleSubscription(userId, activate) {
