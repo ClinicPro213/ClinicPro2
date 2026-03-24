@@ -126,7 +126,47 @@ router.post('/login', [
             await user.save();
             console.log('⚠️ Subscription expired for user:', username);
         }
-
+// Get current user with subscription info
+router.get('/me', protect, async (req, res) => {
+    try {
+        const Patient = require('../models/Patient');
+        const patientCount = await Patient.countDocuments({ userId: req.user._id });
+        const canAdd = await req.user.canAddPatient(patientCount);
+        
+        let remainingSlots = 'غير محدود';
+        let daysRemaining = 0;
+        
+        if (req.user.role === 'admin') {
+            remainingSlots = 'غير محدود (مدير)';
+        } else if (req.user.isSubscribed && req.user.subscriptionExpiry) {
+            const now = new Date();
+            if (now > req.user.subscriptionExpiry) {
+                remainingSlots = Math.max(0, 5 - patientCount);
+                daysRemaining = 0;
+            } else {
+                remainingSlots = 'غير محدود (مشترك)';
+                daysRemaining = Math.ceil((req.user.subscriptionExpiry - now) / (1000 * 60 * 60 * 24));
+            }
+        } else {
+            remainingSlots = Math.max(0, 5 - patientCount);
+        }
+        
+        res.json({
+            user: {
+                ...req.user.toObject(),
+                subscriptionExpiry: req.user.subscriptionExpiry,
+                daysRemaining
+            },
+            patientCount,
+            canAddMore: canAdd,
+            remainingSlots,
+            daysRemaining
+        });
+    } catch (error) {
+        console.error('❌ Error getting user info:', error);
+        res.status(500).json({ message: 'خطأ في جلب بيانات المستخدم', error: error.message });
+    }
+});
         // Generate token
         const token = jwt.sign(
             { id: user._id, role: user.role },
