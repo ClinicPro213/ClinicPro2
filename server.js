@@ -364,6 +364,39 @@ app.put('/api/admin/users/:id/subscription', async (req, res) => {
     }
 });
 
+// ============ CREATE DEFAULT ADMIN USER ============
+async function createDefaultAdmin() {
+    try {
+        const adminExists = await User.findOne({ username: 'admin' });
+        if (!adminExists) {
+            const adminUser = new User({
+                fullName: 'مدير النظام',
+                username: 'admin',
+                password: 'admin123',
+                phone: '0000000000',
+                age: 30,
+                clinicName: 'النظام الرئيسي',
+                address: 'المركز الرئيسي',
+                role: 'admin',
+                isSubscribed: true,
+                subscriptionExpiry: new Date(new Date().setFullYear(new Date().getFullYear() + 10)) // 10 years
+            });
+            await adminUser.save();
+            console.log('✅ Default admin user created:');
+            console.log('   Username: admin');
+            console.log('   Password: admin123');
+        } else {
+            console.log('✅ Admin user already exists');
+        }
+    } catch (error) {
+        console.error('Error creating admin:', error);
+    }
+}
+
+// Call this after MongoDB connection
+mongoose.connection.once('open', () => {
+    createDefaultAdmin();
+});
 // Serve frontend
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
