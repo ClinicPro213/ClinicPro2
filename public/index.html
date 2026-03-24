@@ -1005,34 +1005,70 @@
         }
 
         async function addPatient(patientData) {
-            try {
-                const token = getToken();
-                const response = await fetch(`${API_URL}/patients`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(patientData)
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    showAlert('dashboardAlert', 'تم إضافة المريض بنجاح', 'success');
-                    closePatientModal();
-                    await loadPatients();
-                    await loadStats();
-                } else if (data.needSubscription) {
-                    showAlert('dashboardAlert', data.message, 'warning');
-                    closePatientModal();
-                } else {
-                    showAlert('dashboardAlert', data.message || 'فشل إضافة المريض', 'error');
-                }
-            } catch (error) {
-                showAlert('dashboardAlert', 'خطأ في إضافة المريض', 'error');
-            }
+        async function addPatient(patientData) {
+    try {
+        const token = getToken();
+        if (!token) {
+            showAlert('dashboardAlert', 'الرجاء تسجيل الدخول أولاً', 'error');
+            return;
         }
+        
+        console.log('📝 Adding patient with data:', patientData);
+        
+        const response = await fetch(`${API_URL}/patients`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(patientData)
+        });
+        
+        console.log('📡 Response status:', response.status);
+        
+        const data = await response.json();
+        console.log('📄 Response data:', data);
+        
+        if (response.ok && data.success) {
+            showAlert('dashboardAlert', data.message || 'تم إضافة المريض بنجاح', 'success');
+            closePatientModal();
+            await loadPatients();
+            await loadStats();
+        } else if (response.status === 403 && data.needSubscription) {
+            showAlert('dashboardAlert', data.message, 'warning');
+            closePatientModal();
+            // Show subscription modal or message
+            showSubscriptionAlert();
+        } else {
+            showAlert('dashboardAlert', data.message || 'فشل إضافة المريض', 'error');
+        }
+    } catch (error) {
+        console.error('❌ Error adding patient:', error);
+        showAlert('dashboardAlert', 'خطأ في إضافة المريض: ' + error.message, 'error');
+    }
+}
+
+function showSubscriptionAlert() {
+    const alertDiv = document.getElementById('dashboardAlert');
+    alertDiv.innerHTML = `
+        <div style="background: #fed7aa; border: 1px solid #f59e0b; border-radius: 12px; padding: 15px;">
+            <strong><i class="fas fa-crown"></i> تنبيه الاشتراك</strong><br>
+            لقد وصلت للحد الأقصى من المرضى المجانيين (5 مرضى).<br>
+            للاستمرار في إضافة المزيد من المرضى، يرجى الاشتراك في الباقة المدفوعة.<br>
+            <button onclick="contactAdmin()" class="btn btn-warning" style="margin-top: 10px; width: auto; padding: 8px 16px;">
+                <i class="fas fa-envelope"></i> التواصل مع المدير
+            </button>
+        </div>
+    `;
+    alertDiv.classList.add('show');
+    setTimeout(() => {
+        alertDiv.classList.remove('show');
+    }, 8000);
+}
+
+function contactAdmin() {
+    alert('يرجى التواصل مع المدير على البريد الإلكتروني: admin@dentalclinic.com');
+}
 
         async function updatePatient(patientId, patientData) {
             try {
@@ -1110,29 +1146,37 @@
         }
 
         async function loadStats() {
+    try {
+        const token = getToken();
+        const response = await fetch(`${API_URL}/auth/me`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            document.getElementById('totalPatients').textContent = data.patientCount || 0;
+            document.getElementById('remainingSlots').textContent = data.remainingSlots === 'غير محدود' ? 'غير محدود' : (data.remainingSlots || 5);
+            
+            // Load treatments count
             try {
-                const token = getToken();
-                const response = await fetch(`${API_URL}/auth/me`, {
+                const treatmentsResponse = await fetch(`${API_URL}/treatments/stats/summary`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    document.getElementById('totalPatients').textContent = data.patientCount;
-                    document.getElementById('remainingSlots').textContent = data.remainingSlots === 'غير محدود' ? 'غير محدود' : data.remainingSlots;
-                    
-                    // Load treatments count
-                    const treatmentsResponse = await fetch(`${API_URL}/treatments/stats/summary`, {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
-                    if (treatmentsResponse.ok) {
-                        const treatmentsData = await treatmentsResponse.json();
-                        document.getElementById('totalTreatments').textContent = treatmentsData.total;
-                    }
+                if (treatmentsResponse.ok) {
+                    const treatmentsData = await treatmentsResponse.json();
+                    document.getElementById('totalTreatments').textContent = treatmentsData.total || 0;
                 }
-            } catch (error) {
-                console.error('Error loading stats:', error);
+            } catch (err) {
+                console.error('Error loading treatments stats:', err);
+                document.getElementById('totalTreatments').textContent = '0';
             }
+        }
+    } catch (error) {
+        console.error('Error loading stats:', error);
+        document.getElementById('totalPatients').textContent = '0';
+        document.getElementById('remainingSlots').textContent = '5';
+        document.getElementById('totalTreatments').textContent = '0';
+    }
         }
 
         async function loadAdminPanel() {
