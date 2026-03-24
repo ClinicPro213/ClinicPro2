@@ -300,6 +300,26 @@ app.delete('/api/patients/:id', async (req, res) => {
         res.status(500).json({ message: 'خطأ في الحذف' });
     }
 });
+// إضافة رؤوس PWA
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    next();
+});
+
+// خدمة ملف manifest.json
+app.get('/manifest.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/manifest+json');
+    res.sendFile(path.join(__dirname, 'public', 'manifest.json'));
+});
+
+// خدمة Service Worker
+app.get('/sw.js', (req, res) => {
+    res.setHeader('Content-Type', 'application/javascript');
+    res.setHeader('Service-Worker-Allowed', '/');
+    res.sendFile(path.join(__dirname, 'public', 'sw.js'));
+});
 
 // ============ TREATMENT ROUTES ============
 app.get('/api/treatments/patient/:patientId', async (req, res) => {
