@@ -12,7 +12,7 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // MongoDB Connection
-mongoose.connect(process.env.MONGO_URI, {
+mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://ClinicPro:admin8899@cluster0.ufglcnq.mongodb.net/?appName=Cluster0', {
     useNewUrlParser: true,
     useUnifiedTopology: true
 }).then(() => {
@@ -84,8 +84,8 @@ app.post('/api/register', async (req, res) => {
         const user = new User({
             fullName,
             username,
-            password, // Note: In production, you should hash this!
-            phone,
+            password,
+            phone: phone || '',
             age: parseInt(age),
             clinicName,
             address,
@@ -94,12 +94,12 @@ app.post('/api/register', async (req, res) => {
         
         await user.save();
         
-        console.log('✅ User created:', username);
+        console.log('✅ User created:', username, 'with ID:', user._id);
         
         res.json({
             success: true,
             user: {
-                id: user._id,
+                id: user._id.toString(), // Ensure it's a string
                 fullName: user.fullName,
                 username: user.username,
                 role: user.role,
@@ -127,12 +127,12 @@ app.post('/api/login', async (req, res) => {
             return res.status(401).json({ message: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
         }
         
-        console.log('✅ Login successful:', username);
+        console.log('✅ Login successful:', username, 'ID:', user._id);
         
         res.json({
             success: true,
             user: {
-                id: user._id,
+                id: user._id.toString(), // Ensure it's a string
                 fullName: user.fullName,
                 username: user.username,
                 role: user.role,
@@ -150,13 +150,23 @@ app.get('/api/user/:userId', async (req, res) => {
     try {
         const userId = req.params.userId;
         
-        // Validate ObjectId
+        console.log('🔍 Fetching user with ID:', userId);
+        
+        // Check if userId is valid
+        if (!userId || userId === 'undefined' || userId === 'null' || userId === '') {
+            console.error('❌ Invalid user ID provided:', userId);
+            return res.status(400).json({ message: 'معرف المستخدم غير صالح' });
+        }
+        
+        // Validate ObjectId format
         if (!mongoose.Types.ObjectId.isValid(userId)) {
+            console.error('❌ Invalid ObjectId format:', userId);
             return res.status(400).json({ message: 'معرف المستخدم غير صالح' });
         }
         
         const user = await User.findById(userId);
         if (!user) {
+            console.error('❌ User not found for ID:', userId);
             return res.status(404).json({ message: 'المستخدم غير موجود' });
         }
         
@@ -173,6 +183,7 @@ app.get('/api/user/:userId', async (req, res) => {
                 user.isSubscribed = false;
                 await user.save();
                 subscriptionExpiry = null;
+                console.log('⚠️ Subscription expired for user:', user.username);
             }
         }
         
@@ -186,9 +197,11 @@ app.get('/api/user/:userId', async (req, res) => {
             remainingSlots = Math.max(0, 5 - patientCount);
         }
         
+        console.log('✅ User data sent:', user.username, 'Patients:', patientCount);
+        
         res.json({
             user: {
-                id: user._id,
+                id: user._id.toString(),
                 fullName: user.fullName,
                 username: user.username,
                 role: user.role,
@@ -207,10 +220,17 @@ app.get('/api/user/:userId', async (req, res) => {
 // ============ PATIENT ROUTES ============
 app.get('/api/patients/:userId', async (req, res) => {
     try {
-        const patients = await Patient.find({ userId: req.params.userId }).sort({ createdAt: -1 });
+        const userId = req.params.userId;
+        
+        if (!userId || userId === 'undefined') {
+            return res.status(400).json({ message: 'معرف المستخدم غير صالح' });
+        }
+        
+        const patients = await Patient.find({ userId: userId }).sort({ createdAt: -1 });
         res.json(patients);
     } catch (error) {
-        res.status(500).json({ message: 'خطأ' });
+        console.error('Error getting patients:', error);
+        res.status(500).json({ message: 'خطأ في جلب المرضى' });
     }
 });
 
@@ -218,8 +238,16 @@ app.post('/api/patients', async (req, res) => {
     try {
         const { userId, name, phone, age, address, medicalHistory, notes } = req.body;
         
+        if (!userId || userId === 'undefined') {
+            return res.status(400).json({ message: 'معرف المستخدم غير صالح' });
+        }
+        
         // Check limit
         const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'المستخدم غير موجود' });
+        }
+        
         const patientCount = await Patient.countDocuments({ userId });
         
         if (user.role !== 'admin' && !user.isSubscribed && patientCount >= 5) {
@@ -232,7 +260,7 @@ app.post('/api/patients', async (req, res) => {
         const patient = new Patient({
             userId,
             name,
-            phone,
+            phone: phone || '',
             age: parseInt(age),
             address: address || '',
             medicalHistory: medicalHistory || '',
@@ -243,6 +271,7 @@ app.post('/api/patients', async (req, res) => {
         
         res.json({ success: true, patient });
     } catch (error) {
+        console.error('Error adding patient:', error);
         res.status(500).json({ message: 'خطأ في إضافة المريض' });
     }
 });
@@ -340,7 +369,7 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
     console.log(`\n🚀 Server is running!`);
     console.log(`📱 Open: http://localhost:${PORT}`);
