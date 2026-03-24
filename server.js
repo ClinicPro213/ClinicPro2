@@ -148,7 +148,14 @@ app.post('/api/login', async (req, res) => {
 
 app.get('/api/user/:userId', async (req, res) => {
     try {
-        const user = await User.findById(req.params.userId);
+        const userId = req.params.userId;
+        
+        // Validate ObjectId
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({ message: 'معرف المستخدم غير صالح' });
+        }
+        
+        const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({ message: 'المستخدم غير موجود' });
         }
@@ -163,7 +170,6 @@ app.get('/api/user/:userId', async (req, res) => {
             const now = new Date();
             if (now > user.subscriptionExpiry) {
                 isSubscribed = false;
-                // Auto-update expired subscription
                 user.isSubscribed = false;
                 await user.save();
                 subscriptionExpiry = null;
@@ -182,16 +188,19 @@ app.get('/api/user/:userId', async (req, res) => {
         
         res.json({
             user: {
-                ...user.toObject(),
-                isSubscribed,
-                subscriptionExpiry
+                id: user._id,
+                fullName: user.fullName,
+                username: user.username,
+                role: user.role,
+                isSubscribed: isSubscribed,
+                subscriptionExpiry: subscriptionExpiry
             },
             patientCount,
             remainingSlots
         });
     } catch (error) {
         console.error('Error fetching user:', error);
-        res.status(500).json({ message: 'خطأ في جلب بيانات المستخدم' });
+        res.status(500).json({ message: 'خطأ في جلب بيانات المستخدم: ' + error.message });
     }
 });
 
