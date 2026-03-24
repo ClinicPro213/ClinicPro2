@@ -1,412 +1,873 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const path = require('path');
-require('dotenv').config();
-
-const app = express();
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.static('public'));
-
-// MongoDB Connection
-mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://ClinicPro:admin8899@cluster0.ufglcnq.mongodb.net/?appName=Cluster0', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-}).then(() => {
-    console.log('✅ Connected to MongoDB');
-}).catch(err => {
-    console.error('❌ MongoDB connection error:', err);
-    console.log('⚠️  Please make sure MongoDB is running. Run "mongod" in terminal');
-});
-
-// User Schema
-const userSchema = new mongoose.Schema({
-    fullName: String,
-    username: { type: String, unique: true },
-    password: String,
-    phone: String,
-    age: Number,
-    clinicName: String,
-    address: String,
-    role: { type: String, default: 'user' },
-    isSubscribed: { type: Boolean, default: false },
-    subscriptionExpiry: Date,
-    createdAt: { type: Date, default: Date.now }
-});
-
-const User = mongoose.model('User', userSchema);
-
-// Patient Schema
-const patientSchema = new mongoose.Schema({
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    name: String,
-    phone: String,
-    age: Number,
-    address: String,
-    medicalHistory: String,
-    notes: String,
-    nextAppointment: { type: Date, default: null }, // الموعد القادم
-    nextAppointmentNotes: { type: String, default: '' }, // ملاحظات الموعد
-    createdAt: { type: Date, default: Date.now }
-});
-
-const Patient = mongoose.model('Patient', patientSchema);
-
-// Treatment Schema
-const treatmentSchema = new mongoose.Schema({
-    patientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Patient' },
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    toothNumber: Number,
-    treatmentType: String,
-    description: String,
-    cost: Number,
-    treatmentDate: { type: Date, default: Date.now },
-    notes: String
-});
-
-const Treatment = mongoose.model('Treatment', treatmentSchema);
-
-// ============ AUTH ROUTES ============
-app.post('/api/register', async (req, res) => {
-    try {
-        console.log('📝 Register request:', req.body);
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة عيادات الأسنان | Dental Clinic Pro</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
         
-        const { fullName, username, password, phone, age, clinicName, address } = req.body;
+        /* Auth Card */
+        .auth-card { background: white; border-radius: 32px; padding: 40px; max-width: 500px; margin: 50px auto; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .auth-header { text-align: center; margin-bottom: 32px; }
+        .auth-header i { font-size: 60px; color: #3b82f6; }
+        .auth-header h1 { font-size: 28px; color: #0f172a; margin-top: 10px; }
+        .auth-header p { color: #64748b; margin-top: 8px; }
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; margin-bottom: 8px; color: #334155; font-weight: 500; }
+        .input-group input, .input-group textarea, .input-group select { width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 16px; transition: all 0.2s; }
+        .input-group input:focus, .input-group textarea:focus, .input-group select:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+        .btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+        .btn-whatsapp { background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); }
+        .btn-secondary { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+        .btn-danger { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+        .switch-link { text-align: center; margin-top: 20px; color: #64748b; }
+        .switch-link a { color: #3b82f6; cursor: pointer; text-decoration: none; font-weight: 600; }
         
-        // Check if user exists
-        const existingUser = await User.findOne({ username });
-        if (existingUser) {
-            return res.status(400).json({ message: 'اسم المستخدم موجود بالفعل' });
-        }
+        /* Dashboard */
+        .dashboard { display: none; background: #f8fafc; border-radius: 32px; min-height: 85vh; overflow: hidden; }
+        .navbar { background: white; padding: 20px 30px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .logo { display: flex; align-items: center; gap: 12px; }
+        .logo i { font-size: 32px; color: #3b82f6; }
+        .logo h2 { color: #0f172a; font-size: 22px; }
+        .user-info { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+        .user-badge { display: flex; align-items: center; gap: 10px; background: #f1f5f9; padding: 8px 16px; border-radius: 50px; }
+        .subscription-badge { padding: 6px 12px; border-radius: 50px; font-size: 12px; font-weight: 600; }
+        .subscription-active { background: #10b981; color: white; }
+        .subscription-inactive { background: #ef4444; color: white; }
+        .logout-btn { background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 10px; cursor: pointer; transition: all 0.2s; }
+        .logout-btn:hover { background: #dc2626; }
+        .main-content { padding: 30px; }
         
-        // Create user
-        const user = new User({
-            fullName,
-            username,
-            password,
-            phone: phone || '',
-            age: parseInt(age),
-            clinicName,
-            address,
-            role: username === 'admin' ? 'admin' : 'user'
-        });
+        /* Stats */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: white; padding: 20px; border-radius: 20px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: all 0.2s; }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .stat-info h3 { color: #64748b; font-size: 14px; margin-bottom: 8px; }
+        .stat-info .number { font-size: 32px; font-weight: bold; color: #0f172a; }
+        .stat-icon i { font-size: 48px; color: #3b82f6; opacity: 0.7; }
         
-        await user.save();
+        /* Search */
+        .search-bar { background: white; padding: 20px; border-radius: 20px; margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap; }
+        .search-bar input { flex: 1; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 16px; }
+        .search-bar input:focus { outline: none; border-color: #3b82f6; }
         
-        console.log('✅ User created:', username, 'with ID:', user._id);
+        /* Patients Grid */
+        .patients-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 20px; }
+        .patient-card { background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: transform 0.2s; }
+        .patient-card:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .patient-header { background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .patient-header h3 { font-size: 18px; }
+        .patient-actions button { background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 10px; border-radius: 8px; cursor: pointer; margin-left: 5px; transition: all 0.2s; }
+        .patient-actions button:hover { background: rgba(255,255,255,0.3); }
+        .patient-body { padding: 20px; }
+        .patient-info p { margin: 8px 0; color: #334155; }
+        .patient-info i { width: 25px; color: #3b82f6; }
+        .next-appointment { background: #dbeafe; padding: 12px; border-radius: 12px; margin-top: 12px; border-right: 4px solid #3b82f6; }
+        .treatment-summary { background: #f1f5f9; padding: 10px; border-radius: 12px; margin-top: 10px; font-size: 13px; }
         
-        res.json({
-            success: true,
-            user: {
-                id: user._id.toString(), // Ensure it's a string
-                fullName: user.fullName,
-                username: user.username,
-                role: user.role,
-                isSubscribed: user.isSubscribed
-            }
-        });
-    } catch (error) {
-        console.error('Registration error:', error);
-        res.status(500).json({ message: 'خطأ في التسجيل: ' + error.message });
+        /* Teeth Diagram */
+        .teeth-diagram { background: #f8fafc; padding: 20px; border-radius: 20px; margin-bottom: 20px; overflow-x: auto; }
+        .teeth-row { display: flex; justify-content: center; gap: 5px; margin-bottom: 10px; flex-wrap: wrap; }
+        .tooth { width: 65px; height: 70px; background: white; border: 2px solid #e2e8f0; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
+        .tooth:hover { transform: scale(1.05); border-color: #3b82f6; background: #eff6ff; }
+        .tooth.selected { background: #3b82f6; color: white; border-color: #3b82f6; }
+        .tooth.has-treatment { background: #fef3c7; border-color: #f59e0b; }
+        .tooth-number { font-size: 16px; font-weight: bold; }
+        .tooth-treatment-type { font-size: 10px; margin-top: 5px; text-align: center; max-width: 60px; overflow: hidden; text-overflow: ellipsis; }
+        
+        .treatment-list-item { background: #f8fafc; padding: 12px; border-radius: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border: 1px solid #e2e8f0; }
+        .treatment-remove { background: #ef4444; color: white; border: none; padding: 4px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; }
+        .session-card { background: white; border-radius: 16px; padding: 15px; margin-bottom: 15px; border: 1px solid #e2e8f0; }
+        .session-date { color: #3b82f6; font-weight: bold; margin-bottom: 10px; font-size: 14px; }
+        
+        .alert { padding: 12px 16px; border-radius: 12px; margin-bottom: 20px; display: none; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .alert-success { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+        .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        .alert-warning { background: #fed7aa; color: #92400e; border: 1px solid #fed7aa; }
+        .subscription-card { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 20px; border-radius: 20px; margin-bottom: 20px; text-align: center; }
+        
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: white; border-radius: 24px; max-width: 900px; width: 95%; max-height: 90vh; overflow-y: auto; }
+        .modal-header { padding: 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h3 { color: #0f172a; }
+        .close-modal { background: none; border: none; font-size: 24px; cursor: pointer; color: #64748b; }
+        .modal-body { padding: 20px; }
+        
+        @media (max-width: 768px) { .navbar { flex-direction: column; text-align: center; } .patients-grid { grid-template-columns: 1fr; } .tooth { width: 45px; height: 50px; } .tooth-number { font-size: 12px; } .main-content { padding: 20px; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Login Page -->
+        <div id="loginPage" class="auth-card">
+            <div class="auth-header"><i class="fas fa-tooth"></i><h1>نظام إدارة عيادات الأسنان</h1><p>سجل دخولك للمتابعة</p></div>
+            <div id="loginAlert" class="alert alert-error"></div>
+            <form id="loginForm">
+                <div class="input-group"><label><i class="fas fa-user"></i> اسم المستخدم</label><input type="text" id="loginUsername" required placeholder="أدخل اسم المستخدم"></div>
+                <div class="input-group"><label><i class="fas fa-lock"></i> كلمة المرور</label><input type="password" id="loginPassword" required placeholder="أدخل كلمة المرور"></div>
+                <button type="submit" class="btn">تسجيل الدخول</button>
+            </form>
+            <div class="switch-link">ليس لديك حساب؟ <a onclick="showRegister()">إنشاء حساب جديد</a></div>
+        </div>
+
+        <!-- Register Page -->
+        <div id="registerPage" class="auth-card" style="display: none;">
+            <div class="auth-header"><i class="fas fa-user-plus"></i><h1>إنشاء حساب جديد</h1><p>أدخل بياناتك للتسجيل</p></div>
+            <div id="registerAlert" class="alert alert-error"></div>
+            <form id="registerForm">
+                <div class="input-group"><label><i class="fas fa-user"></i> الاسم الكامل</label><input type="text" id="regFullName" required></div>
+                <div class="input-group"><label><i class="fas fa-user-circle"></i> اسم المستخدم</label><input type="text" id="regUsername" required></div>
+                <div class="input-group"><label><i class="fas fa-lock"></i> كلمة المرور</label><input type="password" id="regPassword" required></div>
+                <div class="input-group"><label><i class="fas fa-phone"></i> رقم الهاتف</label><input type="text" id="regPhone"></div>
+                <div class="input-group"><label><i class="fas fa-calendar-alt"></i> العمر</label><input type="number" id="regAge" required></div>
+                <div class="input-group"><label><i class="fas fa-hospital"></i> اسم العيادة</label><input type="text" id="regClinicName" required></div>
+                <div class="input-group"><label><i class="fas fa-map-marker-alt"></i> العنوان</label><input type="text" id="regAddress" required></div>
+                <button type="submit" class="btn">إنشاء حساب</button>
+            </form>
+            <div class="switch-link">لديك حساب؟ <a onclick="showLogin()">تسجيل الدخول</a></div>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboard" class="dashboard">
+            <div class="navbar">
+                <div class="logo"><i class="fas fa-tooth"></i><h2>نظام إدارة عيادات الأسنان</h2></div>
+                <div class="user-info">
+                    <div class="user-badge"><i class="fas fa-user-md"></i><span id="userNameDisplay"></span></div>
+                    <div id="subscriptionBadge" class="subscription-badge subscription-inactive">📊 مجاني - 5 مرضى</div>
+                    <button class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i> خروج</button>
+                </div>
+            </div>
+            <div class="main-content">
+                <div id="dashboardAlert" class="alert"></div>
+                <div id="subscriptionWarning" style="display: none;"></div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-info"><h3>عدد المرضى</h3><div class="number" id="totalPatients">0</div></div><div class="stat-icon"><i class="fas fa-users"></i></div></div>
+                    <div class="stat-card"><div class="stat-info"><h3>المتبقي مجاناً</h3><div class="number" id="remainingSlots">5</div></div><div class="stat-icon"><i class="fas fa-chart-line"></i></div></div>
+                </div>
+
+                <div class="search-bar">
+                    <input type="text" id="searchInput" placeholder="🔍 بحث عن مريض بالاسم أو رقم الهاتف..." onkeyup="searchPatients()">
+                    <button class="btn" style="width: auto; padding: 12px 24px;" onclick="showAddPatientModal()"><i class="fas fa-plus"></i> إضافة مريض</button>
+                </div>
+
+                <div id="patientsGrid" class="patients-grid"></div>
+                <div id="adminPanel" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Patient Modal -->
+    <div id="patientModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header"><h3 id="modalTitle">إضافة مريض</h3><button class="close-modal" onclick="closeModal('patientModal')">&times;</button></div>
+            <div class="modal-body">
+                <form id="patientForm">
+                    <input type="hidden" id="patientId">
+                    <div class="input-group"><label>اسم المريض *</label><input type="text" id="patientName" required></div>
+                    <div class="input-group"><label>رقم الهاتف</label><input type="text" id="patientPhone"></div>
+                    <div class="input-group"><label>العمر *</label><input type="number" id="patientAge" required></div>
+                    <div class="input-group"><label>العنوان</label><input type="text" id="patientAddress"></div>
+                    <div class="input-group"><label>التاريخ الطبي</label><textarea id="patientMedicalHistory" rows="2" placeholder="أمراض مزمنة، حساسية، إلخ"></textarea></div>
+                    <div class="input-group"><label>ملاحظات عامة</label><textarea id="patientNotes" rows="3" placeholder="ملاحظات عامة عن المريض"></textarea></div>
+                    <div class="input-group"><label>موعد الجلسة القادمة</label><input type="datetime-local" id="nextAppointment"></div>
+                    <div class="input-group"><label>ملاحظات الموعد</label><textarea id="nextAppointmentNotes" rows="2" placeholder="نوع المعالجة المطلوبة في الموعد القادم"></textarea></div>
+                    <button type="submit" class="btn">حفظ</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Treatment Session Modal (إضافة جلسة علاجية) -->
+    <div id="treatmentSessionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header"><h3><i class="fas fa-stethoscope"></i> إضافة جلسة علاجية</h3><button class="close-modal" onclick="closeModal('treatmentSessionModal')">&times;</button></div>
+            <div class="modal-body">
+                <input type="hidden" id="sessionPatientId">
+                <div id="teethDiagram" class="teeth-diagram"></div>
+                
+                <div id="selectedTreatmentsSection">
+                    <h4><i class="fas fa-list"></i> المعالجات المختارة:</h4>
+                    <div id="treatmentsList" style="margin-top: 10px;"></div>
+                </div>
+                
+                <div class="input-group"><label><i class="fas fa-pencil-alt"></i> ملاحظات الجلسة</label><textarea id="sessionNotes" rows="2" placeholder="ملاحظات إضافية عن الجلسة"></textarea></div>
+                <div class="input-group"><label><i class="fas fa-money-bill"></i> التكلفة الإجمالية</label><input type="number" id="sessionTotalCost" value="0" readonly style="background: #f1f5f9;"></div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="button" class="btn" onclick="saveTreatmentSession()"><i class="fas fa-save"></i> حفظ الجلسة</button>
+                    <button type="button" class="btn btn-whatsapp" onclick="shareDiagnosis()"><i class="fab fa-whatsapp"></i> مشاركة عبر واتساب</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Previous Treatments Modal (عرض المعالجات السابقة) -->
+    <div id="previousTreatmentsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header"><h3><i class="fas fa-history"></i> سجل المعالجات السابقة</h3><button class="close-modal" onclick="closeModal('previousTreatmentsModal')">&times;</button></div>
+            <div class="modal-body" id="previousTreatmentsList"></div>
+        </div>
+    </div>
+<script>
+    let currentUser = null;
+    let allPatients = [];
+    let currentTreatments = [];
+    let currentPatientForSession = null;
+    let allTreatmentsHistory = [];
+
+    // أنواع المعالجات المتاحة
+    const treatmentTypes = ['فحص', 'حشو', 'تحضير', 'خلع', 'تنظيف', 'تلبيس', 'زراعة', 'علاج عصب', 'تبييض', 'تقويم', 'جسر', 'تركيبة'];
+
+    function showAlert(elementId, message, type) {
+        const alert = document.getElementById(elementId);
+        if (!alert) return;
+        alert.textContent = message;
+        alert.className = `alert alert-${type} show`;
+        alert.style.display = 'block';
+        setTimeout(() => alert.style.display = 'none', 4000);
     }
-});
 
-app.post('/api/login', async (req, res) => {
-    try {
-        console.log('🔐 Login request:', req.body.username);
-        
-        const { username, password } = req.body;
-        
-        const user = await User.findOne({ username });
-        if (!user) {
-            return res.status(401).json({ message: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
+    // رسم خريطة الأسنان
+    function drawTeethDiagram(selectedTeeth = [], existingTreatments = []) {
+        const teeth = [];
+        for (let i = 1; i <= 32; i++) {
+            let jaw = '';
+            if (i <= 8) jaw = 'الفك العلوي - يمين';
+            else if (i <= 16) jaw = 'الفك العلوي - يسار';
+            else if (i <= 24) jaw = 'الفك السفلي - يسار';
+            else jaw = 'الفك السفلي - يمين';
+            teeth.push({ number: i, jaw });
         }
         
-        if (user.password !== password) {
-            return res.status(401).json({ message: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
-        }
+        const jaws = {
+            'الفك العلوي - يمين': teeth.slice(0, 8),
+            'الفك العلوي - يسار': teeth.slice(8, 16),
+            'الفك السفلي - يسار': teeth.slice(16, 24),
+            'الفك السفلي - يمين': teeth.slice(24, 32)
+        };
         
-        console.log('✅ Login successful:', username, 'ID:', user._id);
-        
-        res.json({
-            success: true,
-            user: {
-                id: user._id.toString(), // Ensure it's a string
-                fullName: user.fullName,
-                username: user.username,
-                role: user.role,
-                isSubscribed: user.isSubscribed,
-                subscriptionExpiry: user.subscriptionExpiry
+        let html = '';
+        for (const [jaw, jawTeeth] of Object.entries(jaws)) {
+            html += `<div style="margin-bottom: 20px;"><strong style="color: #1e40af;">${jaw}</strong><div class="teeth-row">`;
+            for (const tooth of jawTeeth) {
+                const isSelected = selectedTeeth.includes(tooth.number);
+                const existingTreatment = existingTreatments.find(t => t.toothNumber === tooth.number);
+                const treatmentType = existingTreatment ? existingTreatment.treatmentType : '';
+                html += `
+                    <div class="tooth ${isSelected ? 'selected' : ''} ${existingTreatment ? 'has-treatment' : ''}" onclick="selectTooth(${tooth.number})">
+                        <div class="tooth-number">${tooth.number}</div>
+                        <div class="tooth-treatment-type">${treatmentType ? treatmentType.substring(0, 4) : ''}</div>
+                    </div>
+                `;
             }
-        });
-    } catch (error) {
-        console.error('Login error:', error);
-        res.status(500).json({ message: 'خطأ في تسجيل الدخول' });
+            html += `</div></div>`;
+        }
+        document.getElementById('teethDiagram').innerHTML = html;
     }
-});
 
-app.get('/api/user/:userId', async (req, res) => {
-    try {
-        const userId = req.params.userId;
-        
-        console.log('🔍 Fetching user with ID:', userId);
-        
-        // Check if userId is valid
-        if (!userId || userId === 'undefined' || userId === 'null' || userId === '') {
-            console.error('❌ Invalid user ID provided:', userId);
-            return res.status(400).json({ message: 'معرف المستخدم غير صالح' });
-        }
-        
-        // Validate ObjectId format
-        if (!mongoose.Types.ObjectId.isValid(userId)) {
-            console.error('❌ Invalid ObjectId format:', userId);
-            return res.status(400).json({ message: 'معرف المستخدم غير صالح' });
-        }
-        
-        const user = await User.findById(userId);
-        if (!user) {
-            console.error('❌ User not found for ID:', userId);
-            return res.status(404).json({ message: 'المستخدم غير موجود' });
-        }
-        
-        const patientCount = await Patient.countDocuments({ userId: user._id });
-        
-        // Check if subscription is expired
-        let isSubscribed = user.isSubscribed;
-        let subscriptionExpiry = user.subscriptionExpiry;
-        
-        if (user.isSubscribed && user.subscriptionExpiry) {
-            const now = new Date();
-            if (now > user.subscriptionExpiry) {
-                isSubscribed = false;
-                user.isSubscribed = false;
-                await user.save();
-                subscriptionExpiry = null;
-                console.log('⚠️ Subscription expired for user:', user.username);
+    // اختيار سن وإضافة معالجة
+    function selectTooth(toothNumber) {
+        const existing = currentTreatments.find(t => t.toothNumber === toothNumber);
+        if (existing) {
+            if (confirm(`هل تريد إزالة معالجة السن ${toothNumber}؟`)) {
+                currentTreatments = currentTreatments.filter(t => t.toothNumber !== toothNumber);
             }
-        }
-        
-        // Calculate remaining slots
-        let remainingSlots;
-        if (user.role === 'admin') {
-            remainingSlots = 'غير محدود';
-        } else if (isSubscribed) {
-            remainingSlots = 'غير محدود';
         } else {
-            remainingSlots = Math.max(0, 5 - patientCount);
+            const treatmentType = prompt(`اختر نوع المعالجة للسن ${toothNumber}:\n${treatmentTypes.join(', ')}`, 'فحص');
+            if (treatmentType && treatmentTypes.includes(treatmentType)) {
+                const description = prompt('وصف إضافي (اختياري):', '');
+                const cost = parseFloat(prompt('التكلفة (ريال):', '0')) || 0;
+                currentTreatments.push({
+                    toothNumber: toothNumber,
+                    treatmentType: treatmentType,
+                    description: description || '',
+                    cost: cost
+                });
+            }
+        }
+        updateTreatmentsList();
+        drawTeethDiagram(currentTreatments.map(t => t.toothNumber), currentTreatments);
+        updateTotalCost();
+    }
+
+    function updateTreatmentsList() {
+        const listDiv = document.getElementById('treatmentsList');
+        if (currentTreatments.length === 0) {
+            listDiv.innerHTML = '<p style="color: #64748b; text-align: center; padding: 20px;">لم يتم اختيار أي معالجة بعد. اضغط على السن لإضافة معالجة</p>';
+            return;
+        }
+        listDiv.innerHTML = currentTreatments.map((t, idx) => `
+            <div class="treatment-list-item">
+                <div><strong><i class="fas fa-tooth"></i> السن ${t.toothNumber}</strong> - <span style="color: #3b82f6;">${t.treatmentType}</span></div>
+                <div style="font-size: 13px; color: #64748b;">${t.description || 'لا يوجد وصف'} ${t.cost > 0 ? `| 💰 ${t.cost} ريال` : ''}</div>
+                <button class="treatment-remove" onclick="removeTreatment(${idx})"><i class="fas fa-trash"></i> إزالة</button>
+            </div>
+        `).join('');
+    }
+
+    function removeTreatment(index) {
+        currentTreatments.splice(index, 1);
+        updateTreatmentsList();
+        drawTeethDiagram(currentTreatments.map(t => t.toothNumber), currentTreatments);
+        updateTotalCost();
+    }
+
+    function updateTotalCost() {
+        const total = currentTreatments.reduce((sum, t) => sum + (t.cost || 0), 0);
+        document.getElementById('sessionTotalCost').value = total;
+    }
+
+    // حفظ جلسة المعالجة
+    async function saveTreatmentSession() {
+        if (currentTreatments.length === 0) {
+            showAlert('dashboardAlert', 'الرجاء اختيار سن واحد على الأقل لإضافة معالجة', 'error');
+            return;
         }
         
-        console.log('✅ User data sent:', user.username, 'Patients:', patientCount);
+        try {
+            let successCount = 0;
+            for (const treatment of currentTreatments) {
+                const treatmentData = {
+                    patientId: currentPatientForSession,
+                    userId: currentUser.id,
+                    toothNumber: treatment.toothNumber,
+                    treatmentType: treatment.treatmentType,
+                    description: treatment.description,
+                    cost: treatment.cost,
+                    notes: document.getElementById('sessionNotes').value,
+                    treatmentDate: new Date().toISOString()
+                };
+                
+                const response = await fetch('/api/treatments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(treatmentData)
+                });
+                
+                if (response.ok) successCount++;
+            }
+            
+            if (successCount > 0) {
+                showAlert('dashboardAlert', `تم حفظ ${successCount} معالجة بنجاح`, 'success');
+                closeModal('treatmentSessionModal');
+                currentTreatments = [];
+                await loadPatients();
+            } else {
+                showAlert('dashboardAlert', 'فشل حفظ المعالجات', 'error');
+            }
+        } catch (error) {
+            console.error('Error saving treatments:', error);
+            showAlert('dashboardAlert', 'خطأ في حفظ المعالجات', 'error');
+        }
+    }
+
+    // مشاركة التشخيص عبر واتساب
+    async function shareDiagnosis() {
+        if (!currentPatientForSession) return;
+        const patient = allPatients.find(p => p._id === currentPatientForSession);
+        if (!patient) return;
         
-        res.json({
-            user: {
-                id: user._id.toString(),
-                fullName: user.fullName,
-                username: user.username,
-                role: user.role,
-                isSubscribed: isSubscribed,
-                subscriptionExpiry: subscriptionExpiry
-            },
-            patientCount,
-            remainingSlots
+        let message = `*🦷 تشخيص وعلاج المريض: ${patient.name}*\n`;
+        message += `📅 التاريخ: ${new Date().toLocaleDateString('ar-EG')}\n`;
+        message += `🏥 العيادة: ${currentUser.clinicName}\n\n`;
+        message += `*المعالجات:*\n`;
+        currentTreatments.forEach(t => {
+            message += `🔹 السن ${t.toothNumber}: ${t.treatmentType}\n`;
+            if (t.description) message += `   📝 ${t.description}\n`;
+            if (t.cost) message += `   💰 ${t.cost} ريال\n`;
         });
-    } catch (error) {
-        console.error('Error fetching user:', error);
-        res.status(500).json({ message: 'خطأ في جلب بيانات المستخدم: ' + error.message });
+        message += `\n💰 *الإجمالي: ${document.getElementById('sessionTotalCost').value} ريال*\n`;
+        if (document.getElementById('sessionNotes').value) {
+            message += `\n📋 *ملاحظات:*\n${document.getElementById('sessionNotes').value}\n`;
+        }
+        message += `\n🦷 *نظام إدارة عيادات الأسنان*`;
+        
+        const phone = patient.phone || '967773041464';
+        const encodedMessage = encodeURIComponent(message);
+        window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
     }
-});
 
-// ============ PATIENT ROUTES ============
-app.get('/api/patients/:userId', async (req, res) => {
-    try {
-        const userId = req.params.userId;
-        
-        if (!userId || userId === 'undefined') {
-            return res.status(400).json({ message: 'معرف المستخدم غير صالح' });
-        }
-        
-        const patients = await Patient.find({ userId: userId }).sort({ createdAt: -1 });
-        res.json(patients);
-    } catch (error) {
-        console.error('Error getting patients:', error);
-        res.status(500).json({ message: 'خطأ في جلب المرضى' });
-    }
-});
-
-app.post('/api/patients', async (req, res) => {
-    try {
-        const { userId, name, phone, age, address, medicalHistory, notes } = req.body;
-        
-        if (!userId || userId === 'undefined') {
-            return res.status(400).json({ message: 'معرف المستخدم غير صالح' });
-        }
-        
-        // Check limit
-        const user = await User.findById(userId);
-        if (!user) {
-            return res.status(404).json({ message: 'المستخدم غير موجود' });
-        }
-        
-        const patientCount = await Patient.countDocuments({ userId });
-        
-        if (user.role !== 'admin' && !user.isSubscribed && patientCount >= 5) {
-            return res.status(403).json({ 
-                message: 'لقد وصلت للحد الأقصى (5 مرضى). يرجى الاشتراك',
-                needSubscription: true 
+    // عرض المعالجات السابقة للمريض
+    async function showPatientTreatments(patientId) {
+        try {
+            const response = await fetch(`/api/treatments/patient/${patientId}`);
+            const treatments = await response.json();
+            allTreatmentsHistory = treatments;
+            
+            const patient = allPatients.find(p => p._id === patientId);
+            
+            const groupedByDate = {};
+            treatments.forEach(t => {
+                const date = new Date(t.treatmentDate).toLocaleDateString('ar-EG');
+                if (!groupedByDate[date]) groupedByDate[date] = [];
+                groupedByDate[date].push(t);
             });
+            
+            let html = '';
+            if (treatments.length === 0) {
+                html = '<p style="text-align: center; padding: 40px;">لا توجد معالجات سابقة لهذا المريض</p>';
+            } else {
+                for (const [date, sessionTreatments] of Object.entries(groupedByDate)) {
+                    html += `
+                        <div class="session-card">
+                            <div class="session-date"><i class="fas fa-calendar-alt"></i> ${date}</div>
+                    `;
+                    sessionTreatments.forEach(t => {
+                        html += `
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
+                                <div>
+                                    <strong><i class="fas fa-tooth"></i> السن ${t.toothNumber}</strong>
+                                    <span class="treatment-badge" style="display: inline-block; background: #e2e8f0; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-right: 8px;">${t.treatmentType}</span>
+                                    ${t.description ? `<p style="font-size: 12px; color: #64748b; margin-top: 4px;">${t.description}</p>` : ''}
+                                </div>
+                                <div style="text-align: left;">
+                                    ${t.cost ? `${t.cost} ريال` : ''}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += `</div>`;
+                }
+            }
+            
+            document.getElementById('previousTreatmentsList').innerHTML = html;
+            document.getElementById('previousTreatmentsModal').style.display = 'flex';
+        } catch (error) {
+            console.error('Error loading treatments:', error);
+            showAlert('dashboardAlert', 'خطأ في جلب المعالجات', 'error');
+        }
+    }
+
+    // ============ دوال المصادقة ============
+    async function register() {
+        const userData = {
+            fullName: document.getElementById('regFullName').value,
+            username: document.getElementById('regUsername').value,
+            password: document.getElementById('regPassword').value,
+            phone: document.getElementById('regPhone').value,
+            age: parseInt(document.getElementById('regAge').value),
+            clinicName: document.getElementById('regClinicName').value,
+            address: document.getElementById('regAddress').value
+        };
+        
+        if (!userData.fullName || !userData.username || !userData.password) {
+            showAlert('registerAlert', 'يرجى ملء جميع الحقول المطلوبة', 'error');
+            return;
         }
         
-        const patient = new Patient({
-            userId,
-            name,
-            phone: phone || '',
-            age: parseInt(age),
-            address: address || '',
-            medicalHistory: medicalHistory || '',
-            notes: notes || ''
-        });
-        
-        await patient.save();
-        
-        res.json({ success: true, patient });
-    } catch (error) {
-        console.error('Error adding patient:', error);
-        res.status(500).json({ message: 'خطأ في إضافة المريض' });
-    }
-});
-
-app.put('/api/patients/:id', async (req, res) => {
-    try {
-        const patient = await Patient.findByIdAndUpdate(
-            req.params.id,
-            req.body,
-            { new: true }
-        );
-        res.json({ success: true, patient });
-    } catch (error) {
-        res.status(500).json({ message: 'خطأ في التحديث' });
-    }
-});
-
-app.delete('/api/patients/:id', async (req, res) => {
-    try {
-        await Patient.findByIdAndDelete(req.params.id);
-        await Treatment.deleteMany({ patientId: req.params.id });
-        res.json({ success: true });
-    } catch (error) {
-        res.status(500).json({ message: 'خطأ في الحذف' });
-    }
-});
-
-// ============ TREATMENT ROUTES ============
-app.get('/api/treatments/patient/:patientId', async (req, res) => {
-    try {
-        const treatments = await Treatment.find({ patientId: req.params.patientId }).sort({ treatmentDate: -1 });
-        res.json(treatments);
-    } catch (error) {
-        res.status(500).json({ message: 'خطأ' });
-    }
-});
-
-app.post('/api/treatments', async (req, res) => {
-    try {
-        const treatment = new Treatment(req.body);
-        await treatment.save();
-        res.json({ success: true, treatment });
-    } catch (error) {
-        res.status(500).json({ message: 'خطأ في إضافة المعالجة' });
-    }
-});
-
-app.delete('/api/treatments/:id', async (req, res) => {
-    try {
-        await Treatment.findByIdAndDelete(req.params.id);
-        res.json({ success: true });
-    } catch (error) {
-        res.status(500).json({ message: 'خطأ في الحذف' });
-    }
-});
-
-// ============ ADMIN ROUTES ============
-app.get('/api/admin/users', async (req, res) => {
-    try {
-        const users = await User.find().select('-password');
-        const usersWithStats = await Promise.all(users.map(async (user) => {
-            const patientCount = await Patient.countDocuments({ userId: user._id });
-            const treatmentCount = await Treatment.countDocuments({ userId: user._id });
-            return { ...user.toObject(), patientCount, treatmentCount };
-        }));
-        res.json(usersWithStats);
-    } catch (error) {
-        res.status(500).json({ message: 'خطأ' });
-    }
-});
-
-app.put('/api/admin/users/:id/subscription', async (req, res) => {
-    try {
-        const { isSubscribed } = req.body;
-        const user = await User.findById(req.params.id);
-        
-        if (isSubscribed) {
-            user.isSubscribed = true;
-            user.subscriptionExpiry = new Date();
-            user.subscriptionExpiry.setMonth(user.subscriptionExpiry.getMonth() + 1);
-        } else {
-            user.isSubscribed = false;
-            user.subscriptionExpiry = null;
-        }
-        
-        await user.save();
-        res.json({ success: true, user });
-    } catch (error) {
-        res.status(500).json({ message: 'خطأ' });
-    }
-});
-
-// ============ CREATE DEFAULT ADMIN USER ============
-async function createDefaultAdmin() {
-    try {
-        const adminExists = await User.findOne({ username: 'admin' });
-        if (!adminExists) {
-            const adminUser = new User({
-                fullName: 'مدير النظام',
-                username: 'admin',
-                password: 'admin123',
-                phone: '0000000000',
-                age: 30,
-                clinicName: 'النظام الرئيسي',
-                address: 'المركز الرئيسي',
-                role: 'admin',
-                isSubscribed: true,
-                subscriptionExpiry: new Date(new Date().setFullYear(new Date().getFullYear() + 10)) // 10 years
+        try {
+            const response = await fetch('/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(userData)
             });
-            await adminUser.save();
-            console.log('✅ Default admin user created:');
-            console.log('   Username: admin');
-            console.log('   Password: admin123');
-        } else {
-            console.log('✅ Admin user already exists');
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                currentUser = data.user;
+                localStorage.setItem('userId', currentUser.id);
+                await loadDashboard();
+                showAlert('dashboardAlert', 'تم إنشاء الحساب بنجاح', 'success');
+            } else {
+                showAlert('registerAlert', data.message || 'فشل إنشاء الحساب', 'error');
+            }
+        } catch (error) {
+            showAlert('registerAlert', 'خطأ في الاتصال بالخادم', 'error');
         }
-    } catch (error) {
-        console.error('Error creating admin:', error);
     }
-}
 
-// Call this after MongoDB connection
-mongoose.connection.once('open', () => {
-    createDefaultAdmin();
-});
-// Serve frontend
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+    async function login() {
+        const username = document.getElementById('loginUsername').value;
+        const password = document.getElementById('loginPassword').value;
+        
+        try {
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                currentUser = data.user;
+                localStorage.setItem('userId', currentUser.id);
+                await loadDashboard();
+                showAlert('dashboardAlert', 'تم تسجيل الدخول بنجاح', 'success');
+            } else {
+                showAlert('loginAlert', data.message || 'فشل تسجيل الدخول', 'error');
+            }
+        } catch (error) {
+            showAlert('loginAlert', 'خطأ في الاتصال بالخادم', 'error');
+        }
+    }
 
-const PORT = process.env.PORT || 8000;
-app.listen(PORT, () => {
-    console.log(`\n🚀 Server is running!`);
-    console.log(`📱 Open: http://localhost:${PORT}`);
-    console.log(`📝 Press Ctrl+C to stop\n`);
-});
+    async function loadDashboard() {
+        const userId = localStorage.getItem('userId');
+        if (!userId || userId === 'undefined') { showLogin(); return; }
+        
+        if (!currentUser) {
+            try {
+                const response = await fetch(`/api/user/${userId}`);
+                if (!response.ok) throw new Error();
+                const data = await response.json();
+                currentUser = data.user;
+            } catch (error) { showLogin(); return; }
+        }
+        
+        document.getElementById('loginPage').style.display = 'none';
+        document.getElementById('registerPage').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+        document.getElementById('userNameDisplay').textContent = currentUser.fullName || currentUser.username;
+        
+        const badge = document.getElementById('subscriptionBadge');
+        if (currentUser.role === 'admin') {
+            badge.innerHTML = '👑 مدير النظام';
+            badge.className = 'subscription-badge subscription-active';
+        } else if (currentUser.isSubscribed) {
+            badge.innerHTML = '✨ مشترك - غير محدود';
+            badge.className = 'subscription-badge subscription-active';
+        } else {
+            badge.innerHTML = '📊 مجاني - 5 مرضى';
+            badge.className = 'subscription-badge subscription-inactive';
+        }
+        
+        await loadPatients();
+        await loadStats();
+        if (currentUser.role === 'admin') await loadAdminPanel();
+    }
+
+    // ============ دوال المرضى ============
+    async function loadPatients() {
+        try {
+            const response = await fetch(`/api/patients/${currentUser.id}`);
+            allPatients = await response.json();
+            renderPatients(allPatients);
+        } catch (error) { console.error(error); }
+    }
+
+    function renderPatients(patients) {
+        const grid = document.getElementById('patientsGrid');
+        if (!patients || patients.length === 0) {
+            grid.innerHTML = '<div style="text-align: center; padding: 50px; background: white; border-radius: 20px;"><i class="fas fa-user-friends" style="font-size: 48px; color: #3b82f6; margin-bottom: 15px;"></i><p>لا يوجد مرضى. أضف مريضاً جديداً للبدء</p></div>';
+            return;
+        }
+        
+        grid.innerHTML = patients.map(patient => `
+            <div class="patient-card">
+                <div class="patient-header">
+                    <h3><i class="fas fa-user"></i> ${escapeHtml(patient.name)}</h3>
+                    <div class="patient-actions">
+                        <button onclick="editPatient('${patient._id}')" title="تعديل"><i class="fas fa-edit"></i></button>
+                        <button onclick="showAddTreatmentSession('${patient._id}')" title="إضافة جلسة علاجية"><i class="fas fa-stethoscope"></i></button>
+                        <button onclick="showPatientTreatments('${patient._id}')" title="عرض المعالجات"><i class="fas fa-history"></i></button>
+                        <button onclick="deletePatient('${patient._id}')" title="حذف"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+                <div class="patient-body">
+                    <div class="patient-info">
+                        <p><i class="fas fa-phone"></i> ${escapeHtml(patient.phone || 'غير محدد')}</p>
+                        <p><i class="fas fa-calendar-alt"></i> العمر: ${patient.age} سنة</p>
+                        ${patient.address ? `<p><i class="fas fa-map-marker-alt"></i> ${escapeHtml(patient.address)}</p>` : ''}
+                        ${patient.notes ? `<p><i class="fas fa-pencil-alt"></i> ${escapeHtml(patient.notes.substring(0, 60))}</p>` : ''}
+                    </div>
+                    ${patient.nextAppointment ? `
+                        <div class="next-appointment">
+                            <i class="fas fa-calendar-check"></i> <strong>الموعد القادم:</strong><br>
+                            ${new Date(patient.nextAppointment).toLocaleDateString('ar-EG')} ${new Date(patient.nextAppointment).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'})}
+                            ${patient.nextAppointmentNotes ? `<br><small>📝 ${escapeHtml(patient.nextAppointmentNotes)}</small>` : ''}
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function showAddTreatmentSession(patientId) {
+        currentPatientForSession = patientId;
+        currentTreatments = [];
+        document.getElementById('sessionPatientId').value = patientId;
+        document.getElementById('sessionNotes').value = '';
+        document.getElementById('sessionTotalCost').value = '0';
+        
+        fetch(`/api/treatments/patient/${patientId}`)
+            .then(res => res.json())
+            .then(treatments => {
+                drawTeethDiagram([], treatments);
+            })
+            .catch(err => {
+                drawTeethDiagram([], []);
+            });
+        
+        document.getElementById('treatmentSessionModal').style.display = 'flex';
+    }
+
+    function showSubscriptionWarning(message) {
+        const warningDiv = document.getElementById('subscriptionWarning');
+        warningDiv.innerHTML = `
+            <div class="subscription-card">
+                <i class="fas fa-exclamation-triangle" style="font-size: 48px; color: #f59e0b;"></i>
+                <h3 style="margin: 10px 0;">⚠️ ${message}</h3>
+                <p>للحصول على المزيد من الميزات وإضافة عدد غير محدود من المرضى، يرجى الاشتراك في الباقة المدفوعة.</p>
+                <div style="display: flex; gap: 10px; margin-top: 20px; justify-content: center;">
+                    <button class="btn btn-whatsapp" onclick="contactAdminWhatsApp()" style="width: auto; padding: 10px 20px;"><i class="fab fa-whatsapp"></i> التواصل عبر واتساب</button>
+                </div>
+            </div>
+        `;
+        warningDiv.style.display = 'block';
+        setTimeout(() => warningDiv.style.display = 'none', 10000);
+    }
+
+    function contactAdminWhatsApp() {
+        const phone = "967773041464";
+        const message = encodeURIComponent(`مرحباً، أرغب في الاشتراك في نظام إدارة عيادات الأسنان\nاسم المستخدم: ${currentUser.username}\nاسم العيادة: ${currentUser.clinicName}`);
+        window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+    }
+
+    async function addPatient(patientData) {
+        try {
+            const response = await fetch('/api/patients', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...patientData, userId: currentUser.id })
+            });
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                showAlert('dashboardAlert', 'تم إضافة المريض بنجاح', 'success');
+                closeModal('patientModal');
+                await loadPatients();
+                await loadStats();
+            } else if (response.status === 403) {
+                showSubscriptionWarning(data.message);
+                closeModal('patientModal');
+            } else {
+                showAlert('dashboardAlert', data.message || 'فشل إضافة المريض', 'error');
+            }
+        } catch (error) { showAlert('dashboardAlert', 'خطأ في إضافة المريض', 'error'); }
+    }
+
+    async function updatePatient(patientId, patientData) {
+        try {
+            const response = await fetch(`/api/patients/${patientId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(patientData)
+            });
+            if (response.ok) {
+                showAlert('dashboardAlert', 'تم تحديث المريض بنجاح', 'success');
+                closeModal('patientModal');
+                await loadPatients();
+                await loadStats();
+            }
+        } catch (error) { showAlert('dashboardAlert', 'خطأ في تحديث المريض', 'error'); }
+    }
+
+    async function deletePatient(patientId) {
+        if (confirm('هل أنت متأكد من حذف هذا المريض؟ سيتم حذف جميع معالجاته أيضاً.')) {
+            try {
+                const response = await fetch(`/api/patients/${patientId}`, { method: 'DELETE' });
+                if (response.ok) {
+                    showAlert('dashboardAlert', 'تم حذف المريض بنجاح', 'success');
+                    await loadPatients();
+                    await loadStats();
+                }
+            } catch (error) { showAlert('dashboardAlert', 'خطأ في حذف المريض', 'error'); }
+        }
+    }
+
+    async function loadStats() {
+        try {
+            const response = await fetch(`/api/user/${currentUser.id}`);
+            const data = await response.json();
+            document.getElementById('totalPatients').textContent = data.patientCount || 0;
+            
+            let remainingText = '';
+            if (currentUser.role === 'admin') {
+                remainingText = 'غير محدود';
+            } else if (currentUser.isSubscribed) {
+                remainingText = 'غير محدود';
+            } else {
+                remainingText = Math.max(0, 5 - (data.patientCount || 0));
+                if (data.patientCount >= 5) {
+                    showSubscriptionWarning('لقد وصلت للحد الأقصى من المرضى المجانيين (5 مرضى)');
+                }
+            }
+            document.getElementById('remainingSlots').textContent = remainingText;
+        } catch (error) { console.error(error); }
+    }
+
+    async function loadAdminPanel() {
+        try {
+            const response = await fetch('/api/admin/users');
+            const users = await response.json();
+            const panelHtml = `
+                <div class="admin-panel" style="background: white; border-radius: 20px; padding: 20px; margin-top: 20px;">
+                    <h3><i class="fas fa-crown"></i> لوحة تحكم المدير</h3>
+                    <div style="overflow-x: auto; margin-top: 15px;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #f1f5f9;">
+                                    <th style="padding: 12px; text-align: right;">المستخدم</th>
+                                    <th style="padding: 12px; text-align: right;">العيادة</th>
+                                    <th style="padding: 12px; text-align: right;">المرضى</th>
+                                    <th style="padding: 12px; text-align: right;">المعالجات</th>
+                                    <th style="padding: 12px; text-align: right;">الاشتراك</th>
+                                    <th style="padding: 12px; text-align: right;">إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${users.map(user => `
+                                    <tr style="border-bottom: 1px solid #e2e8f0;">
+                                        <td style="padding: 12px;">
+                                            <strong>${escapeHtml(user.fullName)}</strong><br>
+                                            <small>@${user.username}</small>
+                                        </td>
+                                        <td style="padding: 12px;">${escapeHtml(user.clinicName)}</td>
+                                        <td style="padding: 12px;">${user.patientCount || 0}</td>
+                                        <td style="padding: 12px;">${user.treatmentCount || 0}</td>
+                                        <td style="padding: 12px;">
+                                            <span class="subscription-badge ${user.isSubscribed ? 'subscription-active' : 'subscription-inactive'}">
+                                                ${user.isSubscribed ? 'مشترك' : 'مجاني'}
+                                            </span>
+                                        </td>
+                                        <td style="padding: 12px;">
+                                            <button onclick="toggleSubscription('${user._id}', ${!user.isSubscribed})" 
+                                                class="btn" style="padding: 5px 10px; width: auto; font-size: 12px;">
+                                                ${user.isSubscribed ? 'تعطيل' : 'تفعيل'}
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            document.getElementById('adminPanel').innerHTML = panelHtml;
+            document.getElementById('adminPanel').style.display = 'block';
+        } catch (error) { console.error(error); }
+    }
+
+    async function toggleSubscription(userId, activate) {
+        try {
+            const response = await fetch(`/api/admin/users/${userId}/subscription`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ isSubscribed: activate })
+            });
+            if (response.ok) {
+                showAlert('dashboardAlert', `تم ${activate ? 'تفعيل' : 'تعطيل'} الاشتراك بنجاح`, 'success');
+                await loadAdminPanel();
+            } else {
+                showAlert('dashboardAlert', 'فشل تحديث الاشتراك', 'error');
+            }
+        } catch (error) { showAlert('dashboardAlert', 'خطأ في تحديث الاشتراك', 'error'); }
+    }
+
+    function searchPatients() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        if (query) {
+            const filtered = allPatients.filter(p => p.name.toLowerCase().includes(query) || (p.phone && p.phone.includes(query)));
+            renderPatients(filtered);
+        } else { renderPatients(allPatients); }
+    }
+
+    function showAddPatientModal() {
+        document.getElementById('modalTitle').textContent = 'إضافة مريض جديد';
+        document.getElementById('patientForm').reset();
+        document.getElementById('patientId').value = '';
+        document.getElementById('nextAppointment').value = '';
+        document.getElementById('nextAppointmentNotes').value = '';
+        document.getElementById('patientModal').style.display = 'flex';
+    }
+
+    function editPatient(patientId) {
+        const patient = allPatients.find(p => p._id === patientId);
+        if (patient) {
+            document.getElementById('modalTitle').textContent = 'تعديل بيانات المريض';
+            document.getElementById('patientId').value = patient._id;
+            document.getElementById('patientName').value = patient.name;
+            document.getElementById('patientPhone').value = patient.phone || '';
+            document.getElementById('patientAge').value = patient.age;
+            document.getElementById('patientAddress').value = patient.address || '';
+            document.getElementById('patientMedicalHistory').value = patient.medicalHistory || '';
+            document.getElementById('patientNotes').value = patient.notes || '';
+            if (patient.nextAppointment) {
+                document.getElementById('nextAppointment').value = new Date(patient.nextAppointment).toISOString().slice(0, 16);
+            }
+            document.getElementById('nextAppointmentNotes').value = patient.nextAppointmentNotes || '';
+            document.getElementById('patientModal').style.display = 'flex';
+        }
+    }
+
+    function closeModal(modalId) { 
+        document.getElementById(modalId).style.display = 'none'; 
+    }
+
+    function showLogin() { 
+        document.getElementById('loginPage').style.display = 'block'; 
+        document.getElementById('registerPage').style.display = 'none'; 
+        document.getElementById('dashboard').style.display = 'none'; 
+    }
+
+    function showRegister() { 
+        document.getElementById('loginPage').style.display = 'none'; 
+        document.getElementById('registerPage').style.display = 'block'; 
+        document.getElementById('dashboard').style.display = 'none'; 
+    }
+
+    function logout() { 
+        localStorage.removeItem('userId'); 
+        currentUser = null; 
+        allPatients = [];
+        currentTreatments = [];
+        showLogin(); 
+        document.getElementById('patientsGrid').innerHTML = ''; 
+        document.getElementById('totalPatients').textContent = '0'; 
+        document.getElementById('remainingSlots').textContent = '5'; 
+    }
+
+    function escapeHtml(text) { 
+        if (!text) return ''; 
+        const div = document.createElement('div'); 
+        div.textContent = text; 
+        return div.innerHTML; 
+    }
+
+    // Event Listeners
+    document.getElementById('loginForm').addEventListener('submit', (e) => { e.preventDefault(); login(); });
+    document.getElementById('registerForm').addEventListener('submit', (e) => { e.preventDefault(); register(); });
+    document.getElementById('patientForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const patientId = document.getElementById('patientId').value;
+        const patientData = {
+            name: document.getElementById('patientName').value,
+            phone: document.getElementById('patientPhone').value,
+            age: parseInt(document.getElementById('patientAge').value),
+            address: document.getElementById('patientAddress').value,
+            medicalHistory: document.getElementById('patientMedicalHistory').value,
+            notes: document.getElementById('patientNotes').value,
+            nextAppointment: document.getElementById('nextAppointment').value || null,
+            nextAppointmentNotes: document.getElementById('nextAppointmentNotes').value
+        };
+        if (patientId) { updatePatient(patientId, patientData); } 
+        else { addPatient(patientData); }
+    });
+
+    // Check if user is logged in
+    const userId = localStorage.getItem('userId');
+    if (userId && userId !== 'undefined') loadDashboard();
+    else showLogin();
+
+</script>
+    
+</body>
+</html>
