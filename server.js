@@ -48,6 +48,8 @@ const patientSchema = new mongoose.Schema({
     address: String,
     medicalHistory: String,
     notes: String,
+    nextAppointment: { type: Date, default: null }, // الموعد القادم
+    nextAppointmentNotes: { type: String, default: '' }, // ملاحظات الموعد
     createdAt: { type: Date, default: Date.now }
 });
 
