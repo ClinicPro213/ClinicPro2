@@ -22,7 +22,15 @@ const userSchema = new mongoose.Schema({
     phone: {
         type: String,
         required: [true, 'رقم الهاتف مطلوب'],
-        match: [/^[0-9]{10,15}$/, 'رقم الهاتف غير صالح']
+        validate: {
+            validator: function(v) {
+                // Remove all non-digit characters for validation
+                const cleanPhone = v.replace(/[^\d+]/g, '');
+                // Allow numbers with optional + at start, total length between 8 and 15 digits
+                return /^[\+]?[0-9]{8,15}$/.test(cleanPhone);
+            },
+            message: 'رقم الهاتف غير صالح. يجب أن يكون بين 8 و 15 رقمًا'
+        }
     },
     age: {
         type: Number,
