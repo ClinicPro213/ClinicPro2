@@ -120,6 +120,7 @@
     </div>
             <div class="main-content">
                 <div id="dashboardAlert" class="alert"></div>
+                <div id="subscriptionWarning" style="display: none;"></div>
                 <div class="stats-grid">
                     <div class="stat-card"><div class="stat-info"><h3>عدد المرضى</h3><div class="number" id="totalPatients">0</div></div></div>
                     <div class="stat-card"><div class="stat-info"><h3>المتبقي</h3><div class="number" id="remainingSlots">5</div></div></div>
@@ -151,38 +152,48 @@
 <div id="simpleTreatmentModal" class="modal" style="display: none;"></div>
 
     <!-- Patient Modal -->
-    <div id="patientModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header"><h3 id="modalTitle">إضافة مريض</h3><button class="close-modal" onclick="closeModal('patientModal')">&times;</button></div>
-            <div class="modal-body">
-                <form id="patientForm">
-                    <input type="hidden" id="patientId">
-                    <div class="input-group"><label>اسم المريض *</label><input type="text" id="patientName" required></div>
-                    <div class="input-group"><label>رقم الهاتف</label><input type="text" id="patientPhone"></div>
-                    <div class="input-group"><label>العمر *</label><input type="number" id="patientAge" required></div>
-                    <div class="input-group"><label>العنوان</label><input type="text" id="patientAddress"></div>
-                    <div class="input-group"><label>ملاحظات</label><textarea id="patientNotes" rows="3"></textarea></div>
-                    <button type="submit" class="btn">حفظ</button>
-                </form>
+<div id="patientModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header"><h3 id="modalTitle">إضافة مريض</h3><button class="close-modal" onclick="closeModal('patientModal')">&times;</button></div>
+        <div class="modal-body">
+            <form id="patientForm">
+                <input type="hidden" id="patientId">
+                <div class="input-group"><label>اسم المريض *</label><input type="text" id="patientName" required></div>
+                <div class="input-group"><label>رقم الهاتف</label><input type="text" id="patientPhone"></div>
+                <div class="input-group"><label>العمر *</label><input type="number" id="patientAge" required></div>
+                <div class="input-group"><label>العنوان</label><input type="text" id="patientAddress"></div>
+                <div class="input-group"><label>ملاحظات</label><textarea id="patientNotes" rows="3"></textarea></div>
+                
+                <!-- هذه الحقول كانت مفقودة -->
+                <div class="input-group"><label>موعد الجلسة القادمة</label><input type="datetime-local" id="nextAppointment"></div>
+                <div class="input-group"><label>ملاحظات الموعد</label><textarea id="nextAppointmentNotes" rows="2" placeholder="نوع المعالجة المطلوبة في الموعد القادم"></textarea></div>
+                
+                <button type="submit" class="btn">حفظ</button>
+            </form>
+        </div>
+    </div>
+</div>
+    
+<!-- Treatment Session Modal -->
+<div id="treatmentSessionModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header"><h3>جلسة علاجية</h3><button class="close-modal" onclick="closeModal('treatmentSessionModal')">&times;</button></div>
+        <div class="modal-body">
+            <input type="hidden" id="sessionPatientId">
+            <div id="teethDiagram" class="teeth-diagram"></div>
+            <div id="treatmentsList" style="margin-top: 10px;"></div>
+            
+            <!-- هذه الحقول كانت مفقودة -->
+            <div class="input-group"><label><i class="fas fa-pencil-alt"></i> ملاحظات الجلسة</label><textarea id="sessionNotes" rows="2" placeholder="ملاحظات إضافية عن الجلسة"></textarea></div>
+            <div class="input-group"><label><i class="fas fa-money-bill"></i> التكلفة الإجمالية</label><input type="number" id="sessionTotalCost" value="0" readonly style="background: #f1f5f9;"></div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn" onclick="saveTreatmentSession()">حفظ الجلسة</button>
+                <button class="btn btn-whatsapp" onclick="shareDiagnosis()">مشاركة</button>
             </div>
         </div>
     </div>
-
-    <!-- Treatment Session Modal -->
-    <div id="treatmentSessionModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header"><h3>جلسة علاجية</h3><button class="close-modal" onclick="closeModal('treatmentSessionModal')">&times;</button></div>
-            <div class="modal-body">
-                <input type="hidden" id="sessionPatientId">
-                <div id="teethDiagram" class="teeth-diagram"></div>
-                <div id="treatmentsList" style="margin-top: 10px;"></div>
-                <div style="display: flex; gap: 10px; margin-top: 20px;">
-                    <button class="btn" onclick="saveTreatmentSession()">حفظ الجلسة</button>
-                    <button class="btn btn-whatsapp" onclick="shareDiagnosis()">مشاركة</button>
-                </div>
-            </div>
-        </div>
-    </div>
+</div>
 
         <script>
     let currentUser = null;
