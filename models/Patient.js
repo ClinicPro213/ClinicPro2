@@ -4,7 +4,8 @@ const patientSchema = new mongoose.Schema({
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true
+        required: true,
+        index: true
     },
     name: {
         type: String,
@@ -13,8 +14,8 @@ const patientSchema = new mongoose.Schema({
     },
     phone: {
         type: String,
-        required: [true, 'رقم الهاتف مطلوب'],
-        match: [/^[0-9]{10,15}$/, 'رقم الهاتف غير صالح']
+        default: '',
+        trim: true
     },
     age: {
         type: Number,
@@ -24,9 +25,14 @@ const patientSchema = new mongoose.Schema({
     },
     address: {
         type: String,
+        default: '',
         trim: true
     },
     medicalHistory: {
+        type: String,
+        default: ''
+    },
+    notes: {
         type: String,
         default: ''
     },
