@@ -62,7 +62,7 @@
     <div class="container">
         <!-- Login Page -->
         <div id="loginPage" class="auth-card">
-            <div class="auth-header"><i class="fas fa-tooth"></i><h1>نظام إدارة عيادات الأسنان</h1></div>
+            <div class="auth-header"><i class="fas fa-tooth"></i><h1>ClinicPro</h1></div>
             <div id="loginAlert" class="alert alert-error"></div>
             <form id="loginForm">
                 <div class="input-group"><label>اسم المستخدم</label><input type="text" id="loginUsername" required></div>
@@ -77,7 +77,7 @@
             <div class="auth-header"><i class="fas fa-user-plus"></i><h1>إنشاء حساب جديد</h1></div>
             <div id="registerAlert" class="alert alert-error"></div>
             <form id="registerForm">
-                <div class="input-group"><label>الاسم الكامل</label><input type="text" id="regFullName" required></div>
+                <div class="input-group"><label>إسمك يا دكتور/ة</label><input type="text" id="regFullName" required></div>
                 <div class="input-group"><label>اسم المستخدم</label><input type="text" id="regUsername" required></div>
                 <div class="input-group"><label>كلمة المرور</label><input type="password" id="regPassword" required></div>
                 <div class="input-group"><label>رقم الهاتف</label><input type="text" id="regPhone"></div>
@@ -90,15 +90,21 @@
         </div>
 
         <!-- Dashboard -->
-        <div id="dashboard" class="dashboard">
-            <div class="navbar">
-                <div class="logo"><i class="fas fa-tooth"></i><h2>نظام إدارة عيادات الأسنان</h2></div>
-                <div class="user-info">
-                    <span id="userNameDisplay"></span>
-                    <div id="subscriptionBadge" class="subscription-badge subscription-inactive">📊 مجاني</div>
-                    <button class="logout-btn" onclick="logout()">خروج</button>
-                </div>
+<div id="dashboard" class="dashboard">
+    <div class="navbar">
+        <div class="logo">
+            <i class="fas fa-tooth"></i>
+            <h2>ClinicPro</h2>
+        </div>
+        <div class="user-info">
+            <div class="doctor-info">
+                <i class="fas fa-user-md"></i>
+                <span id="doctorNameDisplay"></span>
             </div>
+            <div id="subscriptionBadge" class="subscription-badge subscription-inactive">📊 مجاني</div>
+            <button class="logout-btn" onclick="logout()">خروج</button>
+        </div>
+    </div>
             <div class="main-content">
                 <div id="dashboardAlert" class="alert"></div>
                 <div class="stats-grid">
