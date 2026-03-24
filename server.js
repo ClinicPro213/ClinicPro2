@@ -311,6 +311,20 @@ app.get('/api/treatments/patient/:patientId', async (req, res) => {
     }
 });
 
+// إضافة مسار جديد لجلب تفاصيل معالجة واحدة
+app.get('/api/treatments/:id', async (req, res) => {
+    try {
+        const treatment = await Treatment.findById(req.params.id);
+        if (!treatment) {
+            return res.status(404).json({ message: 'المعالجة غير موجودة' });
+        }
+        res.json(treatment);
+    } catch (error) {
+        console.error('Error fetching treatment:', error);
+        res.status(500).json({ message: 'خطأ في جلب تفاصيل المعالجة' });
+    }
+});
+
 app.post('/api/treatments', async (req, res) => {
     try {
         const treatment = new Treatment(req.body);
