@@ -558,37 +558,49 @@
         }
 
         async function loadDashboard() {
-            if (!currentUser) {
-                const userId = localStorage.getItem('userId');
-                if (userId) {
-                    const response = await fetch(`/api/user/${userId}`);
-                    const data = await response.json();
-                    currentUser = data.user;
-                } else {
-                    showLogin();
-                    return;
-                }
-            }
-            
-            document.getElementById('loginPage').style.display = 'none';
-            document.getElementById('registerPage').style.display = 'none';
-            document.getElementById('dashboard').style.display = 'block';
-            document.getElementById('userNameDisplay').textContent = currentUser.fullName;
-            
-            const badge = document.getElementById('subscriptionBadge');
-            if (currentUser.role === 'admin') {
-                badge.textContent = '👑 مدير';
-                badge.className = 'badge badge-active';
-            } else if (currentUser.isSubscribed) {
-                badge.textContent = '✨ مشترك';
-                badge.className = 'badge badge-active';
-            } else {
-                badge.textContent = '📊 مجاني';
-                badge.className = 'badge badge-inactive';
-            }
-            
-            await loadPatients();
-            await loadStats();
+    if (!currentUser) {
+        const userId = localStorage.getItem('userId');
+        if (userId) {
+            const response = await fetch(`/api/user/${userId}`);
+            const data = await response.json();
+            currentUser = data.user;
+        } else {
+            showLogin();
+            return;
+        }
+    }
+    
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('registerPage').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    document.getElementById('userNameDisplay').textContent = currentUser.fullName;
+    
+    const badge = document.getElementById('subscriptionBadge');
+    if (currentUser.role === 'admin') {
+        badge.textContent = '👑 مدير النظام';
+        badge.className = 'badge badge-active';
+    } else if (currentUser.isSubscribed && currentUser.subscriptionExpiry) {
+        const expiryDate = new Date(currentUser.subscriptionExpiry);
+        const now = new Date();
+        if (expiryDate > now) {
+            const daysLeft = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+            badge.textContent = `✨ مشترك - متبقي ${daysLeft} يوم`;
+            badge.className = 'badge badge-active';
+        } else {
+            badge.textContent = '📊 مجاني';
+            badge.className = 'badge badge-inactive';
+            currentUser.isSubscribed = false;
+        }
+    } else if (currentUser.isSubscribed) {
+        badge.textContent = '✨ مشترك';
+        badge.className = 'badge badge-active';
+    } else {
+        badge.textContent = '📊 مجاني - 5 مرضى';
+        badge.className = 'badge badge-inactive';
+    }
+    
+    await loadPatients();
+    await loadStats(); // This will load the stats
         }
 
         async function loadPatients() {
@@ -630,29 +642,29 @@
         }
 
         async function addPatient(patientData) {
-            try {
-                const response = await fetch('/api/patients', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ...patientData, userId: currentUser.id })
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok && data.success) {
-                    showAlert('dashboardAlert', 'تم إضافة المريض بنجاح', 'success');
-                    closeModal('patientModal');
-                    await loadPatients();
-                    await loadStats();
-                } else if (response.status === 403) {
-                    showAlert('dashboardAlert', data.message, 'error');
-                    closeModal('patientModal');
-                } else {
-                    showAlert('dashboardAlert', data.message || 'فشل إضافة المريض', 'error');
-                }
-            } catch (error) {
-                showAlert('dashboardAlert', 'خطأ في إضافة المريض', 'error');
-            }
+    try {
+        const response = await fetch('/api/patients', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...patientData, userId: currentUser.id })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            showAlert('dashboardAlert', 'تم إضافة المريض بنجاح', 'success');
+            closeModal('patientModal');
+            await loadPatients();
+            await loadStats(); // Add this line
+        } else if (response.status === 403) {
+            showAlert('dashboardAlert', data.message, 'error');
+            closeModal('patientModal');
+        } else {
+            showAlert('dashboardAlert', data.message || 'فشل إضافة المريض', 'error');
+        }
+    } catch (error) {
+        showAlert('dashboardAlert', 'خطأ في إضافة المريض', 'error');
+    }
         }
 
         async function updatePatient(patientId, patientData) {
@@ -674,32 +686,86 @@
         }
 
         async function deletePatient(patientId) {
-            if (confirm('هل أنت متأكد من حذف هذا المريض؟')) {
-                try {
-                    const response = await fetch(`/api/patients/${patientId}`, {
-                        method: 'DELETE'
-                    });
-                    
-                    if (response.ok) {
-                        showAlert('dashboardAlert', 'تم حذف المريض بنجاح', 'success');
-                        await loadPatients();
-                        await loadStats();
-                    }
-                } catch (error) {
-                    showAlert('dashboardAlert', 'خطأ في حذف المريض', 'error');
-                }
+    if (confirm('هل أنت متأكد من حذف هذا المريض؟')) {
+        try {
+            const response = await fetch(`/api/patients/${patientId}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                showAlert('dashboardAlert', 'تم حذف المريض بنجاح', 'success');
+                await loadPatients();
+                await loadStats(); // Add this line
             }
+        } catch (error) {
+            showAlert('dashboardAlert', 'خطأ في حذف المريض', 'error');
+        }
+    }
         }
 
         async function loadStats() {
-            try {
-                const response = await fetch(`/api/user/${currentUser.id}`);
-                const data = await response.json();
-                document.getElementById('totalPatients').textContent = data.patientCount;
-                document.getElementById('remainingSlots').textContent = data.remainingSlots === 'غير محدود' ? 'غير محدود' : data.remainingSlots;
-            } catch (error) {
-                console.error('Error loading stats:', error);
+    try {
+        console.log('📊 Loading stats for user:', currentUser.id);
+        
+        // Get user data with patient count
+        const response = await fetch(`/api/user/${currentUser.id}`);
+        const data = await response.json();
+        
+        console.log('📊 Stats data:', data);
+        
+        // Update UI with stats
+        document.getElementById('totalPatients').textContent = data.patientCount || 0;
+        
+        // Calculate remaining slots
+        let remainingText = '';
+        if (currentUser.role === 'admin') {
+            remainingText = 'غير محدود (مدير)';
+        } else if (currentUser.isSubscribed) {
+            // Check if subscription is still valid
+            if (currentUser.subscriptionExpiry) {
+                const expiryDate = new Date(currentUser.subscriptionExpiry);
+                const now = new Date();
+                if (expiryDate > now) {
+                    remainingText = 'غير محدود (مشترك)';
+                } else {
+                    // Subscription expired
+                    remainingText = Math.max(0, 5 - data.patientCount);
+                    currentUser.isSubscribed = false;
+                    // Update badge
+                    const badge = document.getElementById('subscriptionBadge');
+                    badge.textContent = '📊 مجاني';
+                    badge.className = 'badge badge-inactive';
+                }
+            } else {
+                remainingText = 'غير محدود (مشترك)';
             }
+        } else {
+            remainingText = Math.max(0, 5 - data.patientCount);
+        }
+        
+        document.getElementById('remainingSlots').textContent = remainingText;
+        
+        // If user is close to limit, show warning
+        if (!currentUser.isSubscribed && currentUser.role !== 'admin' && data.patientCount >= 4) {
+            const alertDiv = document.getElementById('dashboardAlert');
+            alertDiv.innerHTML = `
+                <div style="background: #fed7aa; padding: 12px; border-radius: 12px; border-right: 4px solid #f59e0b;">
+                    <strong>⚠️ تنبيه:</strong> لقد استخدمت ${data.patientCount} من 5 مرضى مجانيين. 
+                    ${data.patientCount >= 5 ? 'لقد وصلت للحد الأقصى. يرجى الاشتراك لإضافة المزيد من المرضى.' : `يمكنك إضافة ${5 - data.patientCount} مريض آخر مجاناً.`}
+                </div>
+            `;
+            alertDiv.style.display = 'block';
+            setTimeout(() => {
+                alertDiv.style.display = 'none';
+            }, 5000);
+        }
+        
+    } catch (error) {
+        console.error('❌ Error loading stats:', error);
+        // Set default values
+        document.getElementById('totalPatients').textContent = '0';
+        document.getElementById('remainingSlots').textContent = '5';
+    }
         }
 
         function searchPatients() {
@@ -757,6 +823,37 @@
             localStorage.removeItem('userId');
             currentUser = null;
             showLogin();
+        }
+
+        function updateSubscriptionDisplay() {
+    const badge = document.getElementById('subscriptionBadge');
+    
+    if (currentUser.role === 'admin') {
+        badge.innerHTML = '<i class="fas fa-crown"></i> مدير النظام';
+        badge.className = 'badge badge-active';
+        return;
+    }
+    
+    if (currentUser.isSubscribed && currentUser.subscriptionExpiry) {
+        const expiryDate = new Date(currentUser.subscriptionExpiry);
+        const now = new Date();
+        
+        if (expiryDate > now) {
+            const daysLeft = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+            badge.innerHTML = `<i class="fas fa-star"></i> مشترك - متبقي ${daysLeft} يوم`;
+            badge.className = 'badge badge-active';
+        } else {
+            badge.innerHTML = '<i class="fas fa-chart-line"></i> مجاني - 5 مرضى';
+            badge.className = 'badge badge-inactive';
+            currentUser.isSubscribed = false;
+        }
+    } else if (currentUser.isSubscribed) {
+        badge.innerHTML = '<i class="fas fa-star"></i> مشترك - غير محدود';
+        badge.className = 'badge badge-active';
+    } else {
+        badge.innerHTML = '<i class="fas fa-chart-line"></i> مجاني - 5 مرضى';
+        badge.className = 'badge badge-inactive';
+    }
         }
 
         function escapeHtml(text) {
