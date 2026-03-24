@@ -499,108 +499,179 @@
         }
 
         async function register() {
-            const userData = {
-                fullName: document.getElementById('regFullName').value,
-                username: document.getElementById('regUsername').value,
-                password: document.getElementById('regPassword').value,
-                phone: document.getElementById('regPhone').value,
-                age: parseInt(document.getElementById('regAge').value),
-                clinicName: document.getElementById('regClinicName').value,
-                address: document.getElementById('regAddress').value
-            };
-            
-            try {
-                const response = await fetch('/api/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(userData)
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok && data.success) {
-                    currentUser = data.user;
-                    localStorage.setItem('userId', currentUser.id);
-                    await loadDashboard();
-                    showAlert('dashboardAlert', 'تم إنشاء الحساب بنجاح', 'success');
-                } else {
-                    showAlert('registerAlert', data.message || 'فشل إنشاء الحساب', 'error');
-                }
-            } catch (error) {
-                showAlert('registerAlert', 'خطأ في الاتصال بالخادم', 'error');
+    const userData = {
+        fullName: document.getElementById('regFullName').value,
+        username: document.getElementById('regUsername').value,
+        password: document.getElementById('regPassword').value,
+        phone: document.getElementById('regPhone').value,
+        age: parseInt(document.getElementById('regAge').value),
+        clinicName: document.getElementById('regClinicName').value,
+        address: document.getElementById('regAddress').value
+    };
+    
+    // Validation
+    if (!userData.fullName || !userData.username || !userData.password || !userData.age || !userData.clinicName || !userData.address) {
+        showAlert('registerAlert', 'يرجى ملء جميع الحقول المطلوبة', 'error');
+        return;
+    }
+    
+    try {
+        console.log('📝 Sending registration data:', userData);
+        
+        const response = await fetch('/api/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(userData)
+        });
+        
+        const data = await response.json();
+        console.log('📝 Registration response:', data);
+        
+        if (response.ok && data.success) {
+            currentUser = data.user;
+            // Save user ID correctly
+            if (currentUser && currentUser.id) {
+                localStorage.setItem('userId', currentUser.id);
+                console.log('✅ User ID saved:', currentUser.id);
+            } else {
+                console.error('❌ No user ID in response');
             }
+            await loadDashboard();
+            showAlert('dashboardAlert', 'تم إنشاء الحساب بنجاح', 'success');
+        } else {
+            showAlert('registerAlert', data.message || 'فشل إنشاء الحساب', 'error');
+        }
+    } catch (error) {
+        console.error('❌ Registration error:', error);
+        showAlert('registerAlert', 'خطأ في الاتصال بالخادم: ' + error.message, 'error');
+    }
         }
 
         async function login() {
-            const username = document.getElementById('loginUsername').value;
-            const password = document.getElementById('loginPassword').value;
-            
-            try {
-                const response = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok && data.success) {
-                    currentUser = data.user;
-                    localStorage.setItem('userId', currentUser.id);
-                    await loadDashboard();
-                    showAlert('dashboardAlert', 'تم تسجيل الدخول بنجاح', 'success');
-                } else {
-                    showAlert('loginAlert', data.message || 'فشل تسجيل الدخول', 'error');
-                }
-            } catch (error) {
-                showAlert('loginAlert', 'خطأ في الاتصال بالخادم', 'error');
+    const username = document.getElementById('loginUsername').value;
+    const password = document.getElementById('loginPassword').value;
+    
+    if (!username || !password) {
+        showAlert('loginAlert', 'يرجى إدخال اسم المستخدم وكلمة المرور', 'error');
+        return;
+    }
+    
+    try {
+        console.log('🔐 Sending login data:', { username });
+        
+        const response = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        
+        const data = await response.json();
+        console.log('🔐 Login response:', data);
+        
+        if (response.ok && data.success) {
+            currentUser = data.user;
+            // Save user ID correctly
+            if (currentUser && currentUser.id) {
+                localStorage.setItem('userId', currentUser.id);
+                console.log('✅ User ID saved:', currentUser.id);
+            } else {
+                console.error('❌ No user ID in response');
             }
+            await loadDashboard();
+            showAlert('dashboardAlert', 'تم تسجيل الدخول بنجاح', 'success');
+        } else {
+            showAlert('loginAlert', data.message || 'فشل تسجيل الدخول', 'error');
+        }
+    } catch (error) {
+        console.error('❌ Login error:', error);
+        showAlert('loginAlert', 'خطأ في الاتصال بالخادم: ' + error.message, 'error');
+    }
         }
 
         async function loadDashboard() {
+    // Get userId from localStorage
+    let userId = localStorage.getItem('userId');
+    console.log('📌 User ID from localStorage:', userId);
+    
+    if (!userId || userId === 'undefined' || userId === 'null') {
+        console.error('❌ No valid user ID found');
+        showLogin();
+        return;
+    }
+    
     if (!currentUser) {
-        const userId = localStorage.getItem('userId');
-        if (userId) {
+        try {
+            console.log('🔄 Fetching user data for ID:', userId);
             const response = await fetch(`/api/user/${userId}`);
+            
+            if (!response.ok) {
+                console.error('❌ Failed to fetch user:', response.status);
+                localStorage.removeItem('userId');
+                showLogin();
+                return;
+            }
+            
             const data = await response.json();
-            currentUser = data.user;
-        } else {
+            console.log('✅ User data received:', data);
+            
+            if (data && data.user) {
+                currentUser = data.user;
+            } else {
+                console.error('❌ No user data in response');
+                localStorage.removeItem('userId');
+                showLogin();
+                return;
+            }
+        } catch (error) {
+            console.error('❌ Error fetching user:', error);
+            localStorage.removeItem('userId');
             showLogin();
             return;
         }
     }
     
+    // Hide auth pages and show dashboard
     document.getElementById('loginPage').style.display = 'none';
     document.getElementById('registerPage').style.display = 'none';
     document.getElementById('dashboard').style.display = 'block';
-    document.getElementById('userNameDisplay').textContent = currentUser.fullName;
     
+    // Update user name
+    document.getElementById('userName').textContent = currentUser.fullName || currentUser.username;
+    
+    // Update subscription badge
     const badge = document.getElementById('subscriptionBadge');
+    
     if (currentUser.role === 'admin') {
-        badge.textContent = '👑 مدير النظام';
-        badge.className = 'badge badge-active';
+        badge.innerHTML = '<i class="fas fa-crown"></i> مدير النظام';
+        badge.className = 'subscription-badge subscription-active';
     } else if (currentUser.isSubscribed && currentUser.subscriptionExpiry) {
         const expiryDate = new Date(currentUser.subscriptionExpiry);
         const now = new Date();
         if (expiryDate > now) {
             const daysLeft = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
-            badge.textContent = `✨ مشترك - متبقي ${daysLeft} يوم`;
-            badge.className = 'badge badge-active';
+            badge.innerHTML = `<i class="fas fa-star"></i> مشترك - متبقي ${daysLeft} يوم`;
+            badge.className = 'subscription-badge subscription-active';
         } else {
-            badge.textContent = '📊 مجاني';
-            badge.className = 'badge badge-inactive';
+            badge.innerHTML = '<i class="fas fa-chart-line"></i> مجاني - 5 مرضى';
+            badge.className = 'subscription-badge subscription-inactive';
             currentUser.isSubscribed = false;
         }
     } else if (currentUser.isSubscribed) {
-        badge.textContent = '✨ مشترك';
-        badge.className = 'badge badge-active';
+        badge.innerHTML = '<i class="fas fa-star"></i> مشترك - غير محدود';
+        badge.className = 'subscription-badge subscription-active';
     } else {
-        badge.textContent = '📊 مجاني - 5 مرضى';
-        badge.className = 'badge badge-inactive';
+        badge.innerHTML = '<i class="fas fa-chart-line"></i> مجاني - 5 مرضى';
+        badge.className = 'subscription-badge subscription-inactive';
     }
     
+    // Load patients and stats
     await loadPatients();
-    await loadStats(); // This will load the stats
+    await loadStats();
+    
+    // Load admin panel if user is admin
+    if (currentUser.role === 'admin') {
+        await loadAdminPanel();
+    }
         }
 
         async function loadPatients() {
@@ -820,9 +891,13 @@
         }
 
         function logout() {
-            localStorage.removeItem('userId');
-            currentUser = null;
-            showLogin();
+    localStorage.removeItem('userId');
+    currentUser = null;
+    showLogin();
+    // Clear any displayed data
+    document.getElementById('patientsGrid').innerHTML = '';
+    document.getElementById('totalPatients').textContent = '0';
+    document.getElementById('remainingSlots').textContent = '5';
         }
 
         function updateSubscriptionDisplay() {
