@@ -27,7 +27,21 @@ const userSchema = new mongoose.Schema({
     fullName: String,
     username: { type: String, unique: true },
     password: String,
-    phone: String,
+    // في نموذج User Schema، استبدل حقل phone بهذا:
+phone: {
+    type: String,
+    required: [true, 'رقم الهاتف مطلوب'],
+    validate: {
+        validator: function(v) {
+            if (!v) return true;
+            // السماح بـ + في البداية وأرقام فقط، 7-15 رقم
+            const cleanPhone = v.replace(/[^\d+]/g, '');
+            return /^[\+]?[0-9]{7,15}$/.test(cleanPhone);
+        },
+        message: 'رقم الهاتف غير صالح. يجب أن يكون بين 7 و 15 رقمًا ويمكن أن يبدأ بـ +'
+    },
+    default: ''
+},
     age: Number,
     clinicName: String,
     address: String,
