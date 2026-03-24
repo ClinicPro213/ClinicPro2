@@ -779,46 +779,81 @@
         showSessionNotesModal();
     }
 
-    async function showTreatmentDetails(treatmentId) {
-        try {
-            const response = await fetch(`/api/treatments/${treatmentId}`);
-            const treatment = await response.json();
-            const patient = allPatients.find(p => p._id === treatment.patientId);
+    // عرض تفاصيل المعالجة (مع عرض المدفوع والمتبقي)
+async function showTreatmentDetails(treatmentId) {
+    try {
+        const response = await fetch(`/api/treatments/${treatmentId}`);
+        const treatment = await response.json();
+        const patient = allPatients.find(p => p._id === treatment.patientId);
+        
+        // استخراج معلومات التكلفة والمدفوع من الملاحظات
+        let totalCost = treatment.cost;
+        let paid = 0;
+        let remaining = totalCost;
+        
+        // محاولة استخراج البيانات من الملاحظات
+        if (treatment.notes) {
+            const costMatch = treatment.notes.match(/التكلفة الإجمالية:\s*([\d.]+)/);
+            const paidMatch = treatment.notes.match(/المدفوع:\s*([\d.]+)/);
+            const remainingMatch = treatment.notes.match(/المتبقي:\s*([\d.]+)/);
             
-            const modalHtml = `
-                <div id="treatmentViewModal" class="modal" style="display: flex;">
-                    <div class="modal-content" style="max-width: 500px;">
-                        <div class="modal-header">
-                            <h3><i class="fas fa-tooth"></i> تفاصيل المعالجة</h3>
-                            <button class="close-modal" onclick="closeModal('treatmentViewModal')">&times;</button>
+            if (costMatch) totalCost = parseFloat(costMatch[1]);
+            if (paidMatch) paid = parseFloat(paidMatch[1]);
+            if (remainingMatch) remaining = parseFloat(remainingMatch[1]);
+        }
+        
+        const modalHtml = `
+            <div id="treatmentViewModal" class="modal" style="display: flex;">
+                <div class="modal-content" style="max-width: 550px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-tooth"></i> تفاصيل المعالجة</h3>
+                        <button class="close-modal" onclick="closeModal('treatmentViewModal')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="input-group"><label><strong>المريض:</strong></label><p>${escapeHtml(patient?.name || 'غير معروف')}</p></div>
+                        <div class="input-group"><label><strong>رقم السن:</strong></label><p><span style="font-size: 20px; font-weight: bold;">${treatment.toothNumber}</span></p></div>
+                        <div class="input-group"><label><strong>نوع المعالجة:</strong></label><p><span style="background: #3b82f6; color: white; padding: 4px 12px; border-radius: 20px;">${escapeHtml(treatment.treatmentType)}</span></p></div>
+                        <div class="input-group"><label><strong>التاريخ:</strong></label><p>${new Date(treatment.treatmentDate).toLocaleDateString('ar-EG')}</p></div>
+                        
+                        <div style="background: #f1f5f9; padding: 12px; border-radius: 12px; margin: 15px 0;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span><strong>💰 التكلفة الإجمالية:</strong></span>
+                                <span>${totalCost} ريال</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span><strong>💵 المدفوع:</strong></span>
+                                <span style="color: #10b981;">${paid} ريال</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span><strong>⚠️ المتبقي:</strong></span>
+                                <span style="color: ${remaining > 0 ? '#ef4444' : '#10b981'}; font-weight: bold;">${remaining > 0 ? remaining + ' ريال' : (remaining < 0 ? 'فائض ' + Math.abs(remaining) + ' ريال' : 'مكتمل')}</span>
+                            </div>
                         </div>
-                        <div class="modal-body">
-                            <div class="input-group"><label><strong>المريض:</strong></label><p>${escapeHtml(patient?.name || 'غير معروف')}</p></div>
-                            <div class="input-group"><label><strong>رقم السن:</strong></label><p><span style="font-size: 20px; font-weight: bold;">${treatment.toothNumber}</span></p></div>
-                            <div class="input-group"><label><strong>نوع المعالجة:</strong></label><p><span style="background: #3b82f6; color: white; padding: 4px 12px; border-radius: 20px;">${escapeHtml(treatment.treatmentType)}</span></p></div>
-                            <div class="input-group"><label><strong>التاريخ:</strong></label><p>${new Date(treatment.treatmentDate).toLocaleDateString('ar-EG')}</p></div>
-                            ${treatment.description ? `<div class="input-group"><label><strong>الوصف:</strong></label><p>${escapeHtml(treatment.description)}</p></div>` : ''}
-                            ${treatment.cost ? `<div class="input-group"><label><strong>التكلفة:</strong></label><p style="color: #10b981;">${treatment.cost} ريال</p></div>` : ''}
-                            ${treatment.notes ? `<div class="input-group"><label><strong>ملاحظات:</strong></label><p>${escapeHtml(treatment.notes)}</p></div>` : ''}
-                            <button class="btn btn-whatsapp" onclick="shareTreatmentDetails('${treatment._id}')" style="margin-top: 20px;"><i class="fab fa-whatsapp"></i> مشاركة التفاصيل</button>
-                        </div>
+                        
+                        ${treatment.description ? `<div class="input-group"><label><strong>الوصف:</strong></label><p>${escapeHtml(treatment.description)}</p></div>` : ''}
+                        ${treatment.notes ? `<div class="input-group"><label><strong>ملاحظات:</strong></label><p style="background: #fef3c7; padding: 8px; border-radius: 8px;">${escapeHtml(treatment.notes)}</p></div>` : ''}
+                        
+                        <button class="btn btn-whatsapp" onclick="shareTreatmentDetails('${treatment._id}')" style="margin-top: 20px;">
+                            <i class="fab fa-whatsapp"></i> مشاركة التفاصيل
+                        </button>
                     </div>
                 </div>
-            `;
-            
-            let modal = document.getElementById('treatmentViewModal');
-            if (!modal) {
-                const div = document.createElement('div');
-                div.id = 'treatmentViewModal';
-                document.body.appendChild(div);
-                modal = div;
-            }
-            modal.innerHTML = modalHtml;
-            modal.style.display = 'flex';
-        } catch (error) {
-            showAlert('dashboardAlert', 'خطأ في جلب تفاصيل المعالجة', 'error');
+            </div>
+        `;
+        
+        let modal = document.getElementById('treatmentViewModal');
+        if (!modal) {
+            const div = document.createElement('div');
+            div.id = 'treatmentViewModal';
+            document.body.appendChild(div);
+            modal = div;
         }
+        modal.innerHTML = modalHtml;
+        modal.style.display = 'flex';
+    } catch (error) {
+        showAlert('dashboardAlert', 'خطأ في جلب تفاصيل المعالجة', 'error');
     }
+}
 
     async function shareTreatmentDetails(treatmentId) {
         try {
