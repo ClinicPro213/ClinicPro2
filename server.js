@@ -149,15 +149,49 @@ app.post('/api/login', async (req, res) => {
 app.get('/api/user/:userId', async (req, res) => {
     try {
         const user = await User.findById(req.params.userId);
+        if (!user) {
+            return res.status(404).json({ message: 'المستخدم غير موجود' });
+        }
+        
         const patientCount = await Patient.countDocuments({ userId: user._id });
         
+        // Check if subscription is expired
+        let isSubscribed = user.isSubscribed;
+        let subscriptionExpiry = user.subscriptionExpiry;
+        
+        if (user.isSubscribed && user.subscriptionExpiry) {
+            const now = new Date();
+            if (now > user.subscriptionExpiry) {
+                isSubscribed = false;
+                // Auto-update expired subscription
+                user.isSubscribed = false;
+                await user.save();
+                subscriptionExpiry = null;
+            }
+        }
+        
+        // Calculate remaining slots
+        let remainingSlots;
+        if (user.role === 'admin') {
+            remainingSlots = 'غير محدود';
+        } else if (isSubscribed) {
+            remainingSlots = 'غير محدود';
+        } else {
+            remainingSlots = Math.max(0, 5 - patientCount);
+        }
+        
         res.json({
-            user,
+            user: {
+                ...user.toObject(),
+                isSubscribed,
+                subscriptionExpiry
+            },
             patientCount,
-            remainingSlots: user.role === 'admin' ? 'غير محدود' : (user.isSubscribed ? 'غير محدود' : Math.max(0, 5 - patientCount))
+            remainingSlots
         });
     } catch (error) {
-        res.status(500).json({ message: 'خطأ' });
+        console.error('Error fetching user:', error);
+        res.status(500).json({ message: 'خطأ في جلب بيانات المستخدم' });
     }
 });
 
