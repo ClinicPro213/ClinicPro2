@@ -1,16 +1,15 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <!-- PWA Meta Tags -->
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="ClinicPro">
-<meta name="theme-color" content="#1e40af">
-<meta name="mobile-web-app-capable" content="yes">
-<link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="/icon-192.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ClinicPro">
+    <meta name="theme-color" content="#1e40af">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/icon-192.png">
     <title>ClinicPro</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -58,19 +57,8 @@
         .treatment-remove { background: #ef4444; color: white; border: none; padding: 4px 12px; border-radius: 8px; cursor: pointer; }
         .alert { padding: 12px; border-radius: 12px; margin-bottom: 20px; display: none; }
         .alert-success { background: #d1fae5; color: #065f46; }
-        .doctor-info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: #f1f5f9;
-    padding: 6px 15px;
-    border-radius: 50px;
-    font-size: 14px;
-}
-.doctor-info i {
-    font-size: 16px;
-    color: #3b82f6;
-}
+        .doctor-info { display: flex; align-items: center; gap: 8px; background: #f1f5f9; padding: 6px 15px; border-radius: 50px; font-size: 14px; }
+        .doctor-info i { font-size: 16px; color: #3b82f6; }
         .alert-error { background: #fee2e2; color: #991b1b; }
         .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { background: white; border-radius: 24px; max-width: 600px; width: 95%; max-height: 90vh; overflow-y: auto; }
@@ -111,21 +99,15 @@
         </div>
 
         <!-- Dashboard -->
-<div id="dashboard" class="dashboard">
-    <div class="navbar">
-        <div class="logo">
-            <i class="fas fa-tooth"></i>
-            <h2>ClinicPro</h2>
-        </div>
-        <div class="user-info">
-    <div class="doctor-info">
-        <i class="fas fa-user-md"></i>
-        <span id="userNameDisplay"></span>
-    </div>
-    <div id="subscriptionBadge" class="subscription-badge subscription-inactive">📊 مجاني</div>
-    <button class="logout-btn" onclick="logout()">خروج</button>
-        </div>
-    </div>
+        <div id="dashboard" class="dashboard">
+            <div class="navbar">
+                <div class="logo"><i class="fas fa-tooth"></i><h2>ClinicPro</h2></div>
+                <div class="user-info">
+                    <div class="doctor-info"><i class="fas fa-user-md"></i><span id="userNameDisplay"></span></div>
+                    <div id="subscriptionBadge" class="subscription-badge subscription-inactive">📊 مجاني</div>
+                    <button class="logout-btn" onclick="logout()">خروج</button>
+                </div>
+            </div>
             <div class="main-content">
                 <div id="dashboardAlert" class="alert"></div>
                 <div id="subscriptionWarning" style="display: none;"></div>
@@ -142,328 +124,429 @@
             </div>
         </div>
     </div>
-    <!-- Previous Treatments Modal -->
-<div id="previousTreatmentsModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header"><h3>سجل المعالجات السابقة</h3><button class="close-modal" onclick="closeModal('previousTreatmentsModal')">&times;</button></div>
-        <div class="modal-body" id="previousTreatmentsList"></div>
-    </div>
-</div>
 
-<!-- Session Notes Modal Inner -->
-<div id="sessionNotesModalInner" class="modal" style="display: none;"></div>
-
-<!-- Treatment View Modal -->
-<div id="treatmentViewModal" class="modal" style="display: none;"></div>
-
-<!-- Simple Treatment Modal -->
-<div id="simpleTreatmentModal" class="modal" style="display: none;"></div>
+    <!-- Modals -->
+    <div id="previousTreatmentsModal" class="modal"><div class="modal-content"><div class="modal-header"><h3>سجل المعالجات السابقة</h3><button class="close-modal" onclick="closeModal('previousTreatmentsModal')">&times;</button></div><div class="modal-body" id="previousTreatmentsList"></div></div></div>
+    <div id="sessionNotesModalInner" class="modal" style="display: none;"></div>
+    <div id="treatmentViewModal" class="modal" style="display: none;"></div>
+    <div id="treatmentEntryModal" class="modal" style="display: none;"></div>
 
     <!-- Patient Modal -->
-<div id="patientModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header"><h3 id="modalTitle">إضافة مريض</h3><button class="close-modal" onclick="closeModal('patientModal')">&times;</button></div>
-        <div class="modal-body">
-            <form id="patientForm">
-                <input type="hidden" id="patientId">
-                <div class="input-group"><label>اسم المريض *</label><input type="text" id="patientName" required></div>
-                <div class="input-group"><label>رقم الهاتف</label><input type="text" id="patientPhone"></div>
-                <div class="input-group"><label>العمر *</label><input type="number" id="patientAge" required></div>
-                <div class="input-group"><label>العنوان</label><input type="text" id="patientAddress"></div>
-                <div class="input-group"><label>ملاحظات</label><textarea id="patientNotes" rows="3"></textarea></div>
-                
-                <!-- هذه الحقول كانت مفقودة -->
-                <div class="input-group"><label>موعد الجلسة القادمة</label><input type="datetime-local" id="nextAppointment"></div>
-                <div class="input-group"><label>ملاحظات الموعد</label><textarea id="nextAppointmentNotes" rows="2" placeholder="نوع المعالجة المطلوبة في الموعد القادم"></textarea></div>
-                
-                <button type="submit" class="btn">حفظ</button>
-            </form>
-        </div>
-    </div>
-</div>
-    
-<!-- Treatment Session Modal -->
-<div id="treatmentSessionModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header"><h3>جلسة علاجية</h3><button class="close-modal" onclick="closeModal('treatmentSessionModal')">&times;</button></div>
-        <div class="modal-body">
-            <input type="hidden" id="sessionPatientId">
-            <div id="teethDiagram" class="teeth-diagram"></div>
-            <div id="treatmentsList" style="margin-top: 10px;"></div>
-            
-            <!-- هذه الحقول كانت مفقودة -->
-            <div class="input-group"><label><i class="fas fa-pencil-alt"></i> ملاحظات الجلسة</label><textarea id="sessionNotes" rows="2" placeholder="ملاحظات إضافية عن الجلسة"></textarea></div>
-            <div class="input-group"><label><i class="fas fa-money-bill"></i> التكلفة الإجمالية</label><input type="number" id="sessionTotalCost" value="0" readonly style="background: #f1f5f9;"></div>
-            
-            <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button class="btn" onclick="saveTreatmentSession()">حفظ الجلسة</button>
-                <button class="btn btn-whatsapp" onclick="shareDiagnosis()">مشاركة</button>
+    <div id="patientModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header"><h3 id="modalTitle">إضافة مريض</h3><button class="close-modal" onclick="closeModal('patientModal')">&times;</button></div>
+            <div class="modal-body">
+                <form id="patientForm">
+                    <input type="hidden" id="patientId">
+                    <div class="input-group"><label>اسم المريض *</label><input type="text" id="patientName" required></div>
+                    <div class="input-group"><label>رقم الهاتف</label><input type="text" id="patientPhone"></div>
+                    <div class="input-group"><label>العمر *</label><input type="number" id="patientAge" required></div>
+                    <div class="input-group"><label>العنوان</label><input type="text" id="patientAddress"></div>
+                    <div class="input-group"><label>ملاحظات</label><textarea id="patientNotes" rows="3"></textarea></div>
+                    <div class="input-group"><label>موعد الجلسة القادمة</label><input type="datetime-local" id="nextAppointment"></div>
+                    <div class="input-group"><label>ملاحظات الموعد</label><textarea id="nextAppointmentNotes" rows="2"></textarea></div>
+                    <button type="submit" class="btn">حفظ</button>
+                </form>
             </div>
         </div>
     </div>
-</div>
 
-        <script>
-    let currentUser = null;
-    let allPatients = [];
-    let currentTreatments = [];
-    let currentPatientForSession = null;
-    let allTreatmentsHistory = [];
-
-    // أنواع المعالجات المتاحة
-    const treatmentTypes = ['فحص', 'حشو', 'تحضير', 'خلع', 'تنظيف', 'تلبيس', 'زراعة', 'علاج عصب', 'تبييض', 'تقويم', 'جسر', 'تركيبة'];
-
-    function showAlert(elementId, message, type) {
-        const alert = document.getElementById(elementId);
-        if (!alert) return;
-        alert.textContent = message;
-        alert.className = `alert alert-${type} show`;
-        alert.style.display = 'block';
-        setTimeout(() => alert.style.display = 'none', 4000);
-    }
-
-    // رسم خريطة الأسنان
-    function drawTeethDiagram() {
-        const teeth = [];
-        for (let i = 1; i <= 32; i++) {
-            let jaw = '';
-            if (i <= 8) jaw = 'الفك العلوي - يمين';
-            else if (i <= 16) jaw = 'الفك العلوي - يسار';
-            else if (i <= 24) jaw = 'الفك السفلي - يسار';
-            else jaw = 'الفك السفلي - يمين';
-            teeth.push({ number: i, jaw });
-        }
-        
-        const jaws = {
-            'الفك العلوي - يمين': teeth.slice(0, 8),
-            'الفك العلوي - يسار': teeth.slice(8, 16),
-            'الفك السفلي - يسار': teeth.slice(16, 24),
-            'الفك السفلي - يمين': teeth.slice(24, 32)
-        };
-        
-        // حساب عدد المعالجات لكل سن
-        const treatmentCountPerTooth = {};
-        currentTreatments.forEach(t => {
-            if (!treatmentCountPerTooth[t.toothNumber]) treatmentCountPerTooth[t.toothNumber] = 0;
-            treatmentCountPerTooth[t.toothNumber]++;
-        });
-        
-        let html = '';
-        for (const [jaw, jawTeeth] of Object.entries(jaws)) {
-            html += `<div style="margin-bottom: 20px;"><strong style="color: #1e40af;">${jaw}</strong><div class="teeth-row">`;
-            for (const tooth of jawTeeth) {
-                const treatmentCount = treatmentCountPerTooth[tooth.number] || 0;
-                const hasTreatments = treatmentCount > 0;
-                
-                html += `
-                    <div class="tooth ${hasTreatments ? 'has-treatment' : ''}" 
-                         onclick="selectTooth(${tooth.number})"
-                         style="cursor: pointer; position: relative;">
-                        <div class="tooth-number">${tooth.number}</div>
-                        <div class="tooth-treatment-type">
-                            ${treatmentCount > 0 ? `${treatmentCount}` : ''}
-                        </div>
-                        ${treatmentCount > 0 ? `<div style="position: absolute; top: -5px; right: -5px; background: #f59e0b; color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 10px; display: flex; align-items: center; justify-content: center;">${treatmentCount}</div>` : ''}
-                    </div>
-                `;
-            }
-            html += `</div></div>`;
-        }
-        document.getElementById('teethDiagram').innerHTML = html;
-    }
-
-    // اختيار سن وإضافة معالجة (نافذة بسيطة)
-    function selectTooth(toothNumber) {
-        const optionsHtml = treatmentTypes.map(t => `<option value="${t}">${t}</option>`).join('');
-        
-        const modalHtml = `
-            <div id="simpleTreatmentModal" class="modal" style="display: flex;">
-                <div class="modal-content" style="max-width: 400px;">
-                    <div class="modal-header">
-                        <h3><i class="fas fa-tooth"></i> إضافة معالجة للسن ${toothNumber}</h3>
-                        <button class="close-modal" onclick="closeModal('simpleTreatmentModal')">&times;</button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="input-group">
-                            <label><i class="fas fa-list"></i> نوع المعالجة</label>
-                            <select id="simpleTreatmentType" style="font-size: 16px; padding: 12px;">
-                                <option value="">-- اختر نوع المعالجة --</option>
-                                ${optionsHtml}
-                            </select>
-                        </div>
-                        <div style="display: flex; gap: 10px; margin-top: 20px;">
-                            <button class="btn" onclick="addSimpleTreatment(${toothNumber})" style="flex: 1;">
-                                <i class="fas fa-check"></i> إضافة
-                            </button>
-                            <button class="btn btn-whatsapp" onclick="addAndShareSimpleTreatment(${toothNumber})" style="flex: 1;">
-                                <i class="fab fa-whatsapp"></i> إضافة ومشاركة
-                            </button>
-                        </div>
-                    </div>
+    <!-- Treatment Session Modal -->
+    <div id="treatmentSessionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header"><h3>جلسة علاجية</h3><button class="close-modal" onclick="closeModal('treatmentSessionModal')">&times;</button></div>
+            <div class="modal-body">
+                <input type="hidden" id="sessionPatientId">
+                <div id="teethDiagram" class="teeth-diagram"></div>
+                <div id="treatmentsList" style="margin-top: 10px;"></div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button class="btn" onclick="saveTreatmentSession()">حفظ الجلسة</button>
+                    <button class="btn btn-whatsapp" onclick="shareDiagnosis()">مشاركة</button>
                 </div>
             </div>
-        `;
-        
-        let modal = document.getElementById('simpleTreatmentModal');
-        if (!modal) {
-            const div = document.createElement('div');
-            div.id = 'simpleTreatmentModal';
-            document.body.appendChild(div);
-            modal = div;
-        }
-        modal.innerHTML = modalHtml;
-        modal.style.display = 'flex';
-    }
+        </div>
+    </div>
 
-    // إضافة معالجة بسيطة
-    function addSimpleTreatment(toothNumber) {
-        const treatmentType = document.getElementById('simpleTreatmentType').value;
-        
-        if (!treatmentType) {
-            showAlert('dashboardAlert', 'الرجاء اختيار نوع المعالجة', 'error');
-            return;
-        }
-        
-        currentTreatments.push({
-            toothNumber: toothNumber,
-            treatmentType: treatmentType,
-            description: '',
-            cost: 0,
-            notes: ''
-        });
-        
-        closeModal('simpleTreatmentModal');
-        updateTreatmentsList();
-        drawTeethDiagram();
-        updateTotalCost();
-        showAlert('dashboardAlert', `✅ تم إضافة معالجة: ${treatmentType} للسن ${toothNumber}`, 'success');
-    }
+    <script>
+        let currentUser = null;
+        let allPatients = [];
+        let currentTreatments = [];
+        let currentPatientForSession = null;
 
-    // إضافة ومشاركة مباشرة
-    async function addAndShareSimpleTreatment(toothNumber) {
-        const treatmentType = document.getElementById('simpleTreatmentType').value;
-        
-        if (!treatmentType) {
-            showAlert('dashboardAlert', 'الرجاء اختيار نوع المعالجة', 'error');
-            return;
-        }
-        
-        currentTreatments.push({
-            toothNumber: toothNumber,
-            treatmentType: treatmentType,
-            description: '',
-            cost: 0,
-            notes: ''
-        });
-        
-        closeModal('simpleTreatmentModal');
-        updateTreatmentsList();
-        drawTeethDiagram();
-        updateTotalCost();
-        
-        showSessionNotesModal();
-    }
+        const treatmentTypes = ['فحص', 'حشو', 'تحضير', 'خلع', 'تنظيف', 'تلبيس', 'زراعة', 'علاج عصب', 'تبييض', 'تقويم', 'جسر', 'تركيبة'];
 
-    // تحديث قائمة المعالجات المختارة
-    function updateTreatmentsList() {
-        const listDiv = document.getElementById('treatmentsList');
-        if (currentTreatments.length === 0) {
-            listDiv.innerHTML = '<p style="color: #64748b; text-align: center; padding: 20px;">لم يتم اختيار أي معالجة بعد. اضغط على السن لإضافة معالجة</p>';
-            return;
+        function showAlert(elementId, message, type) {
+            const alert = document.getElementById(elementId);
+            if (alert) {
+                alert.textContent = message;
+                alert.className = `alert alert-${type}`;
+                alert.style.display = 'block';
+                setTimeout(() => alert.style.display = 'none', 4000);
+            }
         }
-        
-        const groupedByTooth = {};
-        currentTreatments.forEach((t, idx) => {
-            if (!groupedByTooth[t.toothNumber]) groupedByTooth[t.toothNumber] = [];
-            groupedByTooth[t.toothNumber].push({ ...t, idx });
-        });
-        
-        let html = '';
-        for (const [toothNumber, treatments] of Object.entries(groupedByTooth)) {
-            html += `
-                <div style="background: #f1f5f9; border-radius: 12px; padding: 12px; margin-bottom: 15px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <strong style="font-size: 16px; color: #1e40af;"><i class="fas fa-tooth"></i> السن ${toothNumber}</strong>
-                        <span style="background: #3b82f6; color: white; padding: 2px 8px; border-radius: 20px; font-size: 11px;">${treatments.length} معالجة</span>
+
+        function drawTeethDiagram() {
+            const jaws = {
+                'الفك العلوي - يمين': [1,2,3,4,5,6,7,8],
+                'الفك العلوي - يسار': [9,10,11,12,13,14,15,16],
+                'الفك السفلي - يسار': [17,18,19,20,21,22,23,24],
+                'الفك السفلي - يمين': [25,26,27,28,29,30,31,32]
+            };
+            
+            let html = '';
+            for (const [jaw, jawTeeth] of Object.entries(jaws)) {
+                html += `<div style="margin-bottom: 20px;"><strong style="color: #1e40af;">${jaw}</strong><div class="teeth-row">`;
+                for (const toothNumber of jawTeeth) {
+                    const hasTreatment = currentTreatments.some(t => t.toothNumber === toothNumber);
+                    html += `<div class="tooth ${hasTreatment ? 'has-treatment' : ''}" onclick="selectTooth(${toothNumber})"><div class="tooth-number">${toothNumber}</div></div>`;
+                }
+                html += `</div></div>`;
+            }
+            document.getElementById('teethDiagram').innerHTML = html;
+        }
+
+        function selectTooth(toothNumber) {
+            const optionsHtml = treatmentTypes.map(t => `<option value="${t}">${t}</option>`).join('');
+            const modalHtml = `
+                <div class="modal-content" style="max-width: 500px;">
+                    <div class="modal-header"><h3><i class="fas fa-tooth"></i> إضافة معالجة للسن ${toothNumber}</h3><button class="close-modal" onclick="closeModal('treatmentEntryModal')">&times;</button></div>
+                    <div class="modal-body">
+                        <div class="input-group"><label>رقم السن</label><input type="number" id="treatmentToothNumber" value="${toothNumber}" readonly style="background:#f1f5f9;"></div>
+                        <div class="input-group"><label>نوع المعالجة *</label><select id="treatmentTypeSelect">${optionsHtml}</select></div>
+                        <div class="input-group"><label>ملاحظات</label><textarea id="treatmentNotesInput" rows="3"></textarea></div>
+                        <div class="input-group"><label>التكلفة (ريال)</label><input type="number" id="treatmentCostInput" value="0" step="10" oninput="calculateRemaining()"></div>
+                        <div class="input-group"><label>المدفوع (ريال)</label><input type="number" id="treatmentPaidInput" value="0" step="10" oninput="calculateRemaining()"></div>
+                        <div style="background:#e2e8f0;padding:12px;border-radius:12px;"><div style="display:flex;justify-content:space-between;"><span><strong>المتبقي:</strong></span><span id="remainingAmountModal" style="color:#ef4444;">0 ريال</span></div></div>
+                        <div style="display:flex;gap:10px;margin-top:20px;"><button class="btn" onclick="saveSingleTreatment()">حفظ فقط</button><button class="btn btn-whatsapp" onclick="saveAndShareSingleTreatment()">حفظ ومشاركة</button></div>
                     </div>
+                </div>
             `;
-            treatments.forEach((t, idx) => {
-                html += `
-                    <div class="treatment-list-item" style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                        <div style="flex: 1;">
-                            <strong>${t.treatmentType}</strong>
-                        </div>
-                        <button class="treatment-remove" onclick="removeTreatmentByIndex(${currentTreatments.findIndex(ct => ct === t)})" style="background: #ef4444; color: white; border: none; padding: 4px 12px; border-radius: 8px; cursor: pointer;">
-                            <i class="fas fa-trash"></i> إزالة
-                        </button>
-                    </div>
-                `;
+            let modal = document.getElementById('treatmentEntryModal');
+            if (!modal) { const div = document.createElement('div'); div.id = 'treatmentEntryModal'; div.className = 'modal'; document.body.appendChild(div); modal = div; }
+            modal.innerHTML = modalHtml;
+            modal.style.display = 'flex';
+        }
+
+        function calculateRemaining() {
+            const cost = parseFloat(document.getElementById('treatmentCostInput')?.value) || 0;
+            const paid = parseFloat(document.getElementById('treatmentPaidInput')?.value) || 0;
+            const remaining = cost - paid;
+            const span = document.getElementById('remainingAmountModal');
+            if (span) { span.textContent = remaining.toFixed(2) + ' ريال'; span.style.color = remaining < 0 ? '#10b981' : remaining > 0 ? '#ef4444' : '#64748b'; }
+        }
+
+        async function saveSingleTreatment() {
+            const toothNumber = parseInt(document.getElementById('treatmentToothNumber')?.value);
+            const treatmentType = document.getElementById('treatmentTypeSelect')?.value;
+            const notes = document.getElementById('treatmentNotesInput')?.value;
+            const cost = parseFloat(document.getElementById('treatmentCostInput')?.value) || 0;
+            const paid = parseFloat(document.getElementById('treatmentPaidInput')?.value) || 0;
+            if (!treatmentType) { showAlert('dashboardAlert', 'اختر نوع المعالجة', 'error'); return; }
+            
+            const response = await fetch('/api/treatments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ patientId: currentPatientForSession, userId: currentUser.id, toothNumber, treatmentType, description: '', cost, notes: `التكلفة: ${cost} | المدفوع: ${paid} | المتبقي: ${cost-paid}\n${notes}`, treatmentDate: new Date().toISOString() })
             });
-            html += `</div>`;
+            if (response.ok) { showAlert('dashboardAlert', `✅ تم حفظ معالجة السن ${toothNumber}`, 'success'); closeModal('treatmentEntryModal'); await loadPatients(); }
+            else showAlert('dashboardAlert', 'فشل الحفظ', 'error');
         }
-        listDiv.innerHTML = html;
-    }
 
-    function removeTreatmentByIndex(index) {
-        if (confirm('هل تريد إزالة هذه المعالجة؟')) {
-            currentTreatments.splice(index, 1);
-            updateTreatmentsList();
+        async function saveAndShareSingleTreatment() {
+            const toothNumber = parseInt(document.getElementById('treatmentToothNumber')?.value);
+            const treatmentType = document.getElementById('treatmentTypeSelect')?.value;
+            const notes = document.getElementById('treatmentNotesInput')?.value;
+            const cost = parseFloat(document.getElementById('treatmentCostInput')?.value) || 0;
+            const paid = parseFloat(document.getElementById('treatmentPaidInput')?.value) || 0;
+            if (!treatmentType) { showAlert('dashboardAlert', 'اختر نوع المعالجة', 'error'); return; }
+            
+            const response = await fetch('/api/treatments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ patientId: currentPatientForSession, userId: currentUser.id, toothNumber, treatmentType, description: '', cost, notes: `التكلفة: ${cost} | المدفوع: ${paid} | المتبقي: ${cost-paid}\n${notes}`, treatmentDate: new Date().toISOString() })
+            });
+            if (response.ok) {
+                const patient = allPatients.find(p => p._id === currentPatientForSession);
+                if (patient) {
+                    let msg = `*🦷 تقرير المعالجة*\n👤 المريض: ${patient.name}\n🦷 السن: ${toothNumber}\n💊 النوع: ${treatmentType}\n💰 التكلفة: ${cost} ريال\n💵 المدفوع: ${paid} ريال\n⚠️ المتبقي: ${cost-paid} ريال\n${notes ? `📝 ملاحظات: ${notes}\n` : ''}\n🦷 ClinicPro`;
+                    window.open(`https://wa.me/${patient.phone || '967773041464'}?text=${encodeURIComponent(msg)}`, '_blank');
+                }
+                showAlert('dashboardAlert', `✅ تم حفظ ومشاركة معالجة السن ${toothNumber}`, 'success');
+                closeModal('treatmentEntryModal');
+                await loadPatients();
+            }
+        }
+
+        function showAddTreatmentSession(patientId) {
+            currentPatientForSession = patientId;
+            currentTreatments = [];
             drawTeethDiagram();
-            updateTotalCost();
-            showAlert('dashboardAlert', 'تم إزالة المعالجة بنجاح', 'success');
+            document.getElementById('treatmentSessionModal').style.display = 'flex';
         }
-    }
 
-    function updateTotalCost() {
-        const total = currentTreatments.length;
-        document.getElementById('sessionTotalCost').value = total;
-        return total;
-    }
+        function updateTreatmentsList() {
+            const listDiv = document.getElementById('treatmentsList');
+            if (!listDiv) return;
+            if (currentTreatments.length === 0) { listDiv.innerHTML = '<p style="text-align:center;padding:20px;">لا توجد معالجات مضافة</p>'; return; }
+            listDiv.innerHTML = currentTreatments.map((t, idx) => `<div class="treatment-list-item"><div><strong>🦷 السن ${t.toothNumber}</strong> - ${t.treatmentType}</div><button class="treatment-remove" onclick="removeTreatment(${idx})"><i class="fas fa-trash"></i></button></div>`).join('');
+        }
 
-    // عرض نافذة ملاحظات الجلسة (مع التكلفة والمدفوع والمتبقي)
-    function showSessionNotesModal() {
+        function removeTreatment(idx) { currentTreatments.splice(idx, 1); updateTreatmentsList(); drawTeethDiagram(); }
+
+        async function saveTreatmentSession() {
+            if (currentTreatments.length === 0) { showAlert('dashboardAlert', 'لا توجد معالجات', 'error'); return; }
+            let success = 0;
+            for (const t of currentTreatments) {
+                const res = await fetch('/api/treatments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId: currentPatientForSession, userId: currentUser.id, toothNumber: t.toothNumber, treatmentType: t.treatmentType, description: '', cost: 0, notes: '', treatmentDate: new Date().toISOString() }) });
+                if (res.ok) success++;
+            }
+            showAlert('dashboardAlert', `✅ تم حفظ ${success} معالجة`, 'success');
+            closeModal('treatmentSessionModal');
+            currentTreatments = [];
+            await loadPatients();
+        }
+
+        async function shareDiagnosis() { await saveTreatmentSession(); }
+
+        async function showPatientTreatments(patientId) {
+            const res = await fetch(`/api/treatments/patient/${patientId}`);
+            const treatments = await res.json();
+            let html = treatments.length ? treatments.map(t => `<div onclick="showTreatmentDetails('${t._id}')" style="padding:10px;border-bottom:1px solid #e2e8f0;cursor:pointer;"><strong>🦷 السن ${t.toothNumber}</strong> - ${t.treatmentType}<br><small>${new Date(t.treatmentDate).toLocaleDateString()}</small></div>`).join('') : '<p>لا توجد معالجات</p>';
+            document.getElementById('previousTreatmentsList').innerHTML = html;
+            document.getElementById('previousTreatmentsModal').style.display = 'flex';
+        }
+
+        async function showTreatmentDetails(id) {
+            const res = await fetch(`/api/treatments/${id}`);
+            const t = await res.json();
+            alert(`السن: ${t.toothNumber}\nالنوع: ${t.treatmentType}\nالتاريخ: ${new Date(t.treatmentDate).toLocaleDateString()}\n${t.notes ? `ملاحظات: ${t.notes}` : ''}`);
+        }
+
+        // Authentication functions
+        async function register() {
+            const data = { fullName: document.getElementById('regFullName').value, username: document.getElementById('regUsername').value, password: document.getElementById('regPassword').value, phone: document.getElementById('regPhone').value, age: parseInt(document.getElementById('regAge').value), clinicName: document.getElementById('regClinicName').value, address: document.getElementById('regAddress').value };
+            if (!data.fullName || !data.username || !data.password) { showAlert('registerAlert', 'املأ جميع الحقول', 'error'); return; }
+            const res = await fetch('/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+            const result = await res.json();
+            if (res.ok && result.success) { currentUser = result.user; localStorage.setItem('userId', currentUser.id); await loadDashboard(); showAlert('dashboardAlert', 'تم إنشاء الحساب', 'success'); }
+            else showAlert('registerAlert', result.message || 'فشل', 'error');
+        }
+
+        async function login() {
+            const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: document.getElementById('loginUsername').value, password: document.getElementById('loginPassword').value }) });
+            const result = await res.json();
+            if (res.ok && result.success) { currentUser = result.user; localStorage.setItem('userId', currentUser.id); await loadDashboard(); showAlert('dashboardAlert', 'تم تسجيل الدخول', 'success'); }
+            else showAlert('loginAlert', result.message || 'فشل', 'error');
+        }
+
+        async function loadDashboard() {
+            const userId = localStorage.getItem('userId');
+            if (!userId) { showLogin(); return; }
+            if (!currentUser) { const res = await fetch(`/api/user/${userId}`); if (res.ok) { const data = await res.json(); currentUser = data.user; } else { showLogin(); return; } }
+            document.getElementById('loginPage').style.display = 'none';
+            document.getElementById('registerPage').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            document.getElementById('userNameDisplay').textContent = currentUser.fullName || currentUser.username;
+            const badge = document.getElementById('subscriptionBadge');
+            if (currentUser.role === 'admin') { badge.innerHTML = '👑 مدير'; badge.className = 'subscription-badge subscription-active'; }
+            else if (currentUser.isSubscribed) { badge.innerHTML = '✨ مشترك'; badge.className = 'subscription-badge subscription-active'; }
+            else { badge.innerHTML = '📊 مجاني'; badge.className = 'subscription-badge subscription-inactive'; }
+            await loadPatients(); await loadStats();
+            if (currentUser.role === 'admin') await loadAdminPanel();
+        }
+
+        async function loadPatients() { const res = await fetch(`/api/patients/${currentUser.id}`); allPatients = await res.json(); renderPatients(allPatients); }
+        function renderPatients(patients) {
+    const grid = document.getElementById('patientsGrid');
+    if (!patients || patients.length === 0) {
+        grid.innerHTML = '<div style="text-align: center; padding: 50px; background: white; border-radius: 20px;"><i class="fas fa-user-friends" style="font-size: 48px; color: #3b82f6;"></i><p>لا يوجد مرضى. أضف مريضاً جديداً</p></div>';
+        return;
+    }
+    
+    grid.innerHTML = patients.map(patient => `
+        <div class="patient-card">
+            <div class="patient-header" style="cursor: pointer;" onclick="showPatientFullDetails('${patient._id}')">
+                <h3><i class="fas fa-user"></i> ${escapeHtml(patient.name)}</h3>
+                <div class="patient-actions" onclick="event.stopPropagation()">
+                    <button onclick="editPatient('${patient._id}')" title="تعديل"><i class="fas fa-edit"></i></button>
+                    <button onclick="showAddTreatmentSession('${patient._id}')" title="إضافة جلسة علاجية"><i class="fas fa-stethoscope"></i></button>
+                    <button onclick="deletePatient('${patient._id}')" title="حذف"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+            <div class="patient-body">
+                <div class="patient-info">
+                    <p><i class="fas fa-phone"></i> ${escapeHtml(patient.phone || 'غير محدد')}</p>
+                    <p><i class="fas fa-calendar-alt"></i> العمر: ${patient.age} سنة</p>
+                    ${patient.address ? `<p><i class="fas fa-map-marker-alt"></i> ${escapeHtml(patient.address)}</p>` : ''}
+                </div>
+                ${patient.nextAppointment ? `
+                    <div class="next-appointment" style="background: #dbeafe; padding: 8px; border-radius: 8px; margin-top: 8px;">
+                        <i class="fas fa-calendar-check"></i> <strong>الموعد القادم:</strong><br>
+                        ${new Date(patient.nextAppointment).toLocaleDateString('ar-EG')}
+                        ${patient.nextAppointmentNotes ? `<br><small>📝 ${escapeHtml(patient.nextAppointmentNotes)}</small>` : ''}
+                    </div>
+                ` : ''}
+                <div style="margin-top: 8px; font-size: 12px; color: #3b82f6;">
+                    <i class="fas fa-history"></i> اضغط لعرض التفاصيل الكاملة
+                </div>
+            </div>
+        </div>
+    `).join('');
+        }
+        async function addPatient(data) { const res = await fetch('/api/patients', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...data, userId: currentUser.id }) }); if (res.ok) { showAlert('dashboardAlert', 'تم الإضافة', 'success'); closeModal('patientModal'); await loadPatients(); await loadStats(); } }
+        async function updatePatient(id, data) { const res = await fetch(`/api/patients/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); if (res.ok) { showAlert('dashboardAlert', 'تم التحديث', 'success'); closeModal('patientModal'); await loadPatients(); } }
+        async function deletePatient(id) { if (confirm('هل أنت متأكد؟')) { await fetch(`/api/patients/${id}`, { method: 'DELETE' }); await loadPatients(); await loadStats(); } }
+       // عرض تفاصيل المريض الكاملة مع المعالجات السابقة
+async function showPatientFullDetails(patientId) {
+    try {
+        // جلب بيانات المريض
+        const patientResponse = await fetch(`/api/patients/${patientId}`);
+        const patientData = await patientResponse.json();
+        const patient = patientData.patient;
+        
+        // جلب المعالجات السابقة
+        const treatmentsResponse = await fetch(`/api/treatments/patient/${patientId}`);
+        const treatments = await treatmentsResponse.json();
+        
+        // تجميع المعالجات حسب التاريخ
+        const groupedByDate = {};
+        treatments.forEach(t => {
+            const date = new Date(t.treatmentDate).toLocaleDateString('ar-EG');
+            if (!groupedByDate[date]) groupedByDate[date] = [];
+            groupedByDate[date].push(t);
+        });
+        
+        // حساب إجمالي التكاليف
+        let totalCost = 0;
+        let totalPaid = 0;
+        treatments.forEach(t => {
+            totalCost += t.cost || 0;
+            if (t.notes) {
+                const paidMatch = t.notes.match(/المدفوع:\s*([\d.]+)/);
+                if (paidMatch) totalPaid += parseFloat(paidMatch[1]);
+            }
+        });
+        const totalRemaining = totalCost - totalPaid;
+        
+        // بناء HTML لعرض التفاصيل
+        let treatmentsHtml = '';
+        if (treatments.length === 0) {
+            treatmentsHtml = '<p style="text-align: center; padding: 20px; color: #64748b;">لا توجد معالجات سابقة لهذا المريض</p>';
+        } else {
+            for (const [date, sessionTreatments] of Object.entries(groupedByDate)) {
+                treatmentsHtml += `
+                    <div style="background: #f8fafc; border-radius: 12px; padding: 12px; margin-bottom: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <strong style="color: #1e40af;"><i class="fas fa-calendar-alt"></i> ${date}</strong>
+                            <span style="background: #3b82f6; color: white; padding: 2px 8px; border-radius: 20px; font-size: 11px;">${sessionTreatments.length} معالجة</span>
+                        </div>
+                `;
+                sessionTreatments.forEach(t => {
+                    // استخراج معلومات التكلفة والمدفوع من الملاحظات
+                    let treatmentCost = t.cost || 0;
+                    let treatmentPaid = 0;
+                    let treatmentRemaining = treatmentCost;
+                    if (t.notes) {
+                        const costMatch = t.notes.match(/التكلفة:\s*([\d.]+)/);
+                        const paidMatch = t.notes.match(/المدفوع:\s*([\d.]+)/);
+                        if (costMatch) treatmentCost = parseFloat(costMatch[1]);
+                        if (paidMatch) treatmentPaid = parseFloat(paidMatch[1]);
+                        treatmentRemaining = treatmentCost - treatmentPaid;
+                    }
+                    
+                    treatmentsHtml += `
+                        <div onclick="showTreatmentDetails('${t._id}')" style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #e2e8f0; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.backgroundColor='#f1f5f9'" onmouseout="this.style.backgroundColor='transparent'">
+                            <div style="flex: 1;">
+                                <strong><i class="fas fa-tooth"></i> السن ${t.toothNumber}</strong>
+                                <span style="background: #e2e8f0; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-right: 8px;">${t.treatmentType}</span>
+                                ${t.description ? `<div style="font-size: 12px; color: #64748b; margin-top: 4px;">${t.description.substring(0, 50)}${t.description.length > 50 ? '...' : ''}</div>` : ''}
+                            </div>
+                            <div style="text-align: left; min-width: 100px;">
+                                ${treatmentCost > 0 ? `<div style="color: #10b981;">💰 ${treatmentCost} ريال</div>` : ''}
+                                ${treatmentPaid > 0 ? `<div style="font-size: 11px;">💵 مدفوع: ${treatmentPaid}</div>` : ''}
+                                ${treatmentRemaining > 0 ? `<div style="font-size: 11px; color: #ef4444;">⚠️ متبقي: ${treatmentRemaining}</div>` : ''}
+                                <div style="font-size: 10px; color: #94a3b8;"><i class="fas fa-eye"></i> اضغط للتفاصيل</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                treatmentsHtml += `</div>`;
+            }
+        }
+        
+        // إنشاء نافذة التفاصيل
         const modalHtml = `
-            <div id="sessionNotesModalInner" class="modal" style="display: flex;">
-                <div class="modal-content" style="max-width: 550px;">
+            <div id="patientDetailsModal" class="modal" style="display: flex;">
+                <div class="modal-content" style="max-width: 700px;">
                     <div class="modal-header">
-                        <h3><i class="fas fa-sticky-note"></i> تفاصيل الجلسة العلاجية</h3>
-                        <button class="close-modal" onclick="closeModal('sessionNotesModalInner')">&times;</button>
+                        <h3><i class="fas fa-user-circle"></i> ${escapeHtml(patient.name)}</h3>
+                        <button class="close-modal" onclick="closeModal('patientDetailsModal')">&times;</button>
                     </div>
                     <div class="modal-body">
-                        <div style="background: #f1f5f9; padding: 12px; border-radius: 12px; margin-bottom: 20px;">
-                            <strong>المعالجات المختارة:</strong>
-                            ${currentTreatments.map(t => `<div>🦷 السن ${t.toothNumber}: ${t.treatmentType}</div>`).join('')}
-                            <div style="margin-top: 10px;"><strong>عدد المعالجات:</strong> ${currentTreatments.length}</div>
+                        <!-- معلومات المريض -->
+                        <div style="background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); border-radius: 16px; padding: 15px; margin-bottom: 20px;">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                                <div><i class="fas fa-phone"></i> <strong>الهاتف:</strong> ${escapeHtml(patient.phone || 'غير محدد')}</div>
+                                <div><i class="fas fa-calendar-alt"></i> <strong>العمر:</strong> ${patient.age} سنة</div>
+                                ${patient.address ? `<div><i class="fas fa-map-marker-alt"></i> <strong>العنوان:</strong> ${escapeHtml(patient.address)}</div>` : ''}
+                                <div><i class="fas fa-calendar-plus"></i> <strong>تاريخ التسجيل:</strong> ${new Date(patient.createdAt).toLocaleDateString('ar-EG')}</div>
+                            </div>
+                            ${patient.medicalHistory ? `
+                                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #cbd5e1;">
+                                    <i class="fas fa-notes-medical"></i> <strong>التاريخ الطبي:</strong><br>
+                                    ${escapeHtml(patient.medicalHistory)}
+                                </div>
+                            ` : ''}
+                            ${patient.notes ? `
+                                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #cbd5e1;">
+                                    <i class="fas fa-pencil-alt"></i> <strong>ملاحظات عامة:</strong><br>
+                                    ${escapeHtml(patient.notes)}
+                                </div>
+                            ` : ''}
                         </div>
                         
-                        <div class="input-group">
-                            <label><i class="fas fa-pencil-alt"></i> ملاحظات الجلسة</label>
-                            <textarea id="sessionGlobalNotes" rows="2" placeholder="أدخل ملاحظات عامة عن الجلسة..."></textarea>
-                        </div>
+                        <!-- الموعد القادم -->
+                        ${patient.nextAppointment ? `
+                            <div style="background: #dbeafe; border-radius: 12px; padding: 12px; margin-bottom: 20px; border-right: 4px solid #3b82f6;">
+                                <i class="fas fa-calendar-check"></i> <strong>الموعد القادم:</strong><br>
+                                📅 ${new Date(patient.nextAppointment).toLocaleDateString('ar-EG')}
+                                ${patient.nextAppointmentNotes ? `<br>📝 ${escapeHtml(patient.nextAppointmentNotes)}` : ''}
+                            </div>
+                        ` : ''}
                         
-                        <div class="input-group">
-                            <label><i class="fas fa-money-bill-wave"></i> التكلفة الإجمالية (ريال)</label>
-                            <input type="number" id="sessionTotalCostInput" value="0" step="10" placeholder="أدخل التكلفة الإجمالية" oninput="calculateRemaining()">
-                        </div>
-                        
-                        <div class="input-group">
-                            <label><i class="fas fa-hand-holding-usd"></i> المدفوع (ريال)</label>
-                            <input type="number" id="sessionPaidInput" value="0" step="10" placeholder="المبلغ المدفوع" oninput="calculateRemaining()">
-                        </div>
-                        
-                        <div style="background: #e2e8f0; padding: 12px; border-radius: 12px; margin-top: 10px;">
-                            <div style="display: flex; justify-content: space-between;">
-                                <span><strong>المتبقي:</strong></span>
-                                <span id="remainingAmount" style="color: #ef4444; font-size: 18px; font-weight: bold;">0 ريال</span>
+                        <!-- ملخص الحسابات -->
+                        <div style="background: #f1f5f9; border-radius: 12px; padding: 12px; margin-bottom: 20px;">
+                            <h4><i class="fas fa-chart-line"></i> ملخص الحسابات</h4>
+                            <div style="display: flex; justify-content: space-between; margin-top: 8px;">
+                                <span><strong>💰 إجمالي التكلفة:</strong></span>
+                                <span style="color: #1e40af; font-weight: bold;">${totalCost} ريال</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                                <span><strong>💵 إجمالي المدفوع:</strong></span>
+                                <span style="color: #10b981; font-weight: bold;">${totalPaid} ريال</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-top: 5px; padding-top: 5px; border-top: 1px solid #cbd5e1;">
+                                <span><strong>⚠️ إجمالي المتبقي:</strong></span>
+                                <span style="color: ${totalRemaining > 0 ? '#ef4444' : '#10b981'}; font-weight: bold;">${totalRemaining > 0 ? totalRemaining + ' ريال' : (totalRemaining < 0 ? 'فائض ' + Math.abs(totalRemaining) + ' ريال' : 'مكتمل')}</span>
                             </div>
                         </div>
                         
+                        <!-- المعالجات السابقة -->
+                        <h4><i class="fas fa-history"></i> سجل المعالجات (${treatments.length} معالجة)</h4>
+                        <div style="max-height: 400px; overflow-y: auto; margin-top: 10px;">
+                            ${treatmentsHtml}
+                        </div>
+                        
+                        <!-- أزرار الإجراءات -->
                         <div style="display: flex; gap: 10px; margin-top: 20px;">
-                            <button class="btn" onclick="saveSessionWithDetails()" style="flex: 1;">
-                                <i class="fas fa-save"></i> حفظ الجلسة
+                            <button class="btn" onclick="closeModal('patientDetailsModal'); editPatient('${patient._id}')" style="flex: 1;">
+                                <i class="fas fa-edit"></i> تعديل البيانات
                             </button>
-                            <button class="btn btn-whatsapp" onclick="saveAndShareSessionWithDetails()" style="flex: 1;">
-                                <i class="fab fa-whatsapp"></i> حفظ ومشاركة
+                            <button class="btn btn-secondary" onclick="closeModal('patientDetailsModal'); showAddTreatmentSession('${patient._id}')" style="flex: 1;">
+                                <i class="fas fa-stethoscope"></i> إضافة معالجة
+                            </button>
+                            <button class="btn btn-whatsapp" onclick="sharePatientSummary('${patient._id}')" style="flex: 1;">
+                                <i class="fab fa-whatsapp"></i> مشاركة التقرير
                             </button>
                         </div>
                     </div>
@@ -471,689 +554,101 @@
             </div>
         `;
         
-        let modal = document.getElementById('sessionNotesModalInner');
+        let modal = document.getElementById('patientDetailsModal');
         if (!modal) {
             const div = document.createElement('div');
-            div.id = 'sessionNotesModalInner';
+            div.id = 'patientDetailsModal';
+            div.className = 'modal';
             document.body.appendChild(div);
             modal = div;
         }
         modal.innerHTML = modalHtml;
         modal.style.display = 'flex';
+        
+    } catch (error) {
+        console.error('Error loading patient details:', error);
+        showAlert('dashboardAlert', 'خطأ في جلب بيانات المريض', 'error');
     }
-
-    function calculateRemaining() {
-        const totalCost = parseFloat(document.getElementById('sessionTotalCostInput').value) || 0;
-        const paid = parseFloat(document.getElementById('sessionPaidInput').value) || 0;
-        const remaining = totalCost - paid;
-        const remainingSpan = document.getElementById('remainingAmount');
-        if (remainingSpan) {
-            remainingSpan.textContent = remaining.toFixed(2) + ' ريال';
-            if (remaining < 0) {
-                remainingSpan.style.color = '#10b981';
-            } else if (remaining > 0) {
-                remainingSpan.style.color = '#ef4444';
-            } else {
-                remainingSpan.style.color = '#64748b';
-            }
-        }
-    }
-
-    // حفظ الجلسة مع التكلفة والمدفوع والمتبقي
-    async function saveSessionWithDetails() {
-        const sessionNotes = document.getElementById('sessionGlobalNotes').value;
-        const totalCost = parseFloat(document.getElementById('sessionTotalCostInput').value) || 0;
-        const paid = parseFloat(document.getElementById('sessionPaidInput').value) || 0;
-        const remaining = totalCost - paid;
+}// مشاركة تقرير المريض الكامل عبر واتساب
+async function sharePatientSummary(patientId) {
+    try {
+        const patientResponse = await fetch(`/api/patients/${patientId}`);
+        const patientData = await patientResponse.json();
+        const patient = patientData.patient;
         
-        if (currentTreatments.length === 0) {
-            showAlert('dashboardAlert', 'لا توجد معالجات للحفظ', 'error');
-            return;
-        }
+        const treatmentsResponse = await fetch(`/api/treatments/patient/${patientId}`);
+        const treatments = await treatmentsResponse.json();
         
-        const costPerTreatment = currentTreatments.length > 0 ? totalCost / currentTreatments.length : 0;
+        let message = `*🦷 تقرير المريض: ${patient.name}*\n\n`;
+        message += `📞 الهاتف: ${patient.phone || 'غير مسجل'}\n`;
+        message += `📅 العمر: ${patient.age} سنة\n`;
+        if (patient.address) message += `📍 العنوان: ${patient.address}\n`;
+        message += `📆 تاريخ التسجيل: ${new Date(patient.createdAt).toLocaleDateString('ar-EG')}\n\n`;
         
-        let successCount = 0;
-        for (const treatment of currentTreatments) {
-            const treatmentData = {
-                patientId: currentPatientForSession,
-                userId: currentUser.id,
-                toothNumber: treatment.toothNumber,
-                treatmentType: treatment.treatmentType,
-                description: treatment.description || '',
-                cost: Math.round(costPerTreatment * 100) / 100,
-                notes: `التكلفة الإجمالية: ${totalCost} ريال | المدفوع: ${paid} ريال | المتبقي: ${remaining} ريال\n${sessionNotes}`,
-                treatmentDate: new Date().toISOString()
-            };
-            
-            const response = await fetch('/api/treatments', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(treatmentData)
-            });
-            
-            if (response.ok) successCount++;
-        }
-        
-        if (successCount > 0) {
-            showAlert('dashboardAlert', `✅ تم حفظ ${successCount} معالجة بنجاح`, 'success');
-            closeModal('sessionNotesModalInner');
-            closeModal('treatmentSessionModal');
-            currentTreatments = [];
-            await loadPatients();
+        message += `*سجل المعالجات:*\n`;
+        if (treatments.length === 0) {
+            message += `لا توجد معالجات سابقة\n`;
         } else {
-            showAlert('dashboardAlert', '❌ فشل حفظ المعالجات', 'error');
-        }
-    }
-
-    // حفظ ومشاركة الجلسة
-    async function saveAndShareSessionWithDetails() {
-        const sessionNotes = document.getElementById('sessionGlobalNotes').value;
-        const totalCost = parseFloat(document.getElementById('sessionTotalCostInput').value) || 0;
-        const paid = parseFloat(document.getElementById('sessionPaidInput').value) || 0;
-        const remaining = totalCost - paid;
-        
-        if (currentTreatments.length === 0) {
-            showAlert('dashboardAlert', 'لا توجد معالجات للحفظ', 'error');
-            return;
-        }
-        
-        const costPerTreatment = currentTreatments.length > 0 ? totalCost / currentTreatments.length : 0;
-        
-        let successCount = 0;
-        for (const treatment of currentTreatments) {
-            const treatmentData = {
-                patientId: currentPatientForSession,
-                userId: currentUser.id,
-                toothNumber: treatment.toothNumber,
-                treatmentType: treatment.treatmentType,
-                description: treatment.description || '',
-                cost: Math.round(costPerTreatment * 100) / 100,
-                notes: `التكلفة الإجمالية: ${totalCost} ريال | المدفوع: ${paid} ريال | المتبقي: ${remaining} ريال\n${sessionNotes}`,
-                treatmentDate: new Date().toISOString()
-            };
-            
-            const response = await fetch('/api/treatments', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(treatmentData)
+            let totalCost = 0;
+            let totalPaid = 0;
+            treatments.forEach(t => {
+                totalCost += t.cost || 0;
+                message += `🦷 السن ${t.toothNumber}: ${t.treatmentType}\n`;
+                if (t.notes) {
+                    const paidMatch = t.notes.match(/المدفوع:\s*([\d.]+)/);
+                    if (paidMatch) totalPaid += parseFloat(paidMatch[1]);
+                }
+                message += `   📅 ${new Date(t.treatmentDate).toLocaleDateString('ar-EG')}\n`;
+                if (t.cost) message += `   💰 ${t.cost} ريال\n`;
             });
-            
-            if (response.ok) successCount++;
+            const totalRemaining = totalCost - totalPaid;
+            message += `\n💰 *إجمالي التكلفة: ${totalCost} ريال*\n`;
+            message += `💵 *إجمالي المدفوع: ${totalPaid} ريال*\n`;
+            message += `⚠️ *المتبقي: ${totalRemaining > 0 ? totalRemaining + ' ريال' : (totalRemaining < 0 ? 'فائض ' + Math.abs(totalRemaining) + ' ريال' : 'مكتمل')}*\n`;
         }
         
-        if (successCount > 0) {
-            await shareSessionAfterSave(sessionNotes, totalCost, paid, remaining);
-            closeModal('sessionNotesModalInner');
-            closeModal('treatmentSessionModal');
-            currentTreatments = [];
-            await loadPatients();
-        }
-    }
-
-    async function shareSessionAfterSave(sessionNotes, totalCost, paid, remaining) {
-        const patient = allPatients.find(p => p._id === currentPatientForSession);
-        if (!patient) return;
-        
-        let message = `*🦷 تقرير الجلسة العلاجية*\n\n`;
-        message += `👤 المريض: ${patient.name}\n`;
-        message += `📅 التاريخ: ${new Date().toLocaleDateString('ar-EG')}\n`;
-        message += `🏥 العيادة: ${currentUser.clinicName}\n\n`;
-        message += `*المعالجات التي تمت:*\n`;
-        
-        currentTreatments.forEach((t, idx) => {
-            message += `${idx + 1}. 🦷 السن ${t.toothNumber}: ${t.treatmentType}\n`;
-        });
-        
-        message += `\n💰 *التكلفة الإجمالية: ${totalCost} ريال*\n`;
-        message += `💵 *المدفوع: ${paid} ريال*\n`;
-        
-        if (remaining > 0) {
-            message += `⚠️ *المتبقي: ${remaining} ريال*\n`;
-        } else if (remaining < 0) {
-            message += `🔄 *فائض: ${Math.abs(remaining)} ريال*\n`;
-        } else {
-            message += `✅ *تم السداد بالكامل*\n`;
-        }
-        
-        if (sessionNotes) {
-            message += `\n📋 *ملاحظات:*\n${sessionNotes}\n`;
-        }
-        
-        message += `\n🦷 *تم تسجيل المعالجة بنجاح*`;
+        message += `\n🦷 *ClinicPro - نظام إدارة عيادات الأسنان*`;
         
         const phone = patient.phone || '967773041464';
         window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
-    }
-
-    // عرض المعالجات السابقة
-    async function showPatientTreatments(patientId) {
-        try {
-            const response = await fetch(`/api/treatments/patient/${patientId}`);
-            const treatments = await response.json();
-            
-            const groupedByDate = {};
-            treatments.forEach(t => {
-                const date = new Date(t.treatmentDate).toLocaleDateString('ar-EG');
-                if (!groupedByDate[date]) groupedByDate[date] = [];
-                groupedByDate[date].push(t);
-            });
-            
-            let html = '';
-            if (treatments.length === 0) {
-                html = '<p style="text-align: center; padding: 40px;">لا توجد معالجات سابقة</p>';
-            } else {
-                for (const [date, sessionTreatments] of Object.entries(groupedByDate)) {
-                    html += `<div class="session-card"><div class="session-date">📅 ${date}</div>`;
-                    sessionTreatments.forEach(t => {
-                        html += `<div onclick="showTreatmentDetails('${t._id}')" style="display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #e2e8f0; cursor: pointer;">
-                            <div><strong>🦷 السن ${t.toothNumber}</strong> - ${t.treatmentType}</div>
-                            <div>${t.cost ? `${t.cost} ريال` : ''}<br><small>👆 اضغط للتفاصيل</small></div>
-                        </div>`;
-                    });
-                    html += `</div>`;
-                }
-            }
-            document.getElementById('previousTreatmentsList').innerHTML = html;
-            document.getElementById('previousTreatmentsModal').style.display = 'flex';
-        } catch (error) {
-            showAlert('dashboardAlert', 'خطأ في جلب المعالجات', 'error');
-        }
-    }
-
-    // عرض تفاصيل المعالجة
-    async function showTreatmentDetails(treatmentId) {
-        try {
-            const response = await fetch(`/api/treatments/${treatmentId}`);
-            const treatment = await response.json();
-            const patient = allPatients.find(p => p._id === treatment.patientId);
-            
-            let totalCost = treatment.cost;
-            let paid = 0;
-            let remaining = totalCost;
-            
-            if (treatment.notes) {
-                const costMatch = treatment.notes.match(/التكلفة الإجمالية:\s*([\d.]+)/);
-                const paidMatch = treatment.notes.match(/المدفوع:\s*([\d.]+)/);
-                if (costMatch) totalCost = parseFloat(costMatch[1]);
-                if (paidMatch) paid = parseFloat(paidMatch[1]);
-                remaining = totalCost - paid;
-            }
-            
-            const modalHtml = `
-                <div id="treatmentViewModal" class="modal" style="display: flex;">
-                    <div class="modal-content" style="max-width: 550px;">
-                        <div class="modal-header">
-                            <h3><i class="fas fa-tooth"></i> تفاصيل المعالجة</h3>
-                            <button class="close-modal" onclick="closeModal('treatmentViewModal')">&times;</button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="input-group"><label><strong>المريض:</strong></label><p>${escapeHtml(patient?.name || 'غير معروف')}</p></div>
-                            <div class="input-group"><label><strong>رقم السن:</strong></label><p><span style="font-size: 20px; font-weight: bold;">${treatment.toothNumber}</span></p></div>
-                            <div class="input-group"><label><strong>نوع المعالجة:</strong></label><p><span style="background: #3b82f6; color: white; padding: 4px 12px; border-radius: 20px;">${escapeHtml(treatment.treatmentType)}</span></p></div>
-                            <div class="input-group"><label><strong>التاريخ:</strong></label><p>${new Date(treatment.treatmentDate).toLocaleDateString('ar-EG')}</p></div>
-                            
-                            <div style="background: #f1f5f9; padding: 12px; border-radius: 12px; margin: 15px 0;">
-                                <div style="display: flex; justify-content: space-between;"><span><strong>💰 التكلفة:</strong></span><span>${totalCost} ريال</span></div>
-                                <div style="display: flex; justify-content: space-between; margin-top: 5px;"><span><strong>💵 المدفوع:</strong></span><span style="color: #10b981;">${paid} ريال</span></div>
-                                <div style="display: flex; justify-content: space-between; margin-top: 5px;"><span><strong>⚠️ المتبقي:</strong></span><span style="color: ${remaining > 0 ? '#ef4444' : '#10b981'};">${remaining > 0 ? remaining + ' ريال' : (remaining < 0 ? 'فائض ' + Math.abs(remaining) + ' ريال' : 'مكتمل')}</span></div>
-                            </div>
-                            
-                            ${treatment.notes ? `<div class="input-group"><label><strong>ملاحظات:</strong></label><p>${escapeHtml(treatment.notes)}</p></div>` : ''}
-                            
-                            <button class="btn btn-whatsapp" onclick="shareTreatmentDetails('${treatment._id}')" style="margin-top: 20px;">
-                                <i class="fab fa-whatsapp"></i> مشاركة التفاصيل
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            let modal = document.getElementById('treatmentViewModal');
-            if (!modal) {
-                const div = document.createElement('div');
-                div.id = 'treatmentViewModal';
-                document.body.appendChild(div);
-                modal = div;
-            }
-            modal.innerHTML = modalHtml;
-            modal.style.display = 'flex';
-        } catch (error) {
-            showAlert('dashboardAlert', 'خطأ في جلب التفاصيل', 'error');
-        }
-    }
-
-    async function shareTreatmentDetails(treatmentId) {
-        try {
-            const response = await fetch(`/api/treatments/${treatmentId}`);
-            const treatment = await response.json();
-            const patient = allPatients.find(p => p._id === treatment.patientId);
-            
-            let message = `*🦷 تقرير المعالجة*\n\n👤 المريض: ${patient?.name}\n🦷 السن: ${treatment.toothNumber}\n💊 النوع: ${treatment.treatmentType}\n📅 التاريخ: ${new Date(treatment.treatmentDate).toLocaleDateString('ar-EG')}\n`;
-            if (treatment.notes) message += `\n📋 ملاحظات:\n${treatment.notes}`;
-            
-            const phone = patient?.phone || '967773041464';
-            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
-        } catch (error) {
-            showAlert('dashboardAlert', 'خطأ في المشاركة', 'error');
-        }
-    }
-
-    // دوال المصادقة والمرضى الأساسية
-    function showAddTreatmentSession(patientId) {
-        currentPatientForSession = patientId;
-        currentTreatments = [];
-        document.getElementById('sessionPatientId').value = patientId;
-        document.getElementById('sessionNotes').value = '';
-        document.getElementById('sessionTotalCost').value = '0';
-        drawTeethDiagram();
-        document.getElementById('treatmentSessionModal').style.display = 'flex';
-    }
-
-    async function saveTreatmentSession() {
-        if (currentTreatments.length === 0) {
-            showAlert('dashboardAlert', 'الرجاء اختيار معالجة', 'error');
-            return;
-        }
-        showSessionNotesModal();
-    }
-
-    async function shareDiagnosis() {
-        if (currentTreatments.length === 0) {
-            showAlert('dashboardAlert', 'لا توجد معالجات', 'error');
-            return;
-        }
-        showSessionNotesModal();
-    }
-
-    // باقي الدوال الأساسية
-    async function register() {
-        const userData = {
-            fullName: document.getElementById('regFullName').value,
-            username: document.getElementById('regUsername').value,
-            password: document.getElementById('regPassword').value,
-            phone: document.getElementById('regPhone').value,
-            age: parseInt(document.getElementById('regAge').value),
-            clinicName: document.getElementById('regClinicName').value,
-            address: document.getElementById('regAddress').value
-        };
         
-        if (!userData.fullName || !userData.username || !userData.password) {
-            showAlert('registerAlert', 'يرجى ملء جميع الحقول', 'error');
-            return;
-        }
-        
-        try {
-            const response = await fetch('/api/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(userData)
-            });
-            const data = await response.json();
-            
-            if (response.ok && data.success) {
-                currentUser = data.user;
-                localStorage.setItem('userId', currentUser.id);
-                await loadDashboard();
-                showAlert('dashboardAlert', 'تم إنشاء الحساب', 'success');
-            } else {
-                showAlert('registerAlert', data.message || 'فشل إنشاء الحساب', 'error');
-            }
-        } catch (error) {
-            showAlert('registerAlert', 'خطأ في الاتصال', 'error');
-        }
+    } catch (error) {
+        console.error('Error sharing patient summary:', error);
+        showAlert('dashboardAlert', 'خطأ في مشاركة التقرير', 'error');
     }
+}
+        async function loadStats() { const res = await fetch(`/api/user/${currentUser.id}`); const data = await res.json(); document.getElementById('totalPatients').textContent = data.patientCount || 0; let remaining = (currentUser.role === 'admin' || currentUser.isSubscribed) ? 'غير محدود' : Math.max(0, 5 - (data.patientCount || 0)); document.getElementById('remainingSlots').textContent = remaining; }
+        async function loadAdminPanel() { const res = await fetch('/api/admin/users'); const users = await res.json(); document.getElementById('adminPanel').innerHTML = `<div class="admin-panel"><h3>👑 لوحة المدير</h3><table>${users.map(u => `<tr><td>${u.fullName}</td><td>${u.patientCount} مريض</td><td>${u.isSubscribed ? 'مشترك' : 'مجاني'}</td><td><button onclick="toggleSubscription('${u._id}', ${!u.isSubscribed})">${u.isSubscribed ? 'تعطيل' : 'تفعيل'}</button></td></tr>`).join('')}</table></div>`; document.getElementById('adminPanel').style.display = 'block'; }
+        async function toggleSubscription(id, activate) { await fetch(`/api/admin/users/${id}/subscription`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isSubscribed: activate }) }); await loadAdminPanel(); }
+        function searchPatients() { const q = document.getElementById('searchInput').value.toLowerCase(); renderPatients(q ? allPatients.filter(p => p.name.toLowerCase().includes(q)) : allPatients); }
+        function showAddPatientModal() { document.getElementById('modalTitle').textContent = 'إضافة مريض'; document.getElementById('patientForm').reset(); document.getElementById('patientId').value = ''; document.getElementById('patientModal').style.display = 'flex'; }
+        function editPatient(id) { const p = allPatients.find(p => p._id === id); if (p) { document.getElementById('modalTitle').textContent = 'تعديل مريض'; document.getElementById('patientId').value = p._id; document.getElementById('patientName').value = p.name; document.getElementById('patientPhone').value = p.phone || ''; document.getElementById('patientAge').value = p.age; document.getElementById('patientAddress').value = p.address || ''; document.getElementById('patientNotes').value = p.notes || ''; document.getElementById('nextAppointment').value = p.nextAppointment ? new Date(p.nextAppointment).toISOString().slice(0,16) : ''; document.getElementById('nextAppointmentNotes').value = p.nextAppointmentNotes || ''; document.getElementById('patientModal').style.display = 'flex'; } }
+        function closeModal(id) { const m = document.getElementById(id); if (m) m.style.display = 'none'; }
+        function showLogin() { document.getElementById('loginPage').style.display = 'block'; document.getElementById('registerPage').style.display = 'none'; document.getElementById('dashboard').style.display = 'none'; }
+        function showRegister() { document.getElementById('loginPage').style.display = 'none'; document.getElementById('registerPage').style.display = 'block'; document.getElementById('dashboard').style.display = 'none'; }
+        function logout() { localStorage.removeItem('userId'); currentUser = null; showLogin(); }
+        function escapeHtml(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
 
-    async function login() {
-        const username = document.getElementById('loginUsername').value;
-        const password = document.getElementById('loginPassword').value;
-        
-        try {
-            const response = await fetch('/api/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
-            const data = await response.json();
-            
-            if (response.ok && data.success) {
-                currentUser = data.user;
-                localStorage.setItem('userId', currentUser.id);
-                await loadDashboard();
-                showAlert('dashboardAlert', 'تم تسجيل الدخول', 'success');
-            } else {
-                showAlert('loginAlert', data.message || 'فشل تسجيل الدخول', 'error');
-            }
-        } catch (error) {
-            showAlert('loginAlert', 'خطأ في الاتصال', 'error');
-        }
-    }
-
-    async function loadDashboard() {
-        const userId = localStorage.getItem('userId');
-        if (!userId || userId === 'undefined') { showLogin(); return; }
-        
-        if (!currentUser) {
-            try {
-                const response = await fetch(`/api/user/${userId}`);
-                if (!response.ok) throw new Error();
-                const data = await response.json();
-                currentUser = data.user;
-            } catch (error) { showLogin(); return; }
-        }
-        
-        document.getElementById('loginPage').style.display = 'none';
-        document.getElementById('registerPage').style.display = 'none';
-        document.getElementById('dashboard').style.display = 'block';
-        document.getElementById('userNameDisplay').textContent = currentUser.fullName || currentUser.username;
-        
-        const badge = document.getElementById('subscriptionBadge');
-        if (currentUser.role === 'admin') {
-            badge.innerHTML = '👑 مدير النظام';
-            badge.className = 'subscription-badge subscription-active';
-        } else if (currentUser.isSubscribed) {
-            badge.innerHTML = '✨ مشترك';
-            badge.className = 'subscription-badge subscription-active';
-        } else {
-            badge.innerHTML = '📊 مجاني - 5 مرضى';
-            badge.className = 'subscription-badge subscription-inactive';
-        }
-        
-        await loadPatients();
-        await loadStats();
-        if (currentUser.role === 'admin') await loadAdminPanel();
-    }
-
-    async function loadPatients() {
-        try {
-            const response = await fetch(`/api/patients/${currentUser.id}`);
-            allPatients = await response.json();
-            renderPatients(allPatients);
-        } catch (error) { console.error(error); }
-    }
-
-    function renderPatients(patients) {
-        const grid = document.getElementById('patientsGrid');
-        if (!patients || patients.length === 0) {
-            grid.innerHTML = '<div style="text-align: center; padding: 50px;">لا يوجد مرضى</div>';
-            return;
-        }
-        
-        grid.innerHTML = patients.map(patient => `
-            <div class="patient-card">
-                <div class="patient-header">
-                    <h3>${escapeHtml(patient.name)}</h3>
-                    <div class="patient-actions">
-                        <button onclick="editPatient('${patient._id}')"><i class="fas fa-edit"></i></button>
-                        <button onclick="showAddTreatmentSession('${patient._id}')"><i class="fas fa-stethoscope"></i></button>
-                        <button onclick="showPatientTreatments('${patient._id}')"><i class="fas fa-history"></i></button>
-                        <button onclick="deletePatient('${patient._id}')"><i class="fas fa-trash"></i></button>
-                    </div>
-                </div>
-                <div class="patient-body">
-                    <p><i class="fas fa-phone"></i> ${escapeHtml(patient.phone || 'غير محدد')}</p>
-                    <p><i class="fas fa-calendar"></i> العمر: ${patient.age} سنة</p>
-                </div>
-            </div>
-        `).join('');
-    }
-
-    async function addPatient(patientData) {
-        try {
-            const response = await fetch('/api/patients', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...patientData, userId: currentUser.id })
-            });
-            const data = await response.json();
-            
-            if (response.ok && data.success) {
-                showAlert('dashboardAlert', 'تم إضافة المريض', 'success');
-                closeModal('patientModal');
-                await loadPatients();
-                await loadStats();
-            } else if (response.status === 403) {
-                showSubscriptionWarning(data.message);
-                closeModal('patientModal');
-            }
-        } catch (error) { showAlert('dashboardAlert', 'خطأ', 'error'); }
-    }
-
-    async function updatePatient(patientId, patientData) {
-        try {
-            const response = await fetch(`/api/patients/${patientId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(patientData)
-            });
-            if (response.ok) {
-                showAlert('dashboardAlert', 'تم التحديث', 'success');
-                closeModal('patientModal');
-                await loadPatients();
-                await loadStats();
-            }
-        } catch (error) { showAlert('dashboardAlert', 'خطأ', 'error'); }
-    }
-
-    async function deletePatient(patientId) {
-        if (confirm('هل أنت متأكد؟')) {
-            try {
-                const response = await fetch(`/api/patients/${patientId}`, { method: 'DELETE' });
-                if (response.ok) {
-                    showAlert('dashboardAlert', 'تم الحذف', 'success');
-                    await loadPatients();
-                    await loadStats();
-                }
-            } catch (error) { showAlert('dashboardAlert', 'خطأ', 'error'); }
-        }
-    }
-
-    async function loadStats() {
-        try {
-            const response = await fetch(`/api/user/${currentUser.id}`);
-            const data = await response.json();
-            document.getElementById('totalPatients').textContent = data.patientCount || 0;
-            let remaining = (currentUser.role === 'admin' || currentUser.isSubscribed) ? 'غير محدود' : Math.max(0, 5 - (data.patientCount || 0));
-            document.getElementById('remainingSlots').textContent = remaining;
-        } catch (error) { console.error(error); }
-    }
-
-    function showSubscriptionWarning(message) {
-        const warningDiv = document.getElementById('subscriptionWarning');
-        warningDiv.innerHTML = `<div class="subscription-card"><h3>⚠️ ${message}</h3><button class="btn btn-whatsapp" onclick="contactAdminWhatsApp()">التواصل مع المدير</button></div>`;
-        warningDiv.style.display = 'block';
-        setTimeout(() => warningDiv.style.display = 'none', 10000);
-    }
-
-    function contactAdminWhatsApp() {
-        window.open(`https://wa.me/967773041464?text=${encodeURIComponent('أرغب في الاشتراك')}`, '_blank');
-    }
-
-    async function loadAdminPanel() {
-        try {
-            const response = await fetch('/api/admin/users');
-            const users = await response.json();
-            document.getElementById('adminPanel').innerHTML = `<div class="admin-panel"><h3>👑 لوحة المدير</h3><table>${users.map(u => `<tr><td>${u.fullName}</td><td>${u.patientCount} مريض</td><td>${u.isSubscribed ? 'مشترك' : 'مجاني'}</td><td><button onclick="toggleSubscription('${u._id}', ${!u.isSubscribed})">${u.isSubscribed ? 'تعطيل' : 'تفعيل'}</button></td></tr>`).join('')}</table></div>`;
-            document.getElementById('adminPanel').style.display = 'block';
-        } catch (error) { console.error(error); }
-    }
-
-    async function toggleSubscription(userId, activate) {
-        await fetch(`/api/admin/users/${userId}/subscription`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ isSubscribed: activate })
+        document.getElementById('loginForm')?.addEventListener('submit', e => { e.preventDefault(); login(); });
+        document.getElementById('registerForm')?.addEventListener('submit', e => { e.preventDefault(); register(); });
+        document.getElementById('patientForm')?.addEventListener('submit', e => {
+            e.preventDefault();
+            const data = { name: document.getElementById('patientName').value, phone: document.getElementById('patientPhone').value, age: parseInt(document.getElementById('patientAge').value), address: document.getElementById('patientAddress').value, notes: document.getElementById('patientNotes').value, nextAppointment: document.getElementById('nextAppointment').value || null, nextAppointmentNotes: document.getElementById('nextAppointmentNotes').value };
+            if (document.getElementById('patientId').value) updatePatient(document.getElementById('patientId').value, data);
+            else addPatient(data);
         });
-        await loadAdminPanel();
-    }
 
-    function searchPatients() {
-        const query = document.getElementById('searchInput').value.toLowerCase();
-        renderPatients(query ? allPatients.filter(p => p.name.toLowerCase().includes(query)) : allPatients);
-    }
-
-    function showAddPatientModal() {
-        document.getElementById('modalTitle').textContent = 'إضافة مريض';
-        document.getElementById('patientForm').reset();
-        document.getElementById('patientId').value = '';
-        document.getElementById('patientModal').style.display = 'flex';
-    }
-
-    function editPatient(patientId) {
-        const patient = allPatients.find(p => p._id === patientId);
-        if (patient) {
-            document.getElementById('modalTitle').textContent = 'تعديل مريض';
-            document.getElementById('patientId').value = patient._id;
-            document.getElementById('patientName').value = patient.name;
-            document.getElementById('patientPhone').value = patient.phone || '';
-            document.getElementById('patientAge').value = patient.age;
-            document.getElementById('patientAddress').value = patient.address || '';
-            document.getElementById('patientMedicalHistory').value = patient.medicalHistory || '';
-            document.getElementById('patientNotes').value = patient.notes || '';
-            if (patient.nextAppointment) document.getElementById('nextAppointment').value = new Date(patient.nextAppointment).toISOString().slice(0, 16);
-            document.getElementById('nextAppointmentNotes').value = patient.nextAppointmentNotes || '';
-            document.getElementById('patientModal').style.display = 'flex';
-        }
-    }
-
-    function closeModal(modalId) { 
-        const modal = document.getElementById(modalId);
-        if (modal) modal.style.display = 'none';
-    }
-    
-    function showLogin() { 
-        document.getElementById('loginPage').style.display = 'block'; 
-        document.getElementById('registerPage').style.display = 'none'; 
-        document.getElementById('dashboard').style.display = 'none'; 
-    }
-
-    function showRegister() { 
-        document.getElementById('loginPage').style.display = 'none'; 
-        document.getElementById('registerPage').style.display = 'block'; 
-        document.getElementById('dashboard').style.display = 'none'; 
-    }
-
-    function logout() { 
-        localStorage.removeItem('userId'); 
-        currentUser = null; 
-        showLogin(); 
-    }
-    
-    function escapeHtml(text) { 
-        if (!text) return ''; 
-        const div = document.createElement('div'); 
-        div.textContent = text; 
-        return div.innerHTML; 
-    }
-
-    // Event Listeners
-    document.getElementById('loginForm').addEventListener('submit', (e) => { e.preventDefault(); login(); });
-    document.getElementById('registerForm').addEventListener('submit', (e) => { e.preventDefault(); register(); });
-    document.getElementById('patientForm').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const patientData = {
-            name: document.getElementById('patientName').value,
-            phone: document.getElementById('patientPhone').value,
-            age: parseInt(document.getElementById('patientAge').value),
-            address: document.getElementById('patientAddress').value,
-            medicalHistory: document.getElementById('patientMedicalHistory').value,
-            notes: document.getElementById('patientNotes').value,
-            nextAppointment: document.getElementById('nextAppointment').value || null,
-            nextAppointmentNotes: document.getElementById('nextAppointmentNotes').value
-        };
-        if (document.getElementById('patientId').value) updatePatient(document.getElementById('patientId').value, patientData);
-        else addPatient(patientData);
-    });
-
-    const userId = localStorage.getItem('userId');
-    if (userId && userId !== 'undefined') loadDashboard();
-    else showLogin();
-            </script>
-    <script>
-    // تسجيل Service Worker
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js')
-                .then(registration => {
-                    console.log('✅ Service Worker registered successfully:', registration.scope);
-                    
-                    // التحقق من التحديثات
-                    registration.addEventListener('updatefound', () => {
-                        const newWorker = registration.installing;
-                        console.log('🔄 New Service Worker installing...');
-                        newWorker.addEventListener('statechange', () => {
-                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                console.log('🔄 New update available! Reload to update.');
-                                // عرض رسالة للمستخدم
-                                showUpdateNotification();
-                            }
-                        });
-                    });
-                })
-                .catch(error => {
-                    console.log('❌ Service Worker registration failed:', error);
-                });
-        });
-    }
-
-    // عرض إشعار بالتحديث
-    function showUpdateNotification() {
-        const updateDiv = document.createElement('div');
-        updateDiv.innerHTML = `
-            <div style="position: fixed; bottom: 20px; right: 20px; background: #1e40af; color: white; padding: 12px 20px; border-radius: 50px; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 10px;">
-                <i class="fas fa-sync-alt"></i>
-                <span>تحديث جديد متاح! اضغط لإعادة التحميل</span>
-                <button onclick="location.reload()" style="background: white; color: #1e40af; border: none; padding: 4px 12px; border-radius: 20px; cursor: pointer;">تحديث</button>
-            </div>
-        `;
-        document.body.appendChild(updateDiv);
-        setTimeout(() => updateDiv.remove(), 10000);
-    }
-
-    // زر تثبيت التطبيق
-    let deferredPrompt;
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        console.log('✅ يمكن تثبيت التطبيق');
-        
-        // عرض زر التثبيت للمستخدم
-        showInstallButton();
-    });
-
-    function showInstallButton() {
-        const installBtn = document.createElement('div');
-        installBtn.id = 'installButton';
-        installBtn.innerHTML = `
-            <button style="position: fixed; bottom: 20px; left: 20px; background: #10b981; color: white; border: none; padding: 12px 20px; border-radius: 50px; z-index: 10000; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 8px;">
-                <i class="fas fa-download"></i>
-                تثبيت التطبيق
-            </button>
-        `;
-        installBtn.querySelector('button').onclick = async () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                console.log(`User response: ${outcome}`);
-                deferredPrompt = null;
-                installBtn.remove();
-            }
-        };
-        document.body.appendChild(installBtn);
-        
-        // إخفاء الزر بعد 30 ثانية
-        setTimeout(() => {
-            if (installBtn) installBtn.remove();
-        }, 30000);
-    }
-
-    // التحقق من تشغيل التطبيق كـ PWA
-    window.addEventListener('appinstalled', (evt) => {
-        console.log('✅ App installed successfully!');
-        // إخفاء زر التثبيت إذا كان موجوداً
-        const installBtn = document.getElementById('installButton');
-        if (installBtn) installBtn.remove();
-    });
+        if (localStorage.getItem('userId')) loadDashboard();
+        else showLogin();
     </script>
-                          </body>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').then(reg => console.log('SW registered')).catch(err => console.log('SW failed'));
+            });
+        }
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; setTimeout(() => { const btn = document.createElement('div'); btn.innerHTML = `<button style="position:fixed;bottom:20px;left:20px;background:#10b981;color:white;border:none;padding:12px 20px;border-radius:50px;z-index:10000;cursor:pointer;">📱 تثبيت التطبيق</button>`; btn.onclick = async () => { if (deferredPrompt) { deferredPrompt.prompt(); const { outcome } = await deferredPrompt.userChoice; console.log(outcome); deferredPrompt = null; btn.remove(); } }; document.body.appendChild(btn); setTimeout(() => btn.remove(), 30000); }, 1000); });
+    </script>
+</body>
 </html>
