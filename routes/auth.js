@@ -1,11 +1,13 @@
+// auth.js
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
+const bcrypt = require('bcryptjs'); // متوافق مع كل الأجهزة
 const User = require('../models/User');
 const { protect } = require('../middleware/auth');
 
-// Register new user
+// ===== REGISTER =====
 router.post('/register', [
     body('fullName').notEmpty().withMessage('الاسم الكامل مطلوب'),
     body('username').isLength({ min: 3 }).withMessage('اسم المستخدم يجب أن يكون 3 أحرف على الأقل'),
@@ -13,9 +15,7 @@ router.post('/register', [
     body('phone').optional().custom((value) => {
         if (!value) return true;
         const cleanPhone = value.replace(/[^\d+]/g, '');
-        if (cleanPhone.length >= 8 && cleanPhone.length <= 15) {
-            return true;
-        }
+        if (cleanPhone.length >= 8 && cleanPhone.length <= 15) return true;
         throw new Error('رقم الهاتف يجب أن يكون بين 8 و 15 رقم');
     }),
     body('age').isInt({ min: 18, max: 100 }).withMessage('العمر يجب أن يكون بين 18 و 100'),
@@ -23,48 +23,31 @@ router.post('/register', [
     body('address').notEmpty().withMessage('العنوان مطلوب')
 ], async (req, res) => {
     try {
-        console.log('📝 Registration request received:', req.body);
-        
         const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            console.log('❌ Validation errors:', errors.array());
-            return res.status(400).json({ 
-                message: errors.array()[0].msg,
-                errors: errors.array() 
-            });
-        }
+        if (!errors.isEmpty()) return res.status(400).json({ message: errors.array()[0].msg, errors: errors.array() });
 
         const { fullName, username, password, phone, age, clinicName, address } = req.body;
 
-        // Check if user exists
+        // تحقق من وجود المستخدم مسبقًا
         const userExists = await User.findOne({ username });
-        if (userExists) {
-            console.log('❌ Username already exists:', username);
-            return res.status(400).json({ message: 'اسم المستخدم موجود بالفعل' });
-        }
+        if (userExists) return res.status(400).json({ message: 'اسم المستخدم موجود بالفعل' });
 
-        // Clean phone number if provided
-        let cleanPhone = '';
-        if (phone) {
-            cleanPhone = phone.replace(/[^\d+]/g, '');
-        }
+        // تشفير كلمة المرور
+        const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Create user
         const user = await User.create({
             fullName,
             username,
-            password,
-            phone: cleanPhone,
+            password: hashedPassword,
+            phone: phone ? phone.replace(/[^\d+]/g, '') : '',
             age: parseInt(age),
             clinicName,
             address,
             role: username.toLowerCase() === 'admin' ? 'admin' : 'user',
-            isSubscribed: username.toLowerCase() === 'admin' ? true : false
+            isSubscribed: username.toLowerCase() === 'admin'
         });
 
-        console.log('✅ User created successfully:', user.username);
-
-        // Generate token
+        // توليد توكن JWT
         const token = jwt.sign(
             { id: user._id, role: user.role },
             process.env.JWT_SECRET || 'your_secret_key_change_this',
@@ -83,98 +66,39 @@ router.post('/register', [
             }
         });
     } catch (error) {
-        console.error('❌ Registration error:', error);
-        res.status(500).json({ 
-            message: 'خطأ في إنشاء الحساب', 
-            error: error.message 
-        });
+        res.status(500).json({ message: 'خطأ في إنشاء الحساب', error: error.message });
     }
 });
 
-// Login user
+// ===== LOGIN =====
 router.post('/login', [
     body('username').notEmpty().withMessage('اسم المستخدم مطلوب'),
     body('password').notEmpty().withMessage('كلمة المرور مطلوبة')
 ], async (req, res) => {
     try {
-        console.log('🔐 Login request received:', req.body.username);
-        
         const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            return res.status(400).json({ message: errors.array()[0].msg });
-        }
+        if (!errors.isEmpty()) return res.status(400).json({ message: errors.array()[0].msg });
 
         const { username, password } = req.body;
 
-        // Find user
         const user = await User.findOne({ username });
-        if (!user) {
-            console.log('❌ User not found:', username);
-            return res.status(401).json({ message: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
-        }
+        if (!user) return res.status(401).json({ message: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
 
-        // Check password
-        const isPasswordValid = await user.comparePassword(password);
-        if (!isPasswordValid) {
-            console.log('❌ Invalid password for user:', username);
-            return res.status(401).json({ message: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
-        }
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) return res.status(401).json({ message: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
 
-        // Check subscription expiry
+        // تحقق من انتهاء الاشتراك
         if (user.isSubscribed && user.subscriptionExpiry && new Date() > user.subscriptionExpiry) {
             user.isSubscribed = false;
             await user.save();
-            console.log('⚠️ Subscription expired for user:', username);
         }
-// Get current user with subscription info
-router.get('/me', protect, async (req, res) => {
-    try {
-        const Patient = require('../models/Patient');
-        const patientCount = await Patient.countDocuments({ userId: req.user._id });
-        const canAdd = await req.user.canAddPatient(patientCount);
-        
-        let remainingSlots = 'غير محدود';
-        let daysRemaining = 0;
-        
-        if (req.user.role === 'admin') {
-            remainingSlots = 'غير محدود (مدير)';
-        } else if (req.user.isSubscribed && req.user.subscriptionExpiry) {
-            const now = new Date();
-            if (now > req.user.subscriptionExpiry) {
-                remainingSlots = Math.max(0, 5 - patientCount);
-                daysRemaining = 0;
-            } else {
-                remainingSlots = 'غير محدود (مشترك)';
-                daysRemaining = Math.ceil((req.user.subscriptionExpiry - now) / (1000 * 60 * 60 * 24));
-            }
-        } else {
-            remainingSlots = Math.max(0, 5 - patientCount);
-        }
-        
-        res.json({
-            user: {
-                ...req.user.toObject(),
-                subscriptionExpiry: req.user.subscriptionExpiry,
-                daysRemaining
-            },
-            patientCount,
-            canAddMore: canAdd,
-            remainingSlots,
-            daysRemaining
-        });
-    } catch (error) {
-        console.error('❌ Error getting user info:', error);
-        res.status(500).json({ message: 'خطأ في جلب بيانات المستخدم', error: error.message });
-    }
-});
-        // Generate token
+
+        // توليد توكن JWT
         const token = jwt.sign(
             { id: user._id, role: user.role },
             process.env.JWT_SECRET || 'your_secret_key_change_this',
             { expiresIn: '7d' }
         );
-
-        console.log('✅ User logged in successfully:', username);
 
         res.json({
             success: true,
@@ -189,27 +113,40 @@ router.get('/me', protect, async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('❌ Login error:', error);
         res.status(500).json({ message: 'خطأ في تسجيل الدخول', error: error.message });
     }
 });
 
-// Get current user
+// ===== GET CURRENT USER =====
 router.get('/me', protect, async (req, res) => {
     try {
         const Patient = require('../models/Patient');
         const patientCount = await Patient.countDocuments({ userId: req.user._id });
-        const canAdd = await req.user.canAddPatient(patientCount);
-        const remainingSlots = req.user.role === 'admin' ? 'غير محدود' : req.user.isSubscribed ? 'غير محدود' : Math.max(0, 5 - patientCount);
-        
+
+        let remainingSlots = 'غير محدود';
+        let daysRemaining = 0;
+
+        if (req.user.role === 'admin') {
+            remainingSlots = 'غير محدود (مدير)';
+        } else if (req.user.isSubscribed && req.user.subscriptionExpiry) {
+            const now = new Date();
+            if (now > req.user.subscriptionExpiry) {
+                remainingSlots = Math.max(0, 5 - patientCount);
+            } else {
+                remainingSlots = 'غير محدود (مشترك)';
+                daysRemaining = Math.ceil((req.user.subscriptionExpiry - now) / (1000 * 60 * 60 * 24));
+            }
+        } else {
+            remainingSlots = Math.max(0, 5 - patientCount);
+        }
+
         res.json({
             user: req.user,
             patientCount,
-            canAddMore: canAdd,
-            remainingSlots
+            remainingSlots,
+            daysRemaining
         });
     } catch (error) {
-        console.error('❌ Error getting user info:', error);
         res.status(500).json({ message: 'خطأ في جلب بيانات المستخدم', error: error.message });
     }
 });
