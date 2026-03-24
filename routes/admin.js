@@ -21,11 +21,28 @@ router.get('/users', async (req, res) => {
                 { $group: { _id: null, total: { $sum: '$cost' } } }
             ]);
             
+            // Check if subscription is expired
+            let subscriptionStatus = user.isSubscribed;
+            let daysRemaining = 0;
+            if (user.isSubscribed && user.subscriptionExpiry) {
+                const now = new Date();
+                if (now > user.subscriptionExpiry) {
+                    subscriptionStatus = false;
+                    // Auto-update expired subscription
+                    user.isSubscribed = false;
+                    await user.save();
+                } else {
+                    daysRemaining = Math.ceil((user.subscriptionExpiry - now) / (1000 * 60 * 60 * 24));
+                }
+            }
+            
             return {
                 ...user.toObject(),
                 patientCount,
                 treatmentCount,
-                totalCost: totalCost[0]?.total || 0
+                totalCost: totalCost[0]?.total || 0,
+                subscriptionStatus,
+                daysRemaining
             };
         }));
         
@@ -60,30 +77,42 @@ router.get('/users/:id', async (req, res) => {
     }
 });
 
-// Update user subscription
+// Update user subscription (activate for 1 month)
 router.put('/users/:id/subscription', async (req, res) => {
     try {
-        const { isSubscribed, subscriptionExpiry } = req.body;
+        const { isSubscribed } = req.body;
         
         const user = await User.findById(req.params.id);
         if (!user) {
             return res.status(404).json({ message: 'المستخدم غير موجود' });
         }
         
-        user.isSubscribed = isSubscribed;
-        if (subscriptionExpiry) {
-            user.subscriptionExpiry = new Date(subscriptionExpiry);
-        } else if (isSubscribed) {
-            // Default 1 year subscription
+        if (isSubscribed) {
+            // Activate subscription for 1 month from now
+            user.isSubscribed = true;
             user.subscriptionExpiry = new Date();
-            user.subscriptionExpiry.setFullYear(user.subscriptionExpiry.getFullYear() + 1);
+            user.subscriptionExpiry.setMonth(user.subscriptionExpiry.getMonth() + 1);
+            
+            const expiryDate = user.subscriptionExpiry.toLocaleDateString('ar-EG');
+            console.log(`✅ Subscription activated for ${user.username} until ${expiryDate}`);
         } else {
+            // Deactivate subscription
+            user.isSubscribed = false;
             user.subscriptionExpiry = null;
+            console.log(`❌ Subscription deactivated for ${user.username}`);
         }
         
         await user.save();
         
-        res.json({ success: true, user: user.toObject() });
+        res.json({ 
+            success: true, 
+            user: {
+                ...user.toObject(),
+                subscriptionExpiry: user.subscriptionExpiry,
+                daysRemaining: user.isSubscribed ? Math.ceil((user.subscriptionExpiry - new Date()) / (1000 * 60 * 60 * 24)) : 0
+            },
+            message: isSubscribed ? 'تم تفعيل الاشتراك لمدة شهر' : 'تم إلغاء الاشتراك'
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'خطأ في تحديث الاشتراك', error: error.message });
@@ -121,7 +150,18 @@ router.get('/stats', async (req, res) => {
         const totalUsers = await User.countDocuments();
         const totalPatients = await Patient.countDocuments();
         const totalTreatments = await Treatment.countDocuments();
-        const subscribedUsers = await User.countDocuments({ isSubscribed: true });
+        
+        // Get active subscriptions (not expired)
+        const now = new Date();
+        const subscribedUsers = await User.countDocuments({ 
+            isSubscribed: true, 
+            subscriptionExpiry: { $gt: now } 
+        });
+        
+        const expiredSubscriptions = await User.countDocuments({
+            isSubscribed: true,
+            subscriptionExpiry: { $lte: now }
+        });
         
         const totalRevenue = await Treatment.aggregate([
             { $group: { _id: null, total: { $sum: '$cost' } } }
@@ -136,6 +176,7 @@ router.get('/stats', async (req, res) => {
             totalPatients,
             totalTreatments,
             subscribedUsers,
+            expiredSubscriptions,
             totalRevenue: totalRevenue[0]?.total || 0,
             treatmentsByType,
             freeUsers: totalUsers - subscribedUsers
