@@ -2,9 +2,9 @@
   "name": "clinicpro",
   "version": "1.0.0",
   "description": "Clinic Pro - Dental Clinic Management",
-  "main": "backend/server.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node backend/server.js"
+    "start": "node server.js"
   },
   "author": "Moataz",
   "license": "MIT",
