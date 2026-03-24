@@ -50,6 +50,19 @@
         .treatment-remove { background: #ef4444; color: white; border: none; padding: 4px 12px; border-radius: 8px; cursor: pointer; }
         .alert { padding: 12px; border-radius: 12px; margin-bottom: 20px; display: none; }
         .alert-success { background: #d1fae5; color: #065f46; }
+        .doctor-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #f1f5f9;
+    padding: 6px 15px;
+    border-radius: 50px;
+    font-size: 14px;
+}
+.doctor-info i {
+    font-size: 16px;
+    color: #3b82f6;
+}
         .alert-error { background: #fee2e2; color: #991b1b; }
         .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { background: white; border-radius: 24px; max-width: 600px; width: 95%; max-height: 90vh; overflow-y: auto; }
@@ -97,12 +110,12 @@
             <h2>ClinicPro</h2>
         </div>
         <div class="user-info">
-            <div class="doctor-info">
-                <i class="fas fa-user-md"></i>
-                <span id="doctorNameDisplay"></span>
-            </div>
-            <div id="subscriptionBadge" class="subscription-badge subscription-inactive">📊 مجاني</div>
-            <button class="logout-btn" onclick="logout()">خروج</button>
+    <div class="doctor-info">
+        <i class="fas fa-user-md"></i>
+        <span id="userNameDisplay"></span>
+    </div>
+    <div id="subscriptionBadge" class="subscription-badge subscription-inactive">📊 مجاني</div>
+    <button class="logout-btn" onclick="logout()">خروج</button>
         </div>
     </div>
             <div class="main-content">
@@ -120,6 +133,22 @@
             </div>
         </div>
     </div>
+    <!-- Previous Treatments Modal -->
+<div id="previousTreatmentsModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header"><h3>سجل المعالجات السابقة</h3><button class="close-modal" onclick="closeModal('previousTreatmentsModal')">&times;</button></div>
+        <div class="modal-body" id="previousTreatmentsList"></div>
+    </div>
+</div>
+
+<!-- Session Notes Modal Inner -->
+<div id="sessionNotesModalInner" class="modal" style="display: none;"></div>
+
+<!-- Treatment View Modal -->
+<div id="treatmentViewModal" class="modal" style="display: none;"></div>
+
+<!-- Simple Treatment Modal -->
+<div id="simpleTreatmentModal" class="modal" style="display: none;"></div>
 
     <!-- Patient Modal -->
     <div id="patientModal" class="modal">
