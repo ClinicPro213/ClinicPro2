@@ -558,15 +558,16 @@ function renderAdminPatients(patients) {
 // عرض تفاصيل المريض للادمن
 async function showAdminPatientDetails(patientId) {
     try {
-        const response = await fetch(`/api/patients/${patientId}`);
+      const response = await fetch(`/api/patients/${patientId}/details`);
         const data = await response.json();
         const patient = data.patient;
+const treatments = data.treatments;
+const stats = data.stats;
         
-        const treatmentsRes = await fetch(`/api/treatments/patient/${patientId}`);
-        const treatments = await treatmentsRes.json();
-        
-        let totalCost = 0, totalPaid = 0;
-        let treatmentsHtml = '';
+    
+        let totalCost = stats.totalCost;
+let totalPaid = stats.totalPaid;
+let remaining = stats.remaining;
         
         treatments.forEach(t => {
             totalCost += t.cost || 0;
