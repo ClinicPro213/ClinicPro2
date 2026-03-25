@@ -229,6 +229,70 @@ app.get('/api/user/:userId', async (req, res) => {
 });
 
 // ============ PATIENT ROUTES ============
+app.get('/api/patients/:id/details', async (req, res) => {
+    try {
+
+        const patientId = req.params.id;
+
+        if (!mongoose.Types.ObjectId.isValid(patientId)) {
+            return res.status(400).json({ message: 'معرف المريض غير صالح' });
+        }
+
+        const patient = await Patient.findById(patientId)
+            .populate('userId', 'fullName clinicName');
+
+        if (!patient) {
+            return res.status(404).json({ message: 'المريض غير موجود' });
+        }
+
+        const treatments = await Treatment.find({
+            patientId: patientId
+        }).sort({ treatmentDate: -1 });
+
+        let totalCost = 0;
+        let totalPaid = 0;
+
+        treatments.forEach(t => {
+
+            totalCost += t.cost || 0;
+
+            let paid = 0;
+
+            if (t.notes) {
+                const match = t.notes.match(/المدفوع:\s*([\d.]+)/);
+                if (match) {
+                    paid = parseFloat(match[1]);
+                }
+            }
+
+            totalPaid += paid;
+
+        });
+
+        const remaining = totalCost - totalPaid;
+
+        res.json({
+            patient,
+            treatments,
+            stats: {
+                treatmentsCount: treatments.length,
+                totalCost,
+                totalPaid,
+                remaining
+            }
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+            message: 'خطأ في جلب بيانات المريض'
+        });
+
+    }
+});
+
 app.get('/api/patients/:userId', async (req, res) => {
     try {
         const userId = req.params.userId;
