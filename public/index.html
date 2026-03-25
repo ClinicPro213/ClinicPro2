@@ -452,37 +452,68 @@
             }
         }
 
-        // عرض تفاصيل المريض
         async function showPatientFullDetails(patientId) {
-            const patientRes = await fetch(`/api/patients/${patientId}`);
-            const patientData = await patientRes.json();
-            const patient = patientData.patient;
-            const treatmentsRes = await fetch(`/api/treatments/patient/${patientId}`);
-            const treatments = await treatmentsRes.json();
-            
-            let totalCost = 0, totalPaid = 0;
-            treatments.forEach(t => { totalCost += t.cost || 0; if (t.notes) { const m = t.notes.match(/المدفوع:\s*([\d.]+)/); if (m) totalPaid += parseFloat(m[1]); } });
-            
-            let treatmentsHtml = treatments.map(t => `<div style="padding:8px;border-bottom:1px solid #e2e8f0;"><strong>🦷 السن ${t.toothNumber}</strong> - ${t.treatmentType}<br><small>💰 ${t.cost} ريال | 📅 ${new Date(t.treatmentDate).toLocaleDateString()}</small></div>`).join('');
-            
-            const modalHtml = `<div class="modal-content"><div class="modal-header"><h3>${escapeHtml(patient.name)}</h3><button class="close-btn" onclick="closeModal('patientDetailsModal')">&times;</button></div><div class="modal-body">
-                <div style="background:#f1f5f9;border-radius:16px;padding:15px;"><div>📞 ${patient.phone || 'غير محدد'}</div><div>📅 العمر: ${patient.age} سنة</div><div>💰 إجمالي التكلفة: ${totalCost} ريال</div><div>💵 إجمالي المدفوع: ${totalPaid} ريال</div><div>⚠️ المتبقي: ${totalCost - totalPaid} ريال</div></div>
-                <h4 style="margin:15px 0 10px;">سجل المعالجات</h4>${treatmentsHtml || '<p>لا توجد معالجات</p>'}
-                <div style="display:flex;gap:10px;margin-top:20px;"><button class="btn" onclick="closeModal('patientDetailsModal'); editPatient('${patient._id}')">تعديل</button><button class="btn btn-secondary" onclick="closeModal('patientDetailsModal'); showAddTreatmentSession('${patient._id}')">إضافة معالجة</button></div>
-            </div></div>`;
-            let modal = document.getElementById('patientDetailsModal');
-            if (!modal) { const div = document.createElement('div'); div.id = 'patientDetailsModal'; div.className = 'modal'; document.body.appendChild(div); modal = div; }
-            modal.innerHTML = modalHtml;
-            modal.style.display = 'flex';
-        }
-
-        function showAddTreatmentSession(patientId) {
-            currentPatientForSession = patientId;
-            currentTreatments = [];
-            selectedToothNumber = null;
-            drawTeethDiagram();
-            resetTreatmentForm();
-            document.getElementById('treatmentSessionModal').style.display = 'flex';
+    try {
+        const patientRes = await fetch(`/api/patients/${patientId}`);
+        const patientData = await patientRes.json();
+        const patient = patientData.patient;
+        
+        const treatmentsRes = await fetch(`/api/treatments/patient/${patientId}`);
+        const treatments = await treatmentsRes.json();
+        
+        let totalCost = 0, totalPaid = 0;
+        treatments.forEach(t => {
+            totalCost += t.cost || 0;
+            if (t.notes) {
+                const m = t.notes.match(/المدفوع:\s*([\d.]+)/);
+                if (m) totalPaid += parseFloat(m[1]);
+            }
+        });
+        
+        let treatmentsHtml = treatments.length === 0 ? '<p>لا توجد معالجات سابقة</p>' : 
+            treatments.map(t => `<div style="padding:12px;border-bottom:1px solid #e2e8f0;cursor:pointer;" onclick="showTreatmentDetails('${t._id}')">
+                <strong>🦷 السن ${t.toothNumber}</strong> - ${t.treatmentType}<br>
+                <small>💰 ${t.cost || 0} ريال | 📅 ${new Date(t.treatmentDate).toLocaleDateString('ar-EG')}</small>
+            </div>`).join('');
+        
+        const modalHtml = `
+            <div class="modal-content" style="max-width:600px;">
+                <div class="modal-header">
+                    <h3><i class="fas fa-user-circle"></i> ${escapeHtml(patient.name)}</h3>
+                    <button class="close-btn" onclick="closeModal('patientDetailsModal')">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div style="background:#f1f5f9;border-radius:16px;padding:15px;margin-bottom:20px;">
+                        <div><i class="fas fa-phone"></i> <strong>الهاتف:</strong> ${escapeHtml(patient.phone || 'غير محدد')}</div>
+                        <div><i class="fas fa-calendar"></i> <strong>العمر:</strong> ${patient.age} سنة</div>
+                        ${patient.address ? `<div><i class="fas fa-map-marker-alt"></i> <strong>العنوان:</strong> ${escapeHtml(patient.address)}</div>` : ''}
+                        ${patient.notes ? `<div style="margin-top:10px;"><i class="fas fa-pencil-alt"></i> <strong>ملاحظات:</strong><br>${escapeHtml(patient.notes)}</div>` : ''}
+                    </div>
+                    <div style="background:#f1f5f9;border-radius:12px;padding:12px;margin-bottom:20px;">
+                        <div style="display:flex;justify-content:space-between;"><span>💰 إجمالي التكلفة:</span><span><strong>${totalCost} ريال</strong></span></div>
+                        <div style="display:flex;justify-content:space-between;"><span>💵 إجمالي المدفوع:</span><span><strong style="color:#10b981;">${totalPaid} ريال</strong></span></div>
+                        <div style="display:flex;justify-content:space-between;border-top:1px solid #cbd5e1;margin-top:8px;padding-top:8px;">
+                            <span>⚠️ المتبقي:</span>
+                            <span style="color:${totalCost-totalPaid > 0 ? '#ef4444' : '#10b981'}; font-weight:bold;">${totalCost-totalPaid} ريال</span>
+                        </div>
+                    </div>
+                    <h4><i class="fas fa-history"></i> سجل المعالجات (${treatments.length})</h4>
+                    <div style="max-height:300px;overflow-y:auto;margin-top:10px;">${treatmentsHtml}</div>
+                    <div style="display:flex;gap:10px;margin-top:20px;">
+                        <button class="btn" onclick="closeModal('patientDetailsModal'); editPatient('${patient._id}')">تعديل</button>
+                        <button class="btn btn-secondary" onclick="closeModal('patientDetailsModal'); showAddTreatmentSession('${patient._id}')">إضافة معالجة</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        let modal = document.getElementById('patientDetailsModal');
+        if (!modal) { const div = document.createElement('div'); div.id = 'patientDetailsModal'; div.className = 'modal'; document.body.appendChild(div); modal = div; }
+        modal.innerHTML = modalHtml;
+        modal.style.display = 'flex';
+    } catch (error) {
+        showAlert('dashboardAlert', 'خطأ في جلب بيانات المريض', 'error');
+    }
         }
 
         // الدوال الأساسية
