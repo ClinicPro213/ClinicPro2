@@ -555,51 +555,6 @@ function renderAdminPatients(patients) {
     `).join('');
 }
 
-// عرض تفاصيل المريض للادمن
-// عرض تفاصيل المريض للادمن
-async function showAdminPatientDetails(patientId) {
-    try {
-        // جلب بيانات المريض
-        const patientRes = await fetch(`/api/patients/${patientId}`);
-        const patientData = await patientRes.json();
-        const patient = patientData.patient;
-        
-        // جلب المعالجات
-        const treatmentsRes = await fetch(`/api/treatments/patient/${patientId}`);
-        const treatments = await treatmentsRes.json();
-        
-        // حساب الإحصائيات
-        let totalCost = 0;
-        let totalPaid = 0;
-        let treatmentsHtml = '';
-        
-        treatments.forEach(t => {
-            totalCost += t.cost || 0;
-            let paid = 0;
-            if (t.notes) {
-                const match = t.notes.match(/المدفوع:\s*([\d.]+)/);
-                if (match) paid = parseFloat(match[1]);
-                totalPaid += paid;
-            }
-            treatmentsHtml += `
-                <div style="padding:10px; border-bottom:1px solid #e2e8f0;">
-                    <strong>🦷 السن ${t.toothNumber}</strong> - ${t.treatmentType}<br>
-                    💰 التكلفة: ${t.cost || 0} ريال<br>
-                    💵 المدفوع: ${paid} ريال<br>
-                    <small>📅 ${new Date(t.treatmentDate).toLocaleDateString('ar-EG')}</small>
-                </div>
-            `;
-        });
-        
-        const remaining = totalCost - totalPaid;
-        
-        // اسم الطبيب
-        const doctorName = patient.userId?.fullName || 'غير معروف';
-        
-        const modalHtml = `
-            <div class="modal-content" style="max-width:550px;">
-                <div class="modal-header">
-// عرض تفاصيل المريض للادمن
 async function showAdminPatientDetails(patientId) {
     try {
         console.log('📝 Fetching patient details for:', patientId);
