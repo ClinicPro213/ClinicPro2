@@ -401,43 +401,224 @@ return;
 
         async function loadPatients() { const res = await fetch(`/api/patients/${currentUser.id}`); allPatients = await res.json(); renderPatients(allPatients); }
         function renderPatients(patients) {
-            const grid = document.getElementById('patientsGrid');
-            if (!patients.length) { grid.innerHTML = '<div style="text-align:center;padding:50px;">لا يوجد مرضى</div>'; return; }
-            grid.innerHTML = patients.map(p => `<div class="patient-card" onclick="showPatientFullDetails('${p._id}')"><div class="patient-header"><h3>${escapeHtml(p.name)}</h3><div class="patient-actions" onclick="event.stopPropagation()"><button onclick="editPatient('${p._id}')"><i class="fas fa-edit"></i></button><button onclick="showTreatmentModal('${p._id}')"><i class="fas fa-stethoscope"></i></button><button onclick="deletePatient('${p._id}')"><i class="fas fa-trash"></i></button></div></div><div class="patient-body"><p><i class="fas fa-phone"></i> ${escapeHtml(p.phone || 'غير محدد')}</p><p><i class="fas fa-calendar"></i> العمر: ${p.age} سنة</p></div></div>`).join('');
+    const grid = document.getElementById('patientsGrid');
+    if (!patients.length) { grid.innerHTML = '<div style="text-align:center;padding:50px;">لا يوجد مرضى</div>'; return; }
+    grid.innerHTML = patients.map(p => `<div class="patient-card" onclick="showPatientFullDetails('${p._id}')"><div class="patient-header"><h3>${escapeHtml(p.name)}</h3><div class="patient-actions" onclick="event.stopPropagation()"><button onclick="editPatient('${p._id}')"><i class="fas fa-edit"></i></button><button onclick="showTreatmentModal('${p._id}')"><i class="fas fa-stethoscope"></i></button><button onclick="showPatientTreatments('${p._id}')" style="background:#10b981;"><i class="fas fa-chart-line"></i> عرض</button><button onclick="deletePatient('${p._id}')"><i class="fas fa-trash"></i></button></div></div><div class="patient-body"><p><i class="fas fa-phone"></i> ${escapeHtml(p.phone || 'غير محدد')}</p><p><i class="fas fa-calendar"></i> العمر: ${p.age} سنة</p></div></div>`).join('');
         }
+        // عرض جميع المعالجات والبيانات للمريض
+async function showPatientTreatments(patientId) {
+    const patient = allPatients.find(p => p._id === patientId);
+    if (!patient) return;
+    
+    // حساب إجماليات المعالجات
+    let totalCost = 0;
+    let totalPaid = 0;
+    let treatmentsList = [];
+    
+    if (patient.treatments && patient.treatments.length > 0) {
+        patient.treatments.forEach(t => {
+            totalCost += t.cost || 0;
+            totalPaid += t.paid || 0;
+            treatmentsList.push(t);
+        });
+    }
+    
+    const remaining = totalCost - totalPaid;
+    
+    // إنشاء نافذة منبثقة
+    const modalHtml = `
+        <div style="position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); display:flex; justify-content:center; align-items:center; z-index:9999;">
+            <div style="background:white; border-radius:20px; max-width:500px; width:90%; max-height:80vh; overflow-y:auto; padding:20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                    <h3 style="color:#1e40af;">📋 بيانات المريض</h3>
+                    <button onclick="this.closest('div[style*=fixed]').remove()" style="background:none; border:none; font-size:24px; cursor:pointer;">✖</button>
+                </div>
+                
+                <div style="background:#f1f5f9; padding:15px; border-radius:15px; margin-bottom:20px;">
+                    <p><strong>👤 الاسم:</strong> ${patient.name}</p>
+                    <p><strong>📞 الهاتف:</strong> ${patient.phone || 'غير محدد'}</p>
+                    <p><strong>📅 العمر:</strong> ${patient.age} سنة</p>
+                    <p><strong>📍 العنوان:</strong> ${patient.address || 'غير محدد'}</p>
+                </div>
+                
+                <h4 style="margin-bottom:10px;">🦷 سجل المعالجات</h4>
+                <div style="margin-bottom:20px;">
+                    ${treatmentsList.length > 0 ? treatmentsList.map(t => `
+                        <div style="border-bottom:1px solid #e2e8f0; padding:10px; margin-bottom:5px;">
+                            <strong>🦷 السن ${t.toothNumber}</strong> - ${t.treatmentType}<br>
+                            💰 التكلفة: ${t.cost} ريال | 💵 المدفوع: ${t.paid || 0} ريال<br>
+                            📝 ${t.notes || ''}<br>
+                            <small>📅 ${new Date(t.date).toLocaleDateString('ar-EG')}</small>
+                        </div>
+                    `).join('') : '<p style="color:#64748b;">لا توجد معالجات مسجلة</p>'}
+                </div>
+                
+                <div style="background:#e0f2fe; padding:15px; border-radius:15px; margin-bottom:20px;">
+                    <p><strong>💰 إجمالي التكلفة:</strong> ${totalCost} ريال</p>
+                    <p><strong>💵 إجمالي المدفوع:</strong> ${totalPaid} ريال</p>
+                    <p><strong style="color:${remaining > 0 ? '#ef4444' : '#10b981'};">⚠️ المتبقي:</strong> ${remaining} ريال</p>
+                </div>
+                
+                <button onclick="shareWithPatient('${patient._id}')" class="btn-whatsapp" style="width:100%; padding:12px; background:#25D366; color:white; border:none; border-radius:10px; font-size:16px; cursor:pointer;">
+                    <i class="fab fa-whatsapp"></i> مشاركة التقرير عبر واتساب
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+// مشاركة التقرير مع المريض عبر واتساب
+function shareWithPatient(patientId) {
+    const patient = allPatients.find(p => p._id === patientId);
+    if (!patient || !patient.phone) {
+        alert('لا يوجد رقم هاتف للمريض');
+        return;
+    }
+    
+    // حساب الإجماليات
+    let totalCost = 0;
+    let totalPaid = 0;
+    let treatmentsText = '';
+    
+    if (patient.treatments && patient.treatments.length > 0) {
+        patient.treatments.forEach(t => {
+            totalCost += t.cost || 0;
+            totalPaid += t.paid || 0;
+            treatmentsText += `\n🦷 السن ${t.toothNumber}: ${t.treatmentType}\n   💰 ${t.cost} ريال | 💵 مدفوع: ${t.paid || 0} ريال\n`;
+        });
+    }
+    
+    const remaining = totalCost - totalPaid;
+    
+    const message = `*🦷 تقرير المعالجات - عيادة الأسنان*\n\n` +
+        `*👤 اسم المريض:* ${patient.name}\n` +
+        `*📞 رقم الجوال:* ${patient.phone}\n` +
+        `*📅 العمر:* ${patient.age} سنة\n\n` +
+        `*🦷 المعالجات:*${treatmentsText || ' لا توجد معالجات'}\n\n` +
+        `*💰 إجمالي التكلفة:* ${totalCost} ريال\n` +
+        `*💵 إجمالي المدفوع:* ${totalPaid} ريال\n` +
+        `*⚠️ المتبقي:* ${remaining} ريال\n\n` +
+        `_تم إرسال هذا التقرير من نظام ClinicPro_`;
+    
+    const whatsappUrl = `https://wa.me/${patient.phone}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+    
+    // إغلاق النافذة المنبثقة
+    const modal = document.querySelector('div[style*="position:fixed"]');
+    if (modal) modal.remove();
+}
 
         async function addPatient(data) {
+    if(!navigator.onLine){
+        saveOffline("addPatient", {...data, userId: currentUser.id});
+        showAlert('dashboardAlert', '📴 تم حفظ المريض بدون إنترنت وسيتم رفعه لاحقاً', 'success');
+        closeModal('patientModal');
+        return;
+    }
 
-if(!navigator.onLine){
+    const res = await fetch('/api/patients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...data, userId: currentUser.id })
+    });
 
-saveOffline("addPatient",{...data,userId:currentUser.id});
+    const result = await res.json();
 
-showAlert('dashboardAlert','📴 تم حفظ المريض بدون إنترنت وسيتم رفعه لاحقاً','success');
-
-closeModal('patientModal');
-
-return;
-
-}
-
-const res = await fetch('/api/patients', {
-method: 'POST',
-headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify({ ...data, userId: currentUser.id })
-});
-
-const result = await res.json();
-
-if (res.ok) {
-showAlert('dashboardAlert','تم إضافة المريض','success');
-closeModal('patientModal');
-await loadPatients();
-await loadStats();
-} else {
-showAlert('dashboardAlert', result.message || 'فشل', 'error');
-}
-
+    if (res.ok) {
+        // إذا كان هناك معالجات محفوظة مؤقتاً للمريض الجديد
+        if (data.treatments && data.treatments.length > 0) {
+            for (const treatment of data.treatments) {
+                await fetch('/api/treatments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        patientId: result.patientId,
+                        userId: currentUser.id,
+                        toothNumber: treatment.toothNumber,
+                        treatmentType: treatment.treatmentType,
+                        cost: treatment.cost,
+                        paid: treatment.paid,
+                        notes: treatment.notes
+                    })
+                });
+            }
         }
+        
+        showAlert('dashboardAlert', '✅ تم إضافة المريض بنجاح', 'success');
+        closeModal('patientModal');
+        await loadPatients();
+        await loadStats();
+        
+        // التحقق من عدد المرضى للاشتراك (5 مرضى)
+        const patientCount = await getPatientCount();
+        if (patientCount === 5) {
+            showSubscriptionAlert();
+        }
+    } else {
+        showAlert('dashboardAlert', result.message || 'فشل إضافة المريض', 'error');
+    }
+}
+
+// دالة لجلب عدد المرضى
+async function getPatientCount() {
+    const res = await fetch(`/api/patients/count/${currentUser.id}`);
+    const data = await res.json();
+    return data.count;
+}
+
+// دالة لعرض تنبيه الاشتراك وزر واتساب
+function showSubscriptionAlert() {
+    const message = `طلب اشتراك جديد%0A%0A👤 اسم المستخدم: ${currentUser.fullName || currentUser.username}%0A👨‍⚕️ اسم الدكتور: ${currentUser.clinicName || 'عيادة الأسنان'}%0A📊 عدد المرضى: 5 مرضى%0A🦷 ClinicPro`;
+    const whatsappNumber = "967773041464"; // استبدل برقمك
+    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${message}`;
+    
+    // عرض تنبيه منبثق
+    const alertHtml = `
+        <div style="position:fixed; bottom:20px; left:20px; right:20px; background:#25D366; color:white; padding:15px; border-radius:12px; z-index:9999; box-shadow:0 4px 12px rgba(0,0,0,0.2); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div>
+                <strong>⚠️ تنبيه!</strong> لقد وصل عدد المرضى إلى 5
+            </div>
+            <button onclick="window.open('${whatsappUrl}', '_blank'); this.parentElement.remove();" style="background:white; color:#25D366; border:none; padding:8px 16px; border-radius:8px; cursor:pointer; font-weight:bold;">
+                <i class="fab fa-whatsapp"></i> إرسال طلب اشتراك
+            </button>
+            <button onclick="this.parentElement.remove();" style="background:rgba(255,255,255,0.3); color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">
+                ✖
+            </button>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', alertHtml);
+    
+    // إخفاء التنبيه بعد 10 ثواني
+    setTimeout(() => {
+        const alert = document.querySelector('div[style*="position:fixed"][style*="bottom:20px"]');
+        if (alert) alert.remove();
+    }, 60000);
+}
+        async function addTreatment(treatmentData) {
+    if(!navigator.onLine){
+        saveOffline("addTreatment", treatmentData);
+        showAlert('dashboardAlert', '📴 تم حفظ المعالجة بدون إنترنت', 'success');
+        return;
+    }
+
+    const res = await fetch('/api/treatments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(treatmentData)
+    });
+
+    const result = await res.json();
+
+    if (res.ok) {
+        showAlert('dashboardAlert', '✅ تم حفظ المعالجة', 'success');
+        await loadPatients();
+    } else {
+        showAlert('dashboardAlert', result.message || 'فشل حفظ المعالجة', 'error');
+    }
+        }
+        
         async function updatePatient(id,data){
 
 if(!navigator.onLine){
