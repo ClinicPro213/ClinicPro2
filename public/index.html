@@ -147,9 +147,12 @@ box-shadow:0 4px 10px rgba(0,0,0,0.1);
             <div class="navbar">
                 <div class="logo"><i class="fas fa-tooth"></i><h2>ClinicPro</h2></div>
                 <div class="user-info">
-                    <div class="doctor-info"><i class="fas fa-user-md"></i><span id="userNameDisplay"></span></div>
-                    <div id="subscriptionBadge" class="subscription-badge subscription-inactive">📊 مجاني</div>
-                    <button class="logout-btn" onclick="logout()">خروج</button>
+    <div class="doctor-info"><i class="fas fa-user-md"></i><span id="userNameDisplay"></span></div>
+    <div id="subscriptionBadge" class="subscription-badge subscription-inactive">📊 مجاني</div>
+    <button id="adminBtn" class="btn" style="width:auto; padding:8px 16px; background:#8b5cf6; display:none;" onclick="showAdminPage()">
+        <i class="fas fa-crown"></i> لوحة المدير
+    </button>
+    <button class="logout-btn" onclick="logout()">خروج</button>
                 </div>
             </div>
             <div class="main-content">
@@ -167,6 +170,54 @@ box-shadow:0 4px 10px rgba(0,0,0,0.1);
             </div>
         </div>
     </div>
+
+    <!-- Admin Page -->
+<div id="adminPage" class="dashboard" style="display: none;">
+    <div class="navbar">
+        <div class="logo"><i class="fas fa-crown"></i><h2>لوحة تحكم المدير</h2></div>
+        <div class="user-info">
+            <div class="doctor-info"><i class="fas fa-user-md"></i><span id="adminUserName"></span></div>
+            <button class="btn" style="width:auto; padding:8px 16px;" onclick="showDashboard()">
+                <i class="fas fa-arrow-right"></i> العودة للوحة الرئيسية
+            </button>
+        </div>
+    </div>
+    <div class="main-content">
+        <div id="adminAlert" class="alert"></div>
+        
+        <!-- تبويبات -->
+        <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0;">
+            <button id="tabUsersBtn" class="btn" style="width:auto; padding:10px 20px; background:#3b82f6;" onclick="showAdminTab('users')">
+                <i class="fas fa-users"></i> المستخدمين (الأطباء)
+            </button>
+            <button id="tabPatientsBtn" class="btn" style="width:auto; padding:10px 20px; background:#64748b;" onclick="showAdminTab('patients')">
+                <i class="fas fa-user-friends"></i> جميع المرضى
+            </button>
+        </div>
+        
+        <!-- قسم المستخدمين -->
+        <div id="adminUsersSection">
+            <div class="search-bar">
+                <input type="text" id="adminUserSearch" placeholder="🔍 بحث عن مستخدم بالاسم أو اسم المستخدم..." onkeyup="searchAdminUsers()">
+                <button class="btn" style="width:auto; padding:12px 24px;" onclick="refreshAdminUsers()">
+                    <i class="fas fa-sync-alt"></i> تحديث
+                </button>
+            </div>
+            <div id="adminUsersList" class="patients-grid"></div>
+        </div>
+        
+        <!-- قسم المرضى -->
+        <div id="adminPatientsSection" style="display: none;">
+            <div class="search-bar">
+                <input type="text" id="adminPatientSearch" placeholder="🔍 بحث عن مريض بالاسم أو رقم الهاتف..." onkeyup="searchAdminPatients()">
+                <button class="btn" style="width:auto; padding:12px 24px;" onclick="refreshAdminPatients()">
+                    <i class="fas fa-sync-alt"></i> تحديث
+                </button>
+            </div>
+            <div id="adminPatientsList" class="patients-grid"></div>
+        </div>
+    </div>
+</div>
 
     <!-- Modals -->
     <div id="patientModal" class="modal">
@@ -291,6 +342,333 @@ store.clear();
             span.textContent = remaining + ' ريال';
             span.style.color = remaining < 0 ? '#10b981' : remaining > 0 ? '#ef4444' : '#64748b';
         }
+
+        // ============ دوال صفحة الادمن ============
+
+let allAdminUsers = [];
+let allAdminPatients = [];
+
+// إظهار زر الادمن إذا كان المستخدم مديراً
+function checkAndShowAdminButton() {
+    if (currentUser && currentUser.role === 'admin') {
+        document.getElementById('adminBtn').style.display = 'block';
+    } else {
+        document.getElementById('adminBtn').style.display = 'none';
+    }
+}
+
+// إظهار صفحة الادمن
+async function showAdminPage() {
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('adminPage').style.display = 'block';
+    document.getElementById('adminUserName').textContent = currentUser.fullName || currentUser.username;
+    
+    // تحميل البيانات
+    await loadAdminUsers();
+    await loadAllPatients();
+    
+    // عرض تبويب المستخدمين افتراضياً
+    showAdminTab('users');
+}
+
+// العودة للوحة الرئيسية
+function showDashboard() {
+    document.getElementById('adminPage').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+}
+
+// تبديل التبويبات
+function showAdminTab(tab) {
+    const usersSection = document.getElementById('adminUsersSection');
+    const patientsSection = document.getElementById('adminPatientsSection');
+    const usersBtn = document.getElementById('tabUsersBtn');
+    const patientsBtn = document.getElementById('tabPatientsBtn');
+    
+    if (tab === 'users') {
+        usersSection.style.display = 'block';
+        patientsSection.style.display = 'none';
+        usersBtn.style.background = '#3b82f6';
+        patientsBtn.style.background = '#64748b';
+        renderAdminUsers(allAdminUsers);
+    } else {
+        usersSection.style.display = 'none';
+        patientsSection.style.display = 'block';
+        usersBtn.style.background = '#64748b';
+        patientsBtn.style.background = '#3b82f6';
+        renderAdminPatients(allAdminPatients);
+    }
+}
+
+// جلب جميع المستخدمين
+async function loadAdminUsers() {
+    try {
+        const response = await fetch('/api/admin/users');
+        if (!response.ok) throw new Error('Failed to fetch users');
+        allAdminUsers = await response.json();
+        
+        // جلب عدد المرضى لكل مستخدم
+        for (const user of allAdminUsers) {
+            const patientsRes = await fetch(`/api/patients/${user._id}`);
+            const patients = await patientsRes.json();
+            user.patientCount = patients.length;
+        }
+        
+        renderAdminUsers(allAdminUsers);
+    } catch (error) {
+        showAlert('adminAlert', 'خطأ في جلب المستخدمين', 'error');
+    }
+}
+
+// عرض المستخدمين
+function renderAdminUsers(users) {
+    const container = document.getElementById('adminUsersList');
+    if (!users || users.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:50px;">لا يوجد مستخدمين</div>';
+        return;
+    }
+    
+    container.innerHTML = users.map(user => `
+        <div class="patient-card">
+            <div class="patient-header">
+                <h3><i class="fas fa-user-md"></i> ${escapeHtml(user.fullName)}</h3>
+                <div class="patient-actions">
+                    <button onclick="toggleUserSubscription('${user._id}', ${!user.isSubscribed})" 
+                            style="background:${user.isSubscribed ? '#ef4444' : '#10b981'};">
+                        ${user.isSubscribed ? 'تعطيل الاشتراك' : 'تفعيل الاشتراك'}
+                    </button>
+                </div>
+            </div>
+            <div class="patient-body">
+                <p><i class="fas fa-user-circle"></i> <strong>اسم المستخدم:</strong> @${escapeHtml(user.username)}</p>
+                <p><i class="fas fa-hospital"></i> <strong>العيادة:</strong> ${escapeHtml(user.clinicName)}</p>
+                <p><i class="fas fa-phone"></i> <strong>الهاتف:</strong> ${escapeHtml(user.phone || 'غير محدد')}</p>
+                <p><i class="fas fa-users"></i> <strong>عدد المرضى:</strong> ${user.patientCount || 0}</p>
+                <p><i class="fas fa-calendar"></i> <strong>تاريخ التسجيل:</strong> ${new Date(user.createdAt).toLocaleDateString('ar-EG')}</p>
+                <div style="margin-top: 10px; padding: 8px; background: #f1f5f9; border-radius: 8px;">
+                    <strong>حالة الاشتراك:</strong>
+                    <span class="subscription-badge ${user.isSubscribed ? 'subscription-active' : 'subscription-inactive'}" 
+                          style="margin-right: 8px;">
+                        ${user.isSubscribed ? '✅ مشترك' : '📊 مجاني'}
+                    </span>
+                    ${user.subscriptionExpiry ? `<br><small>ينتهي في: ${new Date(user.subscriptionExpiry).toLocaleDateString('ar-EG')}</small>` : ''}
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// تغيير اشتراك المستخدم
+async function toggleUserSubscription(userId, activate) {
+    try {
+        const response = await fetch(`/api/admin/users/${userId}/subscription`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isSubscribed: activate })
+        });
+        
+        if (response.ok) {
+            showAlert('adminAlert', `✅ تم ${activate ? 'تفعيل' : 'تعطيل'} الاشتراك بنجاح`, 'success');
+            await loadAdminUsers(); // تحديث القائمة
+        } else {
+            const error = await response.json();
+            showAlert('adminAlert', error.message || 'فشل تحديث الاشتراك', 'error');
+        }
+    } catch (error) {
+        showAlert('adminAlert', 'خطأ في تحديث الاشتراك', 'error');
+    }
+}
+
+// جلب جميع المرضى من جميع المستخدمين
+async function loadAllPatients() {
+    try {
+        const response = await fetch('/api/admin/patients');
+        if (!response.ok) throw new Error('Failed to fetch patients');
+        allAdminPatients = await response.json();
+        renderAdminPatients(allAdminPatients);
+    } catch (error) {
+        showAlert('adminAlert', 'خطأ في جلب المرضى', 'error');
+    }
+}
+
+// عرض جميع المرضى
+function renderAdminPatients(patients) {
+    const container = document.getElementById('adminPatientsList');
+    if (!patients || patients.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:50px;">لا يوجد مرضى مسجلين</div>';
+        return;
+    }
+    
+    container.innerHTML = patients.map(patient => `
+        <div class="patient-card" onclick="showAdminPatientDetails('${patient._id}')">
+            <div class="patient-header">
+                <h3><i class="fas fa-user"></i> ${escapeHtml(patient.name)}</h3>
+                <div class="patient-actions" onclick="event.stopPropagation()">
+                    <button onclick="editAdminPatient('${patient._id}')"><i class="fas fa-edit"></i></button>
+                </div>
+            </div>
+            <div class="patient-body">
+                <p><i class="fas fa-phone"></i> ${escapeHtml(patient.phone || 'غير محدد')}</p>
+                <p><i class="fas fa-calendar"></i> العمر: ${patient.age} سنة</p>
+                <p><i class="fas fa-user-md"></i> <strong>الطبيب:</strong> ${escapeHtml(patient.doctorName || 'غير معروف')}</p>
+                <p><i class="fas fa-map-marker-alt"></i> ${escapeHtml(patient.address || 'لا يوجد عنوان')}</p>
+                <p><i class="fas fa-clock"></i> تاريخ التسجيل: ${new Date(patient.createdAt).toLocaleDateString('ar-EG')}</p>
+                ${patient.notes ? `<p><i class="fas fa-pencil-alt"></i> ${escapeHtml(patient.notes.substring(0, 60))}</p>` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+// عرض تفاصيل المريض للادمن
+async function showAdminPatientDetails(patientId) {
+    try {
+        const response = await fetch(`/api/patients/${patientId}`);
+        const data = await response.json();
+        const patient = data.patient;
+        
+        const treatmentsRes = await fetch(`/api/treatments/patient/${patientId}`);
+        const treatments = await treatmentsRes.json();
+        
+        let totalCost = 0, totalPaid = 0;
+        let treatmentsHtml = '';
+        
+        treatments.forEach(t => {
+            totalCost += t.cost || 0;
+            let paid = 0;
+            if (t.notes) {
+                const match = t.notes.match(/المدفوع:\s*([\d.]+)/);
+                if (match) paid = parseFloat(match[1]);
+                totalPaid += paid;
+            }
+            treatmentsHtml += `
+                <div style="padding:10px; border-bottom:1px solid #e2e8f0;">
+                    <strong>🦷 السن ${t.toothNumber}</strong> - ${t.treatmentType}<br>
+                    💰 التكلفة: ${t.cost || 0} ريال<br>
+                    💵 المدفوع: ${paid} ريال<br>
+                    <small>📅 ${new Date(t.treatmentDate).toLocaleDateString('ar-EG')}</small>
+                </div>
+            `;
+        });
+        
+        const remaining = totalCost - totalPaid;
+        
+        const modalHtml = `
+            <div class="modal-content" style="max-width:550px;">
+                <div class="modal-header">
+                    <h3>${escapeHtml(patient.name)}</h3>
+                    <button class="close-btn" onclick="closeModal('adminPatientModal')">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div style="background:#f1f5f9; padding:15px; border-radius:15px; margin-bottom:20px;">
+                        <p><strong>📞 الهاتف:</strong> ${escapeHtml(patient.phone || 'غير محدد')}</p>
+                        <p><strong>📅 العمر:</strong> ${patient.age} سنة</p>
+                        <p><strong>📍 العنوان:</strong> ${escapeHtml(patient.address || 'غير محدد')}</p>
+                        <p><strong>👨‍⚕️ الطبيب:</strong> ${escapeHtml(patient.doctorName || 'غير معروف')}</p>
+                        ${patient.notes ? `<p><strong>📝 ملاحظات:</strong><br>${escapeHtml(patient.notes)}</p>` : ''}
+                    </div>
+                    
+                    <h4>🦷 سجل المعالجات</h4>
+                    <div style="max-height:300px; overflow-y:auto; margin-bottom:20px;">
+                        ${treatmentsHtml || '<p>لا توجد معالجات مسجلة</p>'}
+                    </div>
+                    
+                    <div style="background:#e0f2fe; padding:15px; border-radius:15px; margin-bottom:20px;">
+                        <p><strong>💰 إجمالي التكلفة:</strong> ${totalCost} ريال</p>
+                        <p><strong>💵 إجمالي المدفوع:</strong> ${totalPaid} ريال</p>
+                        <p><strong style="color:${remaining > 0 ? '#ef4444' : '#10b981'};">⚠️ المتبقي:</strong> ${remaining} ريال</p>
+                    </div>
+                    
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn" onclick="closeModal('adminPatientModal'); editAdminPatient('${patient._id}')">تعديل البيانات</button>
+                        <button class="btn btn-whatsapp" onclick="shareAdminPatientReport('${patient._id}')">مشاركة التقرير</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        let modal = document.getElementById('adminPatientModal');
+        if (!modal) {
+            const div = document.createElement('div');
+            div.id = 'adminPatientModal';
+            div.className = 'modal';
+            document.body.appendChild(div);
+            modal = div;
+        }
+        modal.innerHTML = modalHtml;
+        modal.style.display = 'flex';
+        
+    } catch (error) {
+        showAlert('adminAlert', 'خطأ في جلب بيانات المريض', 'error');
+    }
+}
+
+// تعديل بيانات مريض من الادمن
+function editAdminPatient(patientId) {
+    const patient = allAdminPatients.find(p => p._id === patientId);
+    if (patient) {
+        closeModal('adminPatientModal');
+        document.getElementById('modalTitle').textContent = 'تعديل بيانات المريض (مدير)';
+        document.getElementById('patientId').value = patient._id;
+        document.getElementById('patientName').value = patient.name;
+        document.getElementById('patientPhone').value = patient.phone || '';
+        document.getElementById('patientAge').value = patient.age;
+        document.getElementById('patientAddress').value = patient.address || '';
+        document.getElementById('patientNotes').value = patient.notes || '';
+        document.getElementById('nextAppointment').value = patient.nextAppointment ? new Date(patient.nextAppointment).toISOString().slice(0,16) : '';
+        document.getElementById('patientModal').style.display = 'flex';
+        
+        // تعديل دالة updatePatient لتعمل مع الادمن
+        window.editingPatientFromAdmin = true;
+    }
+}
+
+// مشاركة تقرير المريض للادمن
+function shareAdminPatientReport(patientId) {
+    const patient = allAdminPatients.find(p => p._id === patientId);
+    if (!patient) return;
+    
+    let message = `*🦷 تقرير المريض*\n\n👤 الاسم: ${patient.name}\n📞 الهاتف: ${patient.phone || 'غير مسجل'}\n📅 العمر: ${patient.age} سنة\n👨‍⚕️ الطبيب: ${patient.doctorName || 'غير معروف'}\n\n🦷 ClinicPro`;
+    
+    window.open(`https://wa.me/${patient.phone || '967773041464'}?text=${encodeURIComponent(message)}`, '_blank');
+}
+
+// بحث في المستخدمين
+function searchAdminUsers() {
+    const query = document.getElementById('adminUserSearch').value.toLowerCase();
+    if (query) {
+        const filtered = allAdminUsers.filter(u => 
+            u.fullName.toLowerCase().includes(query) || 
+            u.username.toLowerCase().includes(query) ||
+            u.clinicName.toLowerCase().includes(query)
+        );
+        renderAdminUsers(filtered);
+    } else {
+        renderAdminUsers(allAdminUsers);
+    }
+}
+
+// بحث في المرضى
+function searchAdminPatients() {
+    const query = document.getElementById('adminPatientSearch').value.toLowerCase();
+    if (query) {
+        const filtered = allAdminPatients.filter(p => 
+            p.name.toLowerCase().includes(query) || 
+            (p.phone && p.phone.includes(query))
+        );
+        renderAdminPatients(filtered);
+    } else {
+        renderAdminPatients(allAdminPatients);
+    }
+}
+
+// تحديث قائمة المستخدمين
+function refreshAdminUsers() {
+    loadAdminUsers();
+}
+
+// تحديث قائمة المرضى
+function refreshAdminPatients() {
+    loadAllPatients();
+}
 
         async function saveTreatmentNow() {
             const tooth = document.getElementById('toothNumber').value;
@@ -508,6 +886,7 @@ document.getElementById("patientModal").style.display="none";
             else if (currentUser.isSubscribed) { badge.innerHTML = '✨ مشترك'; badge.className = 'subscription-badge subscription-active'; }
             else { badge.innerHTML = '📊 مجاني'; badge.className = 'subscription-badge subscription-inactive'; }
             await loadPatients(); await loadStats();
+            checkAndShowAdminButton();
             if (currentUser.role === 'admin') await loadAdminPanel();
         }
 
