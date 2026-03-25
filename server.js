@@ -411,62 +411,49 @@ app.put('/api/admin/users/:id/subscription', async (req, res) => {
         const userId = req.params.id;
         const { isSubscribed } = req.body;
         
-        console.log(`📝 [SERVER] Updating subscription for user: ${userId}`);
-        console.log(`📝 [SERVER] New subscription status: ${isSubscribed}`);
+        console.log(`🔧 Updating subscription for ${userId} to ${isSubscribed}`);
         
         // التحقق من صحة الـ ID
         if (!mongoose.Types.ObjectId.isValid(userId)) {
-            return res.status(400).json({ message: 'معرف المستخدم غير صالح' });
+            return res.status(400).json({ message: 'معرف غير صالح' });
         }
         
         const user = await User.findById(userId);
         if (!user) {
-            console.log(`❌ [SERVER] User not found: ${userId}`);
             return res.status(404).json({ message: 'المستخدم غير موجود' });
         }
         
-        console.log(`📝 [SERVER] Current user data:`, {
-            id: user._id,
-            username: user.username,
-            currentSubscription: user.isSubscribed,
-            currentExpiry: user.subscriptionExpiry
-        });
+        // تحديث الحالة
+        user.isSubscribed = isSubscribed;
         
-        if (isSubscribed === true) {
-            user.isSubscribed = true;
+        if (isSubscribed) {
+            // تفعيل الاشتراك لمدة شهر
             user.subscriptionExpiry = new Date();
             user.subscriptionExpiry.setMonth(user.subscriptionExpiry.getMonth() + 1);
-            console.log(`✅ [SERVER] Subscription activated until: ${user.subscriptionExpiry}`);
-        } else if (isSubscribed === false) {
-            user.isSubscribed = false;
-            user.subscriptionExpiry = null;
-            console.log(`❌ [SERVER] Subscription deactivated`);
         } else {
-            return res.status(400).json({ message: 'قيمة الاشتراك غير صالحة' });
+            user.subscriptionExpiry = null;
         }
         
         await user.save();
         
-        // التحقق من الحفظ
-        const savedUser = await User.findById(userId);
-        console.log(`✅ [SERVER] After save - Subscription status: ${savedUser.isSubscribed}`);
+        console.log(`✅ User ${user.username} subscription updated to: ${user.isSubscribed}`);
+        console.log(`✅ Expiry: ${user.subscriptionExpiry}`);
         
         res.json({ 
             success: true, 
             user: {
-                id: savedUser._id,
-                fullName: savedUser.fullName,
-                username: savedUser.username,
-                isSubscribed: savedUser.isSubscribed,
-                subscriptionExpiry: savedUser.subscriptionExpiry
+                id: user._id,
+                fullName: user.fullName,
+                username: user.username,
+                isSubscribed: user.isSubscribed,
+                subscriptionExpiry: user.subscriptionExpiry
             }
         });
     } catch (error) {
-        console.error('❌ [SERVER] Error updating subscription:', error);
+        console.error('❌ Error updating subscription:', error);
         res.status(500).json({ message: 'خطأ في تحديث الاشتراك: ' + error.message });
     }
 });
-
 // ============ CREATE DEFAULT ADMIN USER ============
 async function createDefaultAdmin() {
     try {
