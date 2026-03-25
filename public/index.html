@@ -235,6 +235,9 @@
                 <div class="search-bar">
                     <input type="text" id="searchInput" placeholder="🔍 بحث عن مريض..." onkeyup="searchPatients()">
                     <button class="btn" style="width:auto; padding:12px 24px;" onclick="showAddPatientModal()">+ إضافة مريض</button>
+                    <button class="btn" style="width:auto; padding:12px 24px; background:#10b981;" onclick="syncAllDataWithServer()">
+    <i class="fas fa-sync-alt"></i> مزامنة
+                    </button>
                 </div>
                 <div id="patientsGrid" class="patients-grid"></div>
                 <div id="adminPanel" style="display:none;"></div>
@@ -1817,14 +1820,14 @@ async function loadPatientsWithOffline() {
 async function addPatientWithOffline(patientData) {
     // التحقق من الاتصال بالإنترنت
     if (!navigator.onLine) {
-        // حفظ المريض محلياً
+        // حفظ المريض محلياً مع علامة pendingSync
         let offlinePatients = JSON.parse(localStorage.getItem(`patients_${currentUser.id}`) || '[]');
         const newPatient = {
             ...patientData,
             _id: 'offline_' + Date.now(),
             createdAt: new Date().toISOString(),
             offline: true,
-            pendingSync: true
+            pendingSync: true  // علامة مهمة للمزامنة
         };
         offlinePatients.unshift(newPatient);
         localStorage.setItem(`patients_${currentUser.id}`, JSON.stringify(offlinePatients));
@@ -1842,7 +1845,7 @@ async function addPatientWithOffline(patientData) {
         return;
     }
     
-    // إذا كان هناك اتصال، أرسل للخادم
+    // إذا كان هناك اتصال، أرسل للخادم مباشرة
     try {
         const response = await fetch('/api/patients', {
             method: 'POST',
@@ -1865,7 +1868,7 @@ async function addPatientWithOffline(patientData) {
         }
     } catch (error) {
         console.error('Error adding patient:', error);
-        // حفظ محلياً في حالة فشل
+        // حفظ محلياً في حالة فشل الاتصال
         let offlinePatients = JSON.parse(localStorage.getItem(`patients_${currentUser.id}`) || '[]');
         const newPatient = {
             ...patientData,
@@ -2116,10 +2119,14 @@ function renderPatients(patients) {
         return;
     }
     
-    grid.innerHTML = patients.map(p => `
+    grid.innerHTML = patients.map(p => {
+        // التحقق إذا كان المريض في انتظار المزامنة
+        const isPendingSync = p.pendingSync === true || p.offline === true;
+        
+        return `
         <div class="patient-card" onclick="showPatientFullDetails('${p._id}')">
             <div class="patient-header">
-                <h3>${escapeHtml(p.name)} ${p.offline ? '<span style="background:#f59e0b; font-size:10px; padding:2px 6px; border-radius:20px;">📴 مؤقت</span>' : ''}</h3>
+                <h3>${escapeHtml(p.name)} ${isPendingSync ? '<span style="background:#f59e0b; font-size:10px; padding:2px 6px; border-radius:20px;">📴 ينتظر المزامنة</span>' : ''}</h3>
                 <div class="patient-actions" onclick="event.stopPropagation()">
                     <button onclick="editPatient('${p._id}')"><i class="fas fa-edit"></i></button>
                     <button onclick="showTreatmentModal('${p._id}')"><i class="fas fa-stethoscope"></i></button>
@@ -2129,10 +2136,10 @@ function renderPatients(patients) {
             <div class="patient-body">
                 <p><i class="fas fa-phone"></i> ${escapeHtml(p.phone || 'غير محدد')}</p>
                 <p><i class="fas fa-calendar"></i> العمر: ${p.age} سنة</p>
-                ${p.offline ? '<p style="color:#f59e0b;"><i class="fas fa-sync-alt"></i> في انتظار المزامنة</p>' : ''}
+                ${isPendingSync ? '<p style="color:#f59e0b;"><i class="fas fa-sync-alt"></i> في انتظار المزامنة مع الخادم</p>' : ''}
             </div>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 // تحديث دالة syncOffline لمزامنة المرضى
@@ -2330,11 +2337,23 @@ function showOfflineNotification() {
 }
 
 // الاستماع لتغيير حالة الاتصال
-window.addEventListener('online', () => {
-    console.log('🔄 Connection restored');
+window.addEventListener('online', async () => {
+    console.log('🔄 Connection restored!');
+    showAlert('dashboardAlert', '🔄 تم استعادة الاتصال بالإنترنت. جاري المزامنة...', 'success');
+    
+    // انتظر قليلاً للتأكد من استقرار الاتصال
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // بدء المزامنة
+    await syncAllDataWithServer();
+    
+    // إعادة تحميل البيانات
+    await loadPatientsWithOffline();
+    await loadStats();
+    
+    // إزالة إشعار وضع عدم الاتصال
     const offlineDiv = document.getElementById('offlineNotification');
     if (offlineDiv) offlineDiv.remove();
-    syncOfflineData();
 });
 
 window.addEventListener('offline', () => {
