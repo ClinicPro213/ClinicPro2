@@ -599,6 +599,54 @@ async function showAdminPatientDetails(patientId) {
         const modalHtml = `
             <div class="modal-content" style="max-width:550px;">
                 <div class="modal-header">
+// عرض تفاصيل المريض للادمن
+async function showAdminPatientDetails(patientId) {
+    try {
+        console.log('📝 Fetching patient details for:', patientId);
+        
+        const response = await fetch(`/api/patients/${patientId}/details`);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('✅ Patient data loaded:', data);
+        
+        const patient = data.patient;
+        const treatments = data.treatments || [];
+        const stats = data.stats;
+        
+        // اسم الطبيب - التحقق من وجود userId
+        let doctorName = 'غير معروف';
+        if (patient.userId) {
+            doctorName = patient.userId.fullName || 'غير معروف';
+        }
+        
+        // بناء HTML للمعالجات
+        let treatmentsHtml = '';
+        if (treatments.length > 0) {
+            treatments.forEach(t => {
+                let paid = 0;
+                if (t.notes) {
+                    const match = t.notes.match(/المدفوع:\s*([\d.]+)/);
+                    if (match) paid = parseFloat(match[1]);
+                }
+                treatmentsHtml += `
+                    <div style="padding:10px; border-bottom:1px solid #e2e8f0;">
+                        <strong>🦷 السن ${t.toothNumber}</strong> - ${t.treatmentType}<br>
+                        💰 التكلفة: ${t.cost || 0} ريال<br>
+                        💵 المدفوع: ${paid} ريال<br>
+                        <small>📅 ${new Date(t.treatmentDate).toLocaleDateString('ar-EG')}</small>
+                    </div>
+                `;
+            });
+        } else {
+            treatmentsHtml = '<p style="color:#64748b;">لا توجد معالجات مسجلة</p>';
+        }
+        
+        const modalHtml = `
+            <div class="modal-content" style="max-width:550px;">
+                <div class="modal-header">
                     <h3>${escapeHtml(patient.name)}</h3>
                     <button class="close-btn" onclick="closeModal('adminPatientModal')">&times;</button>
                 </div>
@@ -611,15 +659,15 @@ async function showAdminPatientDetails(patientId) {
                         ${patient.notes ? `<p><strong>📝 ملاحظات:</strong><br>${escapeHtml(patient.notes)}</p>` : ''}
                     </div>
                     
-                    <h4>🦷 سجل المعالجات</h4>
+                    <h4>🦷 سجل المعالجات (${stats.treatmentsCount || 0})</h4>
                     <div style="max-height:300px; overflow-y:auto; margin-bottom:20px;">
-                        ${treatmentsHtml || '<p>لا توجد معالجات مسجلة</p>'}
+                        ${treatmentsHtml}
                     </div>
                     
                     <div style="background:#e0f2fe; padding:15px; border-radius:15px; margin-bottom:20px;">
-                        <p><strong>💰 إجمالي التكلفة:</strong> ${totalCost} ريال</p>
-                        <p><strong>💵 إجمالي المدفوع:</strong> ${totalPaid} ريال</p>
-                        <p><strong style="color:${remaining > 0 ? '#ef4444' : '#10b981'};">⚠️ المتبقي:</strong> ${remaining} ريال</p>
+                        <p><strong>💰 إجمالي التكلفة:</strong> ${stats.totalCost || 0} ريال</p>
+                        <p><strong>💵 إجمالي المدفوع:</strong> ${stats.totalPaid || 0} ريال</p>
+                        <p><strong style="color:${(stats.remaining || 0) > 0 ? '#ef4444' : '#10b981'};">⚠️ المتبقي:</strong> ${stats.remaining || 0} ريال</p>
                     </div>
                     
                     <div style="display:flex; gap:10px;">
@@ -642,10 +690,10 @@ async function showAdminPatientDetails(patientId) {
         modal.style.display = 'flex';
         
     } catch (error) {
-        console.error('Error showing patient details:', error);
+        console.error('❌ Error showing patient details:', error);
         showAlert('adminAlert', 'خطأ في جلب بيانات المريض: ' + error.message, 'error');
     }
-}
+                  }
 
 // تعديل بيانات مريض من الادمن
 function editAdminPatient(patientId) {
