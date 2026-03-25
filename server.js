@@ -408,22 +408,62 @@ app.get('/api/admin/patients', async (req, res) => {
 
 app.put('/api/admin/users/:id/subscription', async (req, res) => {
     try {
+        const userId = req.params.id;
         const { isSubscribed } = req.body;
-        const user = await User.findById(req.params.id);
         
-        if (isSubscribed) {
+        console.log(`📝 [SERVER] Updating subscription for user: ${userId}`);
+        console.log(`📝 [SERVER] New subscription status: ${isSubscribed}`);
+        
+        // التحقق من صحة الـ ID
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({ message: 'معرف المستخدم غير صالح' });
+        }
+        
+        const user = await User.findById(userId);
+        if (!user) {
+            console.log(`❌ [SERVER] User not found: ${userId}`);
+            return res.status(404).json({ message: 'المستخدم غير موجود' });
+        }
+        
+        console.log(`📝 [SERVER] Current user data:`, {
+            id: user._id,
+            username: user.username,
+            currentSubscription: user.isSubscribed,
+            currentExpiry: user.subscriptionExpiry
+        });
+        
+        if (isSubscribed === true) {
             user.isSubscribed = true;
             user.subscriptionExpiry = new Date();
             user.subscriptionExpiry.setMonth(user.subscriptionExpiry.getMonth() + 1);
-        } else {
+            console.log(`✅ [SERVER] Subscription activated until: ${user.subscriptionExpiry}`);
+        } else if (isSubscribed === false) {
             user.isSubscribed = false;
             user.subscriptionExpiry = null;
+            console.log(`❌ [SERVER] Subscription deactivated`);
+        } else {
+            return res.status(400).json({ message: 'قيمة الاشتراك غير صالحة' });
         }
         
         await user.save();
-        res.json({ success: true, user });
+        
+        // التحقق من الحفظ
+        const savedUser = await User.findById(userId);
+        console.log(`✅ [SERVER] After save - Subscription status: ${savedUser.isSubscribed}`);
+        
+        res.json({ 
+            success: true, 
+            user: {
+                id: savedUser._id,
+                fullName: savedUser.fullName,
+                username: savedUser.username,
+                isSubscribed: savedUser.isSubscribed,
+                subscriptionExpiry: savedUser.subscriptionExpiry
+            }
+        });
     } catch (error) {
-        res.status(500).json({ message: 'خطأ' });
+        console.error('❌ [SERVER] Error updating subscription:', error);
+        res.status(500).json({ message: 'خطأ في تحديث الاشتراك: ' + error.message });
     }
 });
 
