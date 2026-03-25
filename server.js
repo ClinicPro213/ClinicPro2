@@ -387,6 +387,24 @@ app.get('/api/admin/users', async (req, res) => {
         res.status(500).json({ message: 'خطأ' });
     }
 });
+// جلب جميع المرضى من جميع المستخدمين (للمدير فقط)
+app.get('/api/admin/patients', async (req, res) => {
+    try {
+        const patients = await Patient.find().sort({ createdAt: -1 }).populate('userId', 'fullName clinicName');
+        
+        // إضافة اسم الطبيب لكل مريض
+        const patientsWithDoctor = patients.map(p => ({
+            ...p.toObject(),
+            doctorName: p.userId ? p.userId.fullName : 'غير معروف',
+            clinicName: p.userId ? p.userId.clinicName : 'غير معروف'
+        }));
+        
+        res.json(patientsWithDoctor);
+    } catch (error) {
+        console.error('Error fetching all patients:', error);
+        res.status(500).json({ message: 'خطأ في جلب المرضى' });
+    }
+});
 
 app.put('/api/admin/users/:id/subscription', async (req, res) => {
     try {
