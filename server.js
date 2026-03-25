@@ -22,29 +22,15 @@ mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://ClinicPro:admin8899@clu
     console.log('⚠️  Please make sure MongoDB is running. Run "mongod" in terminal');
 });
 
-// User Schema
+// User Schema (بدون قيود على phone و age و address)
 const userSchema = new mongoose.Schema({
-    fullName: String,
-    username: { type: String, unique: true },
-    password: String,
-    // في نموذج User Schema، استبدل حقل phone بهذا:
-phone: {
-    type: String,
-    required: [true, 'رقم الهاتف مطلوب'],
-    validate: {
-        validator: function(v) {
-            if (!v) return true;
-            // السماح بـ + في البداية وأرقام فقط، 7-15 رقم
-            const cleanPhone = v.replace(/[^\d+]/g, '');
-            return /^[\+]?[0-9]{7,15}$/.test(cleanPhone);
-        },
-        message: 'رقم الهاتف غير صالح. يجب أن يكون بين 7 و 15 رقمًا ويمكن أن يبدأ بـ +'
-    },
-    default: ''
-},
-    age: Number,
-    clinicName: String,
-    address: String,
+    fullName: { type: String, required: true },
+    username: { type: String, unique: true, required: true },
+    password: { type: String, required: true },
+    phone: { type: String, default: '' },           // لا يوجد unique
+    age: { type: Number, default: 0 },              // لا يوجد قيود
+    clinicName: { type: String, required: true },
+    address: { type: String, default: '' },         // لا يوجد unique
     role: { type: String, default: 'user' },
     isSubscribed: { type: Boolean, default: false },
     subscriptionExpiry: Date,
