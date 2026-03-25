@@ -228,7 +228,7 @@ app.get('/api/patients/:userId', async (req, res) => {
             return res.status(400).json({ message: 'معرف المستخدم غير صالح' });
         }
         
-        const patients = await Patient.find({ userId: new mongoose.Types.ObjectId(userId) }).sort({ createdAt: -1 });
+        const patients = await Patient.find({ userId: userId }).sort({ createdAt: -1 });
         res.json(patients);
     } catch (error) {
         console.error('Error getting patients:', error);
