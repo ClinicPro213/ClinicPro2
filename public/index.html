@@ -469,7 +469,7 @@ function renderAdminUsers(users) {
 // تغيير اشتراك المستخدم
 async function toggleUserSubscription(userId, activate) {
     try {
-        console.log(`📝 Toggling subscription for user ${userId} to ${activate}`);
+        console.log(`📝 [CLIENT] Toggling subscription for user ${userId} to ${activate}`);
         
         const response = await fetch(`/api/admin/users/${userId}/subscription`, {
             method: 'PUT',
@@ -479,11 +479,15 @@ async function toggleUserSubscription(userId, activate) {
             body: JSON.stringify({ isSubscribed: activate })
         });
         
+        console.log(`📝 [CLIENT] Response status: ${response.status}`);
+        
         const result = await response.json();
+        console.log(`📝 [CLIENT] Response data:`, result);
         
         if (response.ok && result.success) {
             showAlert('adminAlert', `✅ تم ${activate ? 'تفعيل' : 'تعطيل'} الاشتراك بنجاح`, 'success');
-            // تحديث المستخدم في القائمة المحلية
+            
+            // تحديث القائمة المحلية
             const userIndex = allAdminUsers.findIndex(u => u._id === userId);
             if (userIndex !== -1) {
                 allAdminUsers[userIndex].isSubscribed = activate;
@@ -494,12 +498,18 @@ async function toggleUserSubscription(userId, activate) {
                     allAdminUsers[userIndex].subscriptionExpiry = null;
                 }
             }
+            
+            // إعادة عرض القائمة
             renderAdminUsers(allAdminUsers);
+            
+            // إعادة تحميل من الخادم للتأكد
+            setTimeout(() => loadAdminUsers(), 500);
+            
         } else {
             showAlert('adminAlert', result.message || 'فشل تحديث الاشتراك', 'error');
         }
     } catch (error) {
-        console.error('Error toggling subscription:', error);
+        console.error('❌ [CLIENT] Error toggling subscription:', error);
         showAlert('adminAlert', 'خطأ في تحديث الاشتراك: ' + error.message, 'error');
     }
 }
