@@ -745,6 +745,141 @@ function renderAdminPatients(patients) {
     `).join('');
 }
 
+        // ============ SYNC FIX ============
+
+// مزامنة جميع البيانات مع الخادم
+async function syncAllDataWithServer() {
+    if (!navigator.onLine || !currentUser) {
+        console.log('📴 Cannot sync: offline or no user');
+        return false;
+    }
+    
+    console.log('🔄 Starting full sync with server...');
+    showAlert('dashboardAlert', '🔄 جاري مزامنة البيانات مع الخادم...', 'success');
+    
+    let syncedPatients = 0;
+    let syncedTreatments = 0;
+    
+    // 1. مزامنة المرضى المحليين
+    const offlinePatients = JSON.parse(localStorage.getItem(`patients_${currentUser.id}`) || '[]');
+    const pendingPatients = offlinePatients.filter(p => p.pendingSync === true || p.offline === true);
+    
+    console.log(`📋 Found ${pendingPatients.length} pending patients to sync`);
+    
+    for (const patient of pendingPatients) {
+        try {
+            const response = await fetch('/api/patients', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: patient.name,
+                    phone: patient.phone,
+                    age: patient.age,
+                    address: patient.address,
+                    notes: patient.notes,
+                    nextAppointment: patient.nextAppointment,
+                    userId: currentUser.id
+                })
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log(`✅ Synced patient: ${patient.name} -> ID: ${result.patient._id}`);
+                syncedPatients++;
+            } else {
+                console.error(`❌ Failed to sync patient: ${patient.name}`, await response.text());
+            }
+        } catch (error) {
+            console.error(`❌ Error syncing patient ${patient.name}:`, error);
+        }
+    }
+    
+    // 2. بعد مزامنة المرضى، احذفهم من التخزين المحلي
+    if (syncedPatients > 0) {
+        const remainingPatients = offlinePatients.filter(p => !p.pendingSync && !p.offline);
+        localStorage.setItem(`patients_${currentUser.id}`, JSON.stringify(remainingPatients));
+        console.log(`🗑️ Removed ${syncedPatients} synced patients from local storage`);
+    }
+    
+    // 3. مزامنة المعالجات المحلية
+    const offlineTreatments = JSON.parse(localStorage.getItem(`offlineTreatments_${currentUser.id}`) || '[]');
+    console.log(`🦷 Found ${offlineTreatments.length} pending treatments to sync`);
+    
+    for (const treatment of offlineTreatments) {
+        try {
+            // التحقق من وجود المريض
+            const patientExists = await fetch(`/api/patients/${treatment.patientId}`);
+            
+            let patientId = treatment.patientId;
+            
+            // إذا كان المريض لا يزال محلياً (بصيغة offline_)
+            if (treatment.patientId && treatment.patientId.startsWith('offline_')) {
+                // ابحث عن المريض المزامن
+                const syncedPatientsList = await fetch(`/api/patients/${currentUser.id}`).then(r => r.json());
+                const matchingPatient = syncedPatientsList.find(p => 
+                    p.name === treatment.patientName || 
+                    (p.phone === treatment.patientPhone)
+                );
+                if (matchingPatient) {
+                    patientId = matchingPatient._id;
+                } else {
+                    console.warn(`⚠️ Cannot find matching patient for treatment:`, treatment);
+                    continue;
+                }
+            }
+            
+            const treatmentData = {
+                patientId: patientId,
+                userId: currentUser.id,
+                toothNumber: treatment.toothNumber,
+                treatmentType: treatment.treatmentType,
+                description: treatment.description || '',
+                cost: treatment.cost || 0,
+                notes: treatment.notes || '',
+                treatmentDate: treatment.treatmentDate || new Date().toISOString()
+            };
+            
+            const response = await fetch('/api/treatments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(treatmentData)
+            });
+            
+            if (response.ok) {
+                console.log(`✅ Synced treatment for tooth ${treatment.toothNumber}`);
+                syncedTreatments++;
+            } else {
+                console.error(`❌ Failed to sync treatment:`, await response.text());
+            }
+        } catch (error) {
+            console.error(`❌ Error syncing treatment:`, error);
+        }
+    }
+    
+    // 4. مسح المعالجات المزامنة
+    if (syncedTreatments > 0) {
+        localStorage.removeItem(`offlineTreatments_${currentUser.id}`);
+    }
+    
+    // 5. تحديث القائمة والإحصائيات
+    if (syncedPatients > 0 || syncedTreatments > 0) {
+        console.log(`✅ Sync complete: ${syncedPatients} patients, ${syncedTreatments} treatments`);
+        showAlert('dashboardAlert', `✅ تمت المزامنة: ${syncedPatients} مريض، ${syncedTreatments} معالجة`, 'success');
+        
+        // إعادة تحميل البيانات من الخادم
+        await loadPatientsWithOffline();
+        await loadStats();
+        
+        // تحديث القائمة لإزالة العلامة "مؤقت"
+        renderPatients(allPatients);
+        return true;
+    } else {
+        console.log('✅ No pending data to sync');
+        return false;
+    }
+}
+        
+
 async function showAdminPatientDetails(patientId) {
     try {
         console.log('📝 Fetching patient details for:', patientId);
@@ -1855,7 +1990,6 @@ async function deletePatient(id) {
 }
 
 // تحديث دالة showPatientFullDetails لدعم المرضى المحليين
-async function showPatientFullDetails(patientId) {
 async function showPatientFullDetails(patientId) {
     // التحقق إذا كان مريض محلي (مؤقت)
     if (patientId.startsWith('offline_')) {
