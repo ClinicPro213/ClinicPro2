@@ -337,7 +337,26 @@
             grid.innerHTML = patients.map(p => `<div class="patient-card" onclick="showPatientFullDetails('${p._id}')"><div class="patient-header"><h3>${escapeHtml(p.name)}</h3><div class="patient-actions" onclick="event.stopPropagation()"><button onclick="editPatient('${p._id}')"><i class="fas fa-edit"></i></button><button onclick="showTreatmentModal('${p._id}')"><i class="fas fa-stethoscope"></i></button><button onclick="deletePatient('${p._id}')"><i class="fas fa-trash"></i></button></div></div><div class="patient-body"><p><i class="fas fa-phone"></i> ${escapeHtml(p.phone || 'غير محدد')}</p><p><i class="fas fa-calendar"></i> العمر: ${p.age} سنة</p></div></div>`).join('');
         }
 
-        async function addPatient(data) { const res = await fetch('/api/patients', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...data, userId: currentUser.id }) }); if (res.ok) { showAlert('dashboardAlert', 'تم الإضافة', 'success'); closeModal('patientModal'); await loadPatients(); await loadStats(); } }
+        async function addPatient(data) {
+
+  const res = await fetch('/api/patients', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...data, userId: currentUser.id })
+  });
+
+  const result = await res.json();
+
+  if (res.ok) {
+    showAlert('dashboardAlert', 'تم إضافة المريض بنجاح', 'success');
+    closeModal('patientModal');
+    await loadPatients();
+    await loadStats();
+  } else {
+    showAlert('dashboardAlert', result.message || 'فشل إضافة المريض', 'error');
+  }
+
+        }
         async function updatePatient(id, data) { const res = await fetch(`/api/patients/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); if (res.ok) { showAlert('dashboardAlert', 'تم التحديث', 'success'); closeModal('patientModal'); await loadPatients(); } }
         async function deletePatient(id) { if (confirm('هل أنت متأكد؟')) { await fetch(`/api/patients/${id}`, { method: 'DELETE' }); await loadPatients(); await loadStats(); } }
         async function loadStats() { const res = await fetch(`/api/user/${currentUser.id}`); const data = await res.json(); document.getElementById('totalPatients').textContent = data.patientCount || 0; let remaining = (currentUser.role === 'admin' || currentUser.isSubscribed) ? 'غير محدود' : Math.max(0, 5 - (data.patientCount || 0)); document.getElementById('remainingSlots').textContent = remaining; }
