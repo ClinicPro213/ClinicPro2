@@ -409,7 +409,7 @@ app.get('/api/admin/patients', async (req, res) => {
 app.put('/api/admin/users/:id/subscription', async (req, res) => {
     try {
         const userId = req.params.id;
-        const { isSubscribed } = req.body;
+        const isSubscribed = Boolean(req.body.isSubscribed);
         
         console.log(`🔧 Updating subscription for ${userId} to ${isSubscribed}`);
         
@@ -428,8 +428,9 @@ app.put('/api/admin/users/:id/subscription', async (req, res) => {
         
         if (isSubscribed) {
             // تفعيل الاشتراك لمدة شهر
-            user.subscriptionExpiry = new Date();
-            user.subscriptionExpiry.setMonth(user.subscriptionExpiry.getMonth() + 1);
+            const expiry = new Date();
+expiry.setMonth(expiry.getMonth() + 1);
+user.subscriptionExpiry = expiry;
         } else {
             user.subscriptionExpiry = null;
         }
