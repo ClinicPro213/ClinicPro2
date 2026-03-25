@@ -160,6 +160,56 @@
     <div id="patientDetailsModal" class="modal" style="display: none;"></div>
 
     <script>
+        // OFFLINE DATABASE
+let offlineDB;
+
+const request = indexedDB.open("clinicOffline",1);
+
+request.onupgradeneeded = function(e){
+offlineDB = e.target.result;
+offlineDB.createObjectStore("queue",{keyPath:"id",autoIncrement:true});
+};
+
+request.onsuccess = function(e){
+offlineDB = e.target.result;
+};
+
+function saveOffline(action,data){
+
+const tx = offlineDB.transaction("queue","readwrite");
+const store = tx.objectStore("queue");
+
+store.add({
+action:action,
+data:data,
+date:new Date()
+});
+
+}
+
+function getOffline(){
+
+return new Promise(resolve=>{
+
+const tx = offlineDB.transaction("queue","readonly");
+const store = tx.objectStore("queue");
+
+const req = store.getAll();
+
+req.onsuccess = ()=>resolve(req.result);
+
+});
+
+}
+
+function clearOffline(){
+
+const tx = offlineDB.transaction("queue","readwrite");
+const store = tx.objectStore("queue");
+
+store.clear();
+
+}
         let currentUser = null;
         let allPatients = [];
         let currentPatientId = null;
@@ -204,7 +254,26 @@
             const notes = document.getElementById('treatmentNotesInput').value;
             const cost = parseFloat(document.getElementById('treatmentCostInput').value) || 0;
             const paid = parseFloat(document.getElementById('treatmentPaidInput').value) || 0;
-            
+            if(!navigator.onLine){
+
+saveOffline("addTreatment",{
+patientId: currentPatientId,
+userId: currentUser.id,
+toothNumber: parseInt(tooth),
+treatmentType: type,
+cost: cost,
+paid: paid,
+notes: notes
+});
+
+showAlert('dashboardAlert','📴 تم حفظ المعالجة بدون إنترنت','success');
+
+closeModal('treatmentModal');
+
+return;
+
+            }
+        
             const res = await fetch('/api/treatments', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -339,25 +408,63 @@
 
         async function addPatient(data) {
 
-  const res = await fetch('/api/patients', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...data, userId: currentUser.id })
-  });
+if(!navigator.onLine){
 
-  const result = await res.json();
+saveOffline("addPatient",{...data,userId:currentUser.id});
 
-  if (res.ok) {
-    showAlert('dashboardAlert', 'تم إضافة المريض بنجاح', 'success');
-    closeModal('patientModal');
-    await loadPatients();
-    await loadStats();
-  } else {
-    showAlert('dashboardAlert', result.message || 'فشل إضافة المريض', 'error');
-  }
+showAlert('dashboardAlert','📴 تم حفظ المريض بدون إنترنت وسيتم رفعه لاحقاً','success');
+
+closeModal('patientModal');
+
+return;
+
+}
+
+const res = await fetch('/api/patients', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ ...data, userId: currentUser.id })
+});
+
+const result = await res.json();
+
+if (res.ok) {
+showAlert('dashboardAlert','تم إضافة المريض','success');
+closeModal('patientModal');
+await loadPatients();
+await loadStats();
+} else {
+showAlert('dashboardAlert', result.message || 'فشل', 'error');
+}
 
         }
-        async function updatePatient(id, data) { const res = await fetch(`/api/patients/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); if (res.ok) { showAlert('dashboardAlert', 'تم التحديث', 'success'); closeModal('patientModal'); await loadPatients(); } }
+        async function updatePatient(id,data){
+
+if(!navigator.onLine){
+
+saveOffline("updatePatient",{id,data});
+
+showAlert('dashboardAlert','📴 تم حفظ التعديل بدون إنترنت','success');
+
+closeModal('patientModal');
+
+return;
+
+}
+
+const res = await fetch(`/api/patients/${id}`,{
+method:'PUT',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify(data)
+});
+
+if(res.ok){
+showAlert('dashboardAlert','تم التحديث','success');
+closeModal('patientModal');
+await loadPatients();
+}
+
+        }
         async function deletePatient(id) { if (confirm('هل أنت متأكد؟')) { await fetch(`/api/patients/${id}`, { method: 'DELETE' }); await loadPatients(); await loadStats(); } }
         async function loadStats() { const res = await fetch(`/api/user/${currentUser.id}`); const data = await res.json(); document.getElementById('totalPatients').textContent = data.patientCount || 0; let remaining = (currentUser.role === 'admin' || currentUser.isSubscribed) ? 'غير محدود' : Math.max(0, 5 - (data.patientCount || 0)); document.getElementById('remainingSlots').textContent = remaining; }
         async function loadAdminPanel() { const res = await fetch('/api/admin/users'); const users = await res.json(); document.getElementById('adminPanel').innerHTML = `<div class="admin-panel" style="background:white;border-radius:20px;padding:20px;margin-top:20px;"><h3>👑 لوحة المدير</h3>${users.map(u => `<div style="display:flex;justify-content:space-between;padding:10px;border-bottom:1px solid #e2e8f0;"><span>${u.fullName}</span><span>${u.patientCount} مريض</span><span>${u.isSubscribed ? 'مشترك' : 'مجاني'}</span><button onclick="toggleSubscription('${u._id}', ${!u.isSubscribed})">${u.isSubscribed ? 'تعطيل' : 'تفعيل'}</button></div>`).join('')}</div>`; document.getElementById('adminPanel').style.display = 'block'; }
@@ -382,6 +489,51 @@
 
         if (localStorage.getItem('userId')) loadDashboard();
         else showLogin();
+        window.addEventListener("online",syncOffline);
+
+async function syncOffline(){
+
+const items = await getOffline();
+
+for(const item of items){
+
+if(item.action==="addPatient"){
+
+await fetch('/api/patients',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify(item.data)
+});
+
+}
+
+if(item.action==="updatePatient"){
+
+await fetch(`/api/patients/${item.data.id}`,{
+method:'PUT',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify(item.data.data)
+});
+
+}
+
+if(item.action==="addTreatment"){
+
+await fetch('/api/treatments',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify(item.data)
+});
+
+}
+
+}
+
+clearOffline();
+
+showAlert('dashboardAlert','✅ تمت مزامنة البيانات مع السيرفر','success');
+
+}
     </script>
     <script>
         if ('serviceWorker' in navigator) {
