@@ -382,76 +382,92 @@ return;
             }
         }
 
-        async function showPatientFullDetails(patientId){
-
-const patient = allPatients.find(p => p._id === patientId);
-
-const res = await fetch(`/api/treatments/patient/${patientId}`);
-
-const treatments = await res.json();
-
-let totalCost = 0;
-let totalPaid = 0;
-
-let treatmentsHTML = "";
-
-treatments.forEach(t=>{
-
-totalCost += t.cost || 0;
-
-const match = (t.notes||'').match(/المدفوع:\s*([\d.]+)/);
-
-if(match) totalPaid += parseFloat(match[1]);
-
-treatmentsHTML += `
-<div class="treatment-item">
-
-🦷 السن ${t.toothNumber}
-
-<div>${t.treatmentType}</div>
-
-<div>💰 التكلفة: ${t.cost}</div>
-
-</div>
-`;
-
-});
-
-const remaining = totalCost - totalPaid;
-
-document.getElementById("patientDetails").innerHTML = `
-
-<h2>${patient.name}</h2>
-
-<p>📞 ${patient.phone || ""}</p>
-
-<p>📅 العمر: ${patient.age || ""}</p>
-
-<h3>المعالجات</h3>
-
-${treatmentsHTML || "لا توجد معالجات"}
-
-<div class="summary">
-
-<p>💰 إجمالي التكلفة: ${totalCost}</p>
-
-<p>💵 المدفوع: ${totalPaid}</p>
-
-<p>⚠️ المتبقي: ${remaining}</p>
-
-</div>
-
-<button onclick="shareWithPatient('${patientId}')">
-
-📤 مشاركة التقرير عبر واتساب
-
-</button>
-
-`;
-
-document.getElementById("patientModal").style.display="flex";
-
+        async function showPatientFullDetails(patientId) {
+    try {
+        const patient = allPatients.find(p => p._id === patientId);
+        if (!patient) return;
+        
+        const res = await fetch(`/api/treatments/patient/${patientId}`);
+        const treatments = await res.json();
+        
+        let totalCost = 0, totalPaid = 0;
+        let treatmentsHtml = '';
+        
+        treatments.forEach(t => {
+            totalCost += t.cost || 0;
+            let paid = 0;
+            if (t.notes) {
+                const match = t.notes.match(/المدفوع:\s*([\d.]+)/);
+                if (match) paid = parseFloat(match[1]);
+                totalPaid += paid;
+            }
+            treatmentsHtml += `
+                <div style="padding:10px; border-bottom:1px solid #e2e8f0;">
+                    <strong>🦷 السن ${t.toothNumber}</strong> - ${t.treatmentType}<br>
+                    💰 التكلفة: ${t.cost || 0} ريال<br>
+                    💵 المدفوع: ${paid} ريال<br>
+                    <small>📅 ${new Date(t.treatmentDate).toLocaleDateString('ar-EG')}</small>
+                </div>
+            `;
+        });
+        
+        const remaining = totalCost - totalPaid;
+        
+        const modalHtml = `
+            <div class="modal-content" style="max-width:500px;">
+                <div class="modal-header">
+                    <h3>${escapeHtml(patient.name)}</h3>
+                    <button class="close-btn" onclick="closeModal('patientDetailsModal')">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div style="background:#f1f5f9; padding:15px; border-radius:15px; margin-bottom:20px;">
+                        <p><strong>📞 الهاتف:</strong> ${escapeHtml(patient.phone || 'غير محدد')}</p>
+                        <p><strong>📅 العمر:</strong> ${patient.age} سنة</p>
+                        <p><strong>📍 العنوان:</strong> ${escapeHtml(patient.address || 'غير محدد')}</p>
+                    </div>
+                    
+                    <h4>🦷 سجل المعالجات</h4>
+                    <div style="max-height:300px; overflow-y:auto; margin-bottom:20px;">
+                        ${treatmentsHtml || '<p>لا توجد معالجات مسجلة</p>'}
+                    </div>
+                    
+                    <div style="background:#e0f2fe; padding:15px; border-radius:15px; margin-bottom:20px;">
+                        <p><strong>💰 إجمالي التكلفة:</strong> ${totalCost} ريال</p>
+                        <p><strong>💵 إجمالي المدفوع:</strong> ${totalPaid} ريال</p>
+                        <p><strong style="color:${remaining > 0 ? '#ef4444' : '#10b981'};">⚠️ المتبقي:</strong> ${remaining} ريال</p>
+                    </div>
+                    
+                    <button onclick="sharePatientReport('${patient._id}')" style="width:100%; padding:12px; background:#25D366; color:white; border:none; border-radius:10px; cursor:pointer;">
+                        <i class="fab fa-whatsapp"></i> مشاركة التقرير
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        let modal = document.getElementById('patientDetailsModal');
+        if (!modal) {
+            const div = document.createElement('div');
+            div.id = 'patientDetailsModal';
+            div.className = 'modal';
+            document.body.appendChild(div);
+            modal = div;
         }
+        modal.innerHTML = modalHtml;
+        modal.style.display = 'flex';
+    } catch (error) {
+        showAlert('dashboardAlert', 'خطأ في جلب بيانات المريض', 'error');
+    }
+        }
+
+        function sharePatientReport(patientId) {
+    const patient = allPatients.find(p => p._id === patientId);
+    if (!patient) return;
+    
+    let message = `*🦷 تقرير المريض*\n\n👤 الاسم: ${patient.name}\n📞 الهاتف: ${patient.phone || 'غير مسجل'}\n📅 العمر: ${patient.age} سنة\n\n🦷 ClinicPro`;
+    
+    window.open(`https://wa.me/${patient.phone || '967773041464'}?text=${encodeURIComponent(message)}`, '_blank');
+        }
+        
         function closePatientModal(){
 
 document.getElementById("patientModal").style.display="none";
@@ -496,22 +512,31 @@ document.getElementById("patientModal").style.display="none";
         }
 
         async function loadPatients() { const res = await fetch(`/api/patients/${currentUser.id}`); allPatients = await res.json(); renderPatients(allPatients); }
-        function renderPatients(patients){
-
-const list = document.getElementById("patientsList");
-
-list.innerHTML = patients.map(p => `
-<div class="patient-card" onclick="showPatientFullDetails('${p._id}')">
-
-<div class="patient-info">
-<h3>${p.name}</h3>
-<p>📞 ${p.phone || ''}</p>
-<p>📅 العمر: ${p.age || ''}</p>
-</div>
-
-</div>
-`).join("");
-
+        function renderPatients(patients) {
+    const grid = document.getElementById('patientsGrid');
+    if (!grid) return;
+    
+    if (!patients || patients.length === 0) {
+        grid.innerHTML = '<div style="text-align:center; padding:50px;">لا يوجد مرضى. أضف مريضاً جديداً</div>';
+        return;
+    }
+    
+    grid.innerHTML = patients.map(p => `
+        <div class="patient-card" onclick="showPatientFullDetails('${p._id}')">
+            <div class="patient-header">
+                <h3>${escapeHtml(p.name)}</h3>
+                <div class="patient-actions" onclick="event.stopPropagation()">
+                    <button onclick="editPatient('${p._id}')"><i class="fas fa-edit"></i></button>
+                    <button onclick="showTreatmentModal('${p._id}')"><i class="fas fa-stethoscope"></i></button>
+                    <button onclick="deletePatient('${p._id}')"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+            <div class="patient-body">
+                <p><i class="fas fa-phone"></i> ${escapeHtml(p.phone || 'غير محدد')}</p>
+                <p><i class="fas fa-calendar"></i> العمر: ${p.age} سنة</p>
+            </div>
+        </div>
+    `).join('');
         }
         // عرض جميع المعالجات والبيانات للمريض
 async function showPatientTreatments(patientId) {
