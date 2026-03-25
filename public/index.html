@@ -556,18 +556,22 @@ function renderAdminPatients(patients) {
 }
 
 // عرض تفاصيل المريض للادمن
+// عرض تفاصيل المريض للادمن
 async function showAdminPatientDetails(patientId) {
     try {
-      const response = await fetch(`/api/patients/${patientId}/details`);
-        const data = await response.json();
-        const patient = data.patient;
-const treatments = data.treatments;
-const stats = data.stats;
+        // جلب بيانات المريض
+        const patientRes = await fetch(`/api/patients/${patientId}`);
+        const patientData = await patientRes.json();
+        const patient = patientData.patient;
         
-    
-        let totalCost = stats.totalCost;
-let totalPaid = stats.totalPaid;
-let remaining = stats.remaining;
+        // جلب المعالجات
+        const treatmentsRes = await fetch(`/api/treatments/patient/${patientId}`);
+        const treatments = await treatmentsRes.json();
+        
+        // حساب الإحصائيات
+        let totalCost = 0;
+        let totalPaid = 0;
+        let treatmentsHtml = '';
         
         treatments.forEach(t => {
             totalCost += t.cost || 0;
@@ -589,6 +593,9 @@ let remaining = stats.remaining;
         
         const remaining = totalCost - totalPaid;
         
+        // اسم الطبيب
+        const doctorName = patient.userId?.fullName || 'غير معروف';
+        
         const modalHtml = `
             <div class="modal-content" style="max-width:550px;">
                 <div class="modal-header">
@@ -600,7 +607,7 @@ let remaining = stats.remaining;
                         <p><strong>📞 الهاتف:</strong> ${escapeHtml(patient.phone || 'غير محدد')}</p>
                         <p><strong>📅 العمر:</strong> ${patient.age} سنة</p>
                         <p><strong>📍 العنوان:</strong> ${escapeHtml(patient.address || 'غير محدد')}</p>
-                        <p><strong>👨‍⚕️ الطبيب:</strong> ${escapeHtml(patient.doctorName || 'غير معروف')}</p>
+                        <p><strong>👨‍⚕️ الطبيب:</strong> ${escapeHtml(doctorName)}</p>
                         ${patient.notes ? `<p><strong>📝 ملاحظات:</strong><br>${escapeHtml(patient.notes)}</p>` : ''}
                     </div>
                     
@@ -635,7 +642,8 @@ let remaining = stats.remaining;
         modal.style.display = 'flex';
         
     } catch (error) {
-        showAlert('adminAlert', 'خطأ في جلب بيانات المريض', 'error');
+        console.error('Error showing patient details:', error);
+        showAlert('adminAlert', 'خطأ في جلب بيانات المريض: ' + error.message, 'error');
     }
 }
 
