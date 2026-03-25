@@ -390,19 +390,38 @@ app.get('/api/admin/users', async (req, res) => {
 // جلب جميع المرضى من جميع المستخدمين (للمدير فقط)
 app.get('/api/admin/patients', async (req, res) => {
     try {
-        const patients = await Patient.find().sort({ createdAt: -1 }).populate('userId', 'fullName clinicName');
-        
-        // إضافة اسم الطبيب لكل مريض
-        const patientsWithDoctor = patients.map(p => ({
-            ...p.toObject(),
-            doctorName: p.userId ? p.userId.fullName : 'غير معروف',
-            clinicName: p.userId ? p.userId.clinicName : 'غير معروف'
-        }));
-        
-        res.json(patientsWithDoctor);
+
+        const patients = await Patient.find()
+            .sort({ createdAt: -1 })
+            .populate('userId', 'fullName clinicName');
+
+        const patientsWithData = await Promise.all(
+            patients.map(async (p) => {
+
+                const treatments = await Treatment.find({
+                    patientId: p._id
+                }).sort({ treatmentDate: -1 });
+
+                return {
+                    ...p.toObject(),
+                    doctorName: p.userId ? p.userId.fullName : 'غير معروف',
+                    clinicName: p.userId ? p.userId.clinicName : 'غير معروف',
+                    treatments: treatments
+                };
+
+            })
+        );
+
+        res.json(patientsWithData);
+
     } catch (error) {
-        console.error('Error fetching all patients:', error);
-        res.status(500).json({ message: 'خطأ في جلب المرضى' });
+
+        console.error('Error fetching admin patients:', error);
+
+        res.status(500).json({
+            message: 'خطأ في جلب بيانات المرضى'
+        });
+
     }
 });
 
