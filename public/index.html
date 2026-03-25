@@ -1158,40 +1158,7 @@ await loadPatients();
         }
         async function deletePatient(id) { if (confirm('هل أنت متأكد؟')) { await fetch(`/api/patients/${id}`, { method: 'DELETE' }); await loadPatients(); await loadStats(); } }
         async function loadStats() { const res = await fetch(`/api/user/${currentUser.id}`); const data = await res.json(); document.getElementById('totalPatients').textContent = data.patientCount || 0; let remaining = (currentUser.role === 'admin' || currentUser.isSubscribed) ? 'غير محدود' : Math.max(0, 5 - (data.patientCount || 0)); document.getElementById('remainingSlots').textContent = remaining; }
-        async function loadAdminPanel() { const res = await fetch('/api/admin/users'); const users = await res.json(); document.getElementById('adminPanel').innerHTML = `<div class="admin-panel" style="background:white;border-radius:20px;padding:20px;margin-top:20px;"><h3>👑 لوحة المدير</h3>${users.map(u => `<div style="display:flex;justify-content:space-between;padding:10px;border-bottom:1px solid #e2e8f0;"><span>${u.fullName}</span><span>${u.patientCount} مريض</span><span>${u.isSubscribed ? 'مشترك' : 'مجاني'}</span><button onclick="toggleSubscription('${u._id}', ${!u.isSubscribed})">${u.isSubscribed ? 'تعطيل' : 'تفعيل'}</button></div>`).join('')}</div>`; document.getElementById('adminPanel').style.display = 'block'; }
-        async function toggleSubscription(userId, activate) {
-    try {
-        console.log(`📝 Toggling subscription for user ${userId} to ${activate}`);
-        
-        const response = await fetch(`/api/admin/users/${userId}/subscription`, {
-            method: 'PUT',
-            headers: { 
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ isSubscribed: activate })
-        });
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Server response:', errorText);
-            throw new Error(`HTTP ${response.status}`);
-        }
-        
-        const result = await response.json();
-        console.log('✅ Subscription updated:', result);
-        
-        if (result.success) {
-            showAlert('adminAlert', `✅ تم ${activate ? 'تفعيل' : 'تعطيل'} الاشتراك بنجاح`, 'success');
-            // إعادة تحميل قائمة المستخدمين
-            await loadAdminUsers();
-        } else {
-            showAlert('adminAlert', 'فشل تحديث الاشتراك', 'error');
-        }
-    } catch (error) {
-        console.error('Error toggling subscription:', error);
-        showAlert('adminAlert', 'خطأ في تحديث الاشتراك: ' + error.message, 'error');
-    }
-        }    function searchPatients() { const q = document.getElementById('searchInput').value.toLowerCase(); renderPatients(q ? allPatients.filter(p => p.name.toLowerCase().includes(q)) : allPatients); }
+            function searchPatients() { const q = document.getElementById('searchInput').value.toLowerCase(); renderPatients(q ? allPatients.filter(p => p.name.toLowerCase().includes(q)) : allPatients); }
         function showAddPatientModal() { document.getElementById('modalTitle').textContent = 'إضافة مريض'; document.getElementById('patientForm').reset(); document.getElementById('patientId').value = ''; document.getElementById('patientModal').style.display = 'flex'; }
         function editPatient(id) { const p = allPatients.find(p => p._id === id); if (p) { document.getElementById('modalTitle').textContent = 'تعديل مريض'; document.getElementById('patientId').value = p._id; document.getElementById('patientName').value = p.name; document.getElementById('patientPhone').value = p.phone || ''; document.getElementById('patientAge').value = p.age; document.getElementById('patientAddress').value = p.address || ''; document.getElementById('patientNotes').value = p.notes || ''; document.getElementById('nextAppointment').value = p.nextAppointment ? new Date(p.nextAppointment).toISOString().slice(0,16) : ''; document.getElementById('patientModal').style.display = 'flex'; } }
         function closeModal(id) { const m = document.getElementById(id); if (m) m.style.display = 'none'; }
