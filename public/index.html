@@ -40,10 +40,57 @@
         .stat-info .number { font-size: 32px; font-weight: bold; color: #0f172a; }
         .search-bar { background: white; padding: 20px; border-radius: 20px; margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap; }
         .search-bar input { flex: 1; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 12px; }
-        
+        .modal{
+display:none;
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:rgba(0,0,0,0.5);
+justify-content:center;
+align-items:center;
+z-index:999;
+}
+
+.modal-content{
+background:white;
+padding:20px;
+border-radius:10px;
+width:90%;
+max-width:600px;
+max-height:80vh;
+overflow:auto;
+}
+
+.close{
+float:right;
+cursor:pointer;
+font-size:20px;
+}
+
+.treatment-item{
+border-bottom:1px solid #eee;
+padding:8px 0;
+}
+
+.summary{
+margin-top:10px;
+padding:10px;
+background:#f5f5f5;
+border-radius:8px;
+}
         .patients-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; }
         .patient-card { background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer; transition: all 0.2s; }
-        .patient-card:hover { transform: translateY(-3px); }
+        .patient-card{
+cursor:pointer;
+transition:0.2s;
+}
+
+.patient-card:hover{
+transform:scale(1.02);
+box-shadow:0 4px 10px rgba(0,0,0,0.1);
+}
         .patient-header { background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
         .patient-actions button { background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 10px; border-radius: 8px; cursor: pointer; margin-left: 5px; }
         .patient-body { padding: 20px; }
@@ -335,31 +382,80 @@ return;
             }
         }
 
-        async function showPatientFullDetails(patientId) {
-            const patientRes = await fetch(`/api/patients/${patientId}`);
-            const patientData = await patientRes.json();
-            const patient = patientData.patient;
-            const treatmentsRes = await fetch(`/api/treatments/patient/${patientId}`);
-            const treatments = await treatmentsRes.json();
-            
-            let totalCost = 0, totalPaid = 0;
-            treatments.forEach(t => { totalCost += t.cost || 0; if(t.notes){ const m = t.notes.match(/المدفوع:\s*([\d.]+)/); if(m) totalPaid += parseFloat(m[1]); } });
-            
-            const modalHtml = `
-                <div class="modal-content">
-                    <div class="modal-header"><h3>${escapeHtml(patient.name)}</h3><button class="close-btn" onclick="closeModal('patientDetailsModal')">&times;</button></div>
-                    <div class="modal-body">
-                        <div style="background:#f1f5f9;padding:15px;border-radius:16px;"><div>📞 ${patient.phone || 'غير محدد'}</div><div>📅 العمر: ${patient.age} سنة</div><div>💰 إجمالي التكلفة: ${totalCost} ريال</div><div>💵 إجمالي المدفوع: ${totalPaid} ريال</div><div>⚠️ المتبقي: ${totalCost-totalPaid} ريال</div></div>
-                        <h4 style="margin:15px 0;">سجل المعالجات</h4>
-                        ${treatments.map(t => `<div style="padding:8px;border-bottom:1px solid #e2e8f0;"><strong>🦷 السن ${t.toothNumber}</strong> - ${t.treatmentType}<br><small>💰 ${t.cost} ريال | 📅 ${new Date(t.treatmentDate).toLocaleDateString()}</small></div>`).join('') || '<p>لا توجد معالجات</p>'}
-                        <div style="display:flex;gap:10px;margin-top:20px;"><button class="btn" onclick="closeModal('patientDetailsModal'); editPatient('${patient._id}')">تعديل</button><button class="btn btn-whatsapp" onclick="closeModal('patientDetailsModal'); showTreatmentModal('${patient._id}')">إضافة معالجة</button></div>
-                    </div>
-                </div>
-            `;
-            let modal = document.getElementById('patientDetailsModal');
-            if (!modal) { const div = document.createElement('div'); div.id = 'patientDetailsModal'; div.className = 'modal'; document.body.appendChild(div); modal = div; }
-            modal.innerHTML = modalHtml;
-            modal.style.display = 'flex';
+        async function showPatientFullDetails(patientId){
+
+const patient = allPatients.find(p => p._id === patientId);
+
+const res = await fetch(`/api/treatments/patient/${patientId}`);
+
+const treatments = await res.json();
+
+let totalCost = 0;
+let totalPaid = 0;
+
+let treatmentsHTML = "";
+
+treatments.forEach(t=>{
+
+totalCost += t.cost || 0;
+
+const match = (t.notes||'').match(/المدفوع:\s*([\d.]+)/);
+
+if(match) totalPaid += parseFloat(match[1]);
+
+treatmentsHTML += `
+<div class="treatment-item">
+
+🦷 السن ${t.toothNumber}
+
+<div>${t.treatmentType}</div>
+
+<div>💰 التكلفة: ${t.cost}</div>
+
+</div>
+`;
+
+});
+
+const remaining = totalCost - totalPaid;
+
+document.getElementById("patientDetails").innerHTML = `
+
+<h2>${patient.name}</h2>
+
+<p>📞 ${patient.phone || ""}</p>
+
+<p>📅 العمر: ${patient.age || ""}</p>
+
+<h3>المعالجات</h3>
+
+${treatmentsHTML || "لا توجد معالجات"}
+
+<div class="summary">
+
+<p>💰 إجمالي التكلفة: ${totalCost}</p>
+
+<p>💵 المدفوع: ${totalPaid}</p>
+
+<p>⚠️ المتبقي: ${remaining}</p>
+
+</div>
+
+<button onclick="shareWithPatient('${patientId}')">
+
+📤 مشاركة التقرير عبر واتساب
+
+</button>
+
+`;
+
+document.getElementById("patientModal").style.display="flex";
+
+        }
+        function closePatientModal(){
+
+document.getElementById("patientModal").style.display="none";
+
         }
 
         function showTreatmentModal(patientId) {
@@ -400,10 +496,22 @@ return;
         }
 
         async function loadPatients() { const res = await fetch(`/api/patients/${currentUser.id}`); allPatients = await res.json(); renderPatients(allPatients); }
-        function renderPatients(patients) {
-    const grid = document.getElementById('patientsGrid');
-    if (!patients.length) { grid.innerHTML = '<div style="text-align:center;padding:50px;">لا يوجد مرضى</div>'; return; }
-    grid.innerHTML = patients.map(p => `<div class="patient-card" onclick="showPatientFullDetails('${p._id}')"><div class="patient-header"><h3>${escapeHtml(p.name)}</h3><div class="patient-actions" onclick="event.stopPropagation()"><button onclick="editPatient('${p._id}')"><i class="fas fa-edit"></i></button><button onclick="showTreatmentModal('${p._id}')"><i class="fas fa-stethoscope"></i></button><button onclick="showPatientTreatments('${p._id}')" style="background:#10b981;"><i class="fas fa-chart-line"></i> عرض</button><button onclick="deletePatient('${p._id}')"><i class="fas fa-trash"></i></button></div></div><div class="patient-body"><p><i class="fas fa-phone"></i> ${escapeHtml(p.phone || 'غير محدد')}</p><p><i class="fas fa-calendar"></i> العمر: ${p.age} سنة</p></div></div>`).join('');
+        function renderPatients(patients){
+
+const list = document.getElementById("patientsList");
+
+list.innerHTML = patients.map(p => `
+<div class="patient-card" onclick="showPatientFullDetails('${p._id}')">
+
+<div class="patient-info">
+<h3>${p.name}</h3>
+<p>📞 ${p.phone || ''}</p>
+<p>📅 العمر: ${p.age || ''}</p>
+</div>
+
+</div>
+`).join("");
+
         }
         // عرض جميع المعالجات والبيانات للمريض
 async function showPatientTreatments(patientId) {
@@ -469,47 +577,20 @@ async function showPatientTreatments(patientId) {
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
-// مشاركة التقرير مع المريض عبر واتساب
-function shareWithPatient(patientId) {
-    const patient = allPatients.find(p => p._id === patientId);
-    if (!patient || !patient.phone) {
-        alert('لا يوجد رقم هاتف للمريض');
-        return;
-    }
-    
-    // حساب الإجماليات
-    let totalCost = 0;
-    let totalPaid = 0;
-    let treatmentsText = '';
-    
-    if (patient.treatments && patient.treatments.length > 0) {
-        patient.treatments.forEach(t => {
-            totalCost += t.cost || 0;
-            totalPaid += t.paid || 0;
-            treatmentsText += `\n🦷 السن ${t.toothNumber}: ${t.treatmentType}\n   💰 ${t.cost} ريال | 💵 مدفوع: ${t.paid || 0} ريال\n`;
-        });
-    }
-    
-    const remaining = totalCost - totalPaid;
-    
-    const message = `*🦷 تقرير المعالجات - عيادة الأسنان*\n\n` +
-        `*👤 اسم المريض:* ${patient.name}\n` +
-        `*📞 رقم الجوال:* ${patient.phone}\n` +
-        `*📅 العمر:* ${patient.age} سنة\n\n` +
-        `*🦷 المعالجات:*${treatmentsText || ' لا توجد معالجات'}\n\n` +
-        `*💰 إجمالي التكلفة:* ${totalCost} ريال\n` +
-        `*💵 إجمالي المدفوع:* ${totalPaid} ريال\n` +
-        `*⚠️ المتبقي:* ${remaining} ريال\n\n` +
-        `_تم إرسال هذا التقرير من نظام ClinicPro_`;
-    
-    const whatsappUrl = `https://wa.me/${patient.phone}?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
-    
-    // إغلاق النافذة المنبثقة
-    const modal = document.querySelector('div[style*="position:fixed"]');
-    if (modal) modal.remove();
-}
+function shareWithPatient(patientId){
 
+const patient = allPatients.find(p => p._id === patientId);
+
+let message = `🦷 تقرير المعالجات
+اسم المريض: ${patient.name}
+
+`;
+
+const url = `https://wa.me/${patient.phone}?text=${encodeURIComponent(message)}`;
+
+window.open(url);
+
+}
         async function addPatient(data) {
     if(!navigator.onLine){
         saveOffline("addPatient", {...data, userId: currentUser.id});
@@ -725,5 +806,16 @@ showAlert('dashboardAlert','✅ تمت مزامنة البيانات مع الس
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; setTimeout(() => { const btn = document.createElement('div'); btn.innerHTML = `<button style="position:fixed;bottom:20px;left:20px;background:#10b981;color:white;border:none;padding:12px 20px;border-radius:50px;z-index:10000;cursor:pointer;">📱 تثبيت التطبيق</button>`; btn.onclick = async () => { if (deferredPrompt) { deferredPrompt.prompt(); const { outcome } = await deferredPrompt.userChoice; console.log(outcome); deferredPrompt = null; btn.remove(); } }; document.body.appendChild(btn); setTimeout(() => btn.remove(), 30000); }, 1000); });
     </script>
+    <div id="patientModal" class="modal">
+
+<div class="modal-content">
+
+<span class="close" onclick="closePatientModal()">✖</span>
+
+<div id="patientDetails"></div>
+
+</div>
+
+    </div>
 </body>
 </html>
