@@ -1096,8 +1096,42 @@ saveAllDataToLocal();
 async function saveAndShareNow(){await saveTreatmentNow();const p=allPatients.find(p=>p._id===currentPatientId);if(p){const msg=`*تقرير المعالجة*\nالمريض: ${p.name}\nالسن: ${document.getElementById('toothNumber').value}\nالنوع: ${document.getElementById('treatmentTypeSelect').value}\nالتكلفة: ${document.getElementById('treatmentCostInput').value}\nالمدفوع: ${document.getElementById('treatmentPaidInput').value}\nClinicPro`;window.open(`https://wa.me/${p.phone||'967773041464'}?text=${encodeURIComponent(msg)}`,'_blank');}}
 
 // ============ إدارة المرضى ============
-async function loadPatients(){try{const r=await fetch(`/api/patients/${currentUser.id}`);if(r.ok){allPatients=await r.json();renderPatients(allPatients);document.getElementById('totalPatients').textContent=allPatients.length;}}catch(e){}}
-function renderPatients(pts) {
+async function loadPatients() {
+    try {
+        const r = await fetch(`/api/patients/${currentUser.id}`);
+        if (r.ok) {
+            const serverPatients = await r.json();
+            
+            // جلب المرضى المحليين الذين لم تتم مزامنتهم بعد
+            const offlinePatients = JSON.parse(localStorage.getItem(`offline_patients_${currentUser.id}`) || '[]');
+            const pendingOffline = offlinePatients.filter(p => p.pendingSync === true);
+            
+            // دمج: المرضى المحليون أولاً (الذين ينتظرون المزامنة) ثم مرضى السيرفر
+            allPatients = [...pendingOffline, ...serverPatients];
+            
+            // إزالة التكرارات بناءً على الاسم (اختياري)
+            const uniqueNames = new Set();
+            allPatients = allPatients.filter(p => {
+                if (uniqueNames.has(p.name)) return false;
+                uniqueNames.add(p.name);
+                return true;
+            });
+            
+            renderPatients(allPatients);
+            document.getElementById('totalPatients').textContent = allPatients.length;
+            
+            // حفظ البيانات المدمجة
+            saveAllDataToLocal();
+        }
+    } catch (e) {
+        console.error('Error loading patients:', e);
+        // إذا فشل، استخدم المحليين فقط
+        const offlinePatients = JSON.parse(localStorage.getItem(`offline_patients_${currentUser.id}`) || '[]');
+        allPatients = offlinePatients;
+        renderPatients(allPatients);
+    }
+}
+    function renderPatients(pts) {
     const g = document.getElementById('patientsGrid');
     if (!g) return;
     if (!pts || !pts.length) {
@@ -1572,17 +1606,23 @@ async function loadDashboard() {
 }
     // مزامنة جميع البيانات المحلية مع السيرفر
 async function syncAllOfflineData() {
-    if (!navigator.onLine || !currentUser) return;
+    if (!navigator.onLine || !currentUser) {
+        console.log('📴 Cannot sync: offline or no user');
+        return false;
+    }
     
     console.log('🔄 بدء المزامنة مع السيرفر...');
     showAlert('dashboardAlert', '🔄 جاري مزامنة البيانات مع الخادم...', 'success');
     
     let syncedPatients = 0;
+    let failedPatients = [];
     let syncedTreatments = 0;
     
-    // 1. مزامنة المرضى المحليين
+    // 1. مزامنة المرضى المحليين - لا نحذفهم إلا بعد التأكد من نجاح الإضافة
     const offlinePatients = JSON.parse(localStorage.getItem(`offline_patients_${currentUser.id}`) || '[]');
     const pendingPatients = offlinePatients.filter(p => p.pendingSync === true);
+    
+    console.log(`📋 Found ${pendingPatients.length} pending patients to sync`);
     
     for (const p of pendingPatients) {
         try {
@@ -1598,8 +1638,11 @@ async function syncAllOfflineData() {
                     userId: currentUser.id
                 })
             });
+            
             if (r.ok) {
                 const result = await r.json();
+                console.log(`✅ Synced patient: ${p.name} -> ID: ${result.patient._id}`);
+                
                 // تحديث المعرف في allPatients
                 const idx = allPatients.findIndex(ap => ap._id === p._id);
                 if (idx !== -1) {
@@ -1608,16 +1651,33 @@ async function syncAllOfflineData() {
                     allPatients[idx].offline = false;
                 }
                 syncedPatients++;
+            } else {
+                console.error(`❌ Failed to sync patient: ${p.name}`);
+                failedPatients.push(p);
             }
         } catch (e) {
-            console.error('Error syncing patient:', e);
+            console.error(`❌ Error syncing patient ${p.name}:`, e);
+            failedPatients.push(p);
         }
     }
     
-    // تحديث قائمة المرضى المحليين بعد المزامنة
+    // تحديث قائمة المرضى المحليين - فقط المرضى الذين تمت مزامنتهم بنجاح
     if (syncedPatients > 0) {
-        const remainingPatients = offlinePatients.filter(p => !p.pendingSync);
-        localStorage.setItem(`offline_patients_${currentUser.id}`, JSON.stringify(remainingPatients));
+        // احتفظ بالمرضى الذين لم تتم مزامنتهم بعد + المرضى الذين فشلت مزامنتهم
+        const remainingPatients = offlinePatients.filter(p => 
+            p.pendingSync === true && failedPatients.includes(p)
+        );
+        // أضف المرضى المزامنين بنجاح مع تحديث بياناتهم
+        const syncedSuccessfully = offlinePatients.filter(p => 
+            !remainingPatients.includes(p) && p.pendingSync === true
+        ).map(p => {
+            const updated = allPatients.find(ap => ap.name === p.name && !ap.pendingSync);
+            return updated || p;
+        });
+        
+        const finalPatients = [...remainingPatients, ...syncedSuccessfully];
+        localStorage.setItem(`offline_patients_${currentUser.id}`, JSON.stringify(finalPatients));
+        console.log(`🗑️ Removed ${syncedPatients} synced patients from local storage`);
     }
     
     // 2. مزامنة المعالجات المحلية
@@ -1629,10 +1689,15 @@ async function syncAllOfflineData() {
             // البحث عن المعرف الحقيقي للمريض
             let patientId = t.patientId;
             if (patientId.startsWith('offline_')) {
-                const matchedPatient = allPatients.find(p => p._id === patientId || p.name === t.patientName);
+                const matchedPatient = allPatients.find(p => 
+                    p._id === patientId || 
+                    p.name === t.patientName ||
+                    (p.phone && p.phone === t.patientPhone)
+                );
                 if (matchedPatient && !matchedPatient._id.startsWith('offline_')) {
                     patientId = matchedPatient._id;
                 } else {
+                    console.warn(`⚠️ Cannot find patient for treatment, keeping in queue`);
                     continue;
                 }
             }
@@ -1655,30 +1720,40 @@ async function syncAllOfflineData() {
             
             if (r.ok) {
                 syncedTreatments++;
+            } else {
+                console.error(`❌ Failed to sync treatment:`, await r.text());
             }
         } catch (e) {
-            console.error('Error syncing treatment:', e);
+            console.error(`❌ Error syncing treatment:`, e);
         }
     }
     
-    // مسح المعالجات المزامنة
+    // مسح المعالجات المزامنة فقط
     if (syncedTreatments > 0) {
-        const remainingTreatments = offlineTreatments.filter(t => !t.pendingSync);
+        const remainingTreatments = offlineTreatments.filter(t => !pendingTreatments.includes(t) || t.pendingSync === true);
         localStorage.setItem(`offline_treatments_${currentUser.id}`, JSON.stringify(remainingTreatments));
     }
     
     // 3. إعادة تحميل البيانات من السيرفر
     if (syncedPatients > 0 || syncedTreatments > 0) {
         await loadPatients();
-        showAlert('dashboardAlert', `✅ تمت المزامنة: ${syncedPatients} مريض، ${syncedTreatments} معالجة`, 'success');
+        renderPatients(allPatients);
+        saveAllDataToLocal();
+        
+        if (failedPatients.length > 0) {
+            showAlert('dashboardAlert', `⚠️ تمت المزامنة جزئياً: ${syncedPatients} مريض ناجح، ${failedPatients.length} في انتظار إعادة المحاولة`, 'warning');
+        } else {
+            showAlert('dashboardAlert', `✅ تمت المزامنة: ${syncedPatients} مريض، ${syncedTreatments} معالجة`, 'success');
+        }
     } else {
         showAlert('dashboardAlert', '✅ لا توجد بيانات جديدة للمزامنة', 'success');
     }
     
     // إزالة وضع Offline إذا كان موجوداً
     document.body.classList.remove('offline-mode');
+    
+    return syncedPatients > 0 || syncedTreatments > 0;
 }
-
 // ============ أحداث ============
 document.getElementById('loginForm').addEventListener('submit',e=>{e.preventDefault();login();});
 document.getElementById('registerForm').addEventListener('submit',e=>{e.preventDefault();register();});
