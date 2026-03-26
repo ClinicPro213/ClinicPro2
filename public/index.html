@@ -798,6 +798,94 @@ div {
 .admin-tab-btn.active {
     background: #3b82f6;
 }
+        /* Subscription Alert - ثابت في أسفل الصفحة */
+.subscription-alert {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+    padding: 15px 20px;
+    display: none;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    z-index: 9999;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.2);
+    border-top: 3px solid #ffd700;
+}
+
+.subscription-alert.show {
+    display: flex;
+}
+
+.subscription-alert-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.subscription-alert i {
+    font-size: 28px;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.subscription-alert-text {
+    font-size: 14px;
+}
+
+.subscription-alert-text strong {
+    font-size: 16px;
+}
+
+.whatsapp-subscribe-btn {
+    background: #25D366;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 50px;
+    cursor: pointer;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s;
+}
+
+.whatsapp-subscribe-btn:hover {
+    background: #128C7E;
+    transform: scale(1.02);
+}
+
+.close-subscription-alert {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 30px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+@media (max-width: 768px) {
+    .subscription-alert {
+        flex-direction: column;
+        text-align: center;
+        padding: 12px;
+    }
+    .subscription-alert-content {
+        justify-content: center;
+    }
+}
     </style>
 </head>
 <body>
@@ -877,6 +965,24 @@ div {
             <div id="adminPatientsSection" style="display:none"><div class="search-bar"><input type="text" id="adminPatientSearch" placeholder="بحث..." onkeyup="searchAdminPatients()"><button class="btn" onclick="refreshAdminPatients()">تحديث</button></div><div id="adminPatientsList" class="patients-grid"></div></div>
         </div>
     </div>
+    <!-- Subscription Alert (ثابت) -->
+<div id="subscriptionAlert" class="subscription-alert">
+    <div class="subscription-alert-content">
+        <i class="fas fa-crown"></i>
+        <div class="subscription-alert-text">
+            <strong>⚠️ لقد وصلت للحد الأقصى المجاني (5 مرضى)</strong><br>
+            <small>للحصول على عدد غير محدود من المرضى والمزيد من الميزات، يرجى الاشتراك في الباقة المدفوعة</small>
+        </div>
+    </div>
+    <div style="display: flex; gap: 10px;">
+        <button class="whatsapp-subscribe-btn" onclick="sendSubscriptionRequest()">
+            <i class="fab fa-whatsapp"></i> اشترك الآن
+        </button>
+        <button class="close-subscription-alert" onclick="closeSubscriptionAlert()">
+            <i class="fas fa-times"></i> تذكير لاحقاً
+        </button>
+    </div>
+</div>
 
     <!-- Patient Modal -->
     <div id="patientModal" class="modal"><div class="modal-content"><div class="modal-header"><h3 id="modalTitle">إضافة مريض</h3><button class="close-btn" onclick="closeModal('patientModal')">&times;</button></div><div class="modal-body"><form id="patientForm"><input type="hidden" id="patientId"><div class="input-group"><label>اسم المريض *</label><input type="text" id="patientName" required style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px"></div><div class="input-group"><label>رقم الهاتف</label><input type="text" id="patientPhone" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px"></div><div class="input-group"><label>العمر *</label><input type="number" id="patientAge" required style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px"></div><div class="input-group"><label>العنوان</label><input type="text" id="patientAddress" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px"></div><div class="input-group"><label>ملاحظات</label><textarea id="patientNotes" rows="2" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px"></textarea></div><button type="submit" class="btn" style="width:100%">حفظ</button></form></div></div></div>
@@ -971,6 +1077,120 @@ function checkConnectionStatus() {
     } else {
         document.body.classList.remove('offline-mode');
     }
+}
+    // ============ نظام الاشتراك ============
+
+// عرض إشعار الاشتراك الثابت
+function showSubscriptionAlert() {
+    const alertDiv = document.getElementById('subscriptionAlert');
+    if (alertDiv && currentUser && currentUser.role !== 'admin' && !currentUser.isSubscribed) {
+        // التحقق من عدد المرضى
+        const patientCount = allPatients.length;
+        if (patientCount >= 5) {
+            alertDiv.classList.add('show');
+            // حفظ في localStorage أن الإشعار ظهر
+            localStorage.setItem('subscriptionAlertShown', 'true');
+        }
+    }
+}
+
+// إغلاق إشعار الاشتراك مؤقتاً
+function closeSubscriptionAlert() {
+    const alertDiv = document.getElementById('subscriptionAlert');
+    if (alertDiv) {
+        alertDiv.classList.remove('show');
+        // حفظ تفضيل الإغلاق لمدة 24 ساعة
+        localStorage.setItem('subscriptionAlertClosed', Date.now().toString());
+    }
+}
+
+// إرسال طلب اشتراك عبر واتساب
+function sendSubscriptionRequest() {
+    if (!currentUser) return;
+    
+    // بناء رسالة الاشتراك
+    const message = `*طلب اشتراك جديد في ClinicPro*%0A%0A` +
+        `👤 *اسم المستخدم:* ${currentUser.fullName || currentUser.username}%0A` +
+        `👨‍⚕️ *اسم العيادة:* ${currentUser.clinicName || 'غير محدد'}%0A` +
+        `📞 *رقم الهاتف:* ${currentUser.phone || 'غير مسجل'}%0A` +
+        `📊 *عدد المرضى:* ${allPatients.length} مريض%0A` +
+        `🦷 *ClinicPro - نظام إدارة عيادات الأسنان*%0A%0A` +
+        `يرجى تفعيل الاشتراك المدفوع`;
+    
+    // رقم واتساب المدير (يمكنك تغييره)
+    const adminWhatsApp = "967773041464";
+    
+    // فتح واتساب
+    window.open(`https://wa.me/${adminWhatsApp}?text=${message}`, '_blank');
+    
+    // تسجيل أن المستخدم طلب الاشتراك
+    localStorage.setItem('subscriptionRequested', Date.now().toString());
+}
+
+// التحقق من عدد المرضى وعرض الإشعار
+function checkPatientLimit() {
+    if (!currentUser) return;
+    
+    // إذا كان مدير أو مشترك، لا نعرض الإشعار
+    if (currentUser.role === 'admin' || currentUser.isSubscribed) {
+        const alertDiv = document.getElementById('subscriptionAlert');
+        if (alertDiv) alertDiv.classList.remove('show');
+        return;
+    }
+    
+    const patientCount = allPatients.length;
+    const remaining = Math.max(0, 5 - patientCount);
+    
+    // تحديث العداد في الواجهة
+    const remainingSlots = document.getElementById('remainingSlots');
+    if (remainingSlots) {
+        remainingSlots.textContent = remaining;
+    }
+    
+    // إذا وصل للحد الأقصى، عرض الإشعار
+    if (patientCount >= 5) {
+        // التحقق من أن الإشعار لم يُغلق مؤخراً
+        const closedTime = localStorage.getItem('subscriptionAlertClosed');
+        const oneDay = 24 * 60 * 60 * 1000;
+        
+        if (!closedTime || (Date.now() - parseInt(closedTime)) > oneDay) {
+            showSubscriptionAlert();
+        }
+        
+        // تعطيل زر إضافة مريض
+        const addBtn = document.querySelector('.search-bar button:first-child');
+        if (addBtn) {
+            addBtn.disabled = true;
+            addBtn.style.opacity = '0.5';
+            addBtn.title = 'لقد وصلت للحد الأقصى. اشترك لإضافة المزيد';
+        }
+    } else {
+        // تمكين زر إضافة مريض
+        const addBtn = document.querySelector('.search-bar button:first-child');
+        if (addBtn) {
+            addBtn.disabled = false;
+            addBtn.style.opacity = '1';
+        }
+        
+        // إذا كان العدد 4، عرض تحذير
+        if (patientCount >= 4) {
+            showAlert('dashboardAlert', `⚠️ تنبيه: لديك ${patientCount} من 5 مرضى مجانيين. يمكنك إضافة ${remaining} مريض آخر مجاناً.`, 'warning');
+        }
+    }
+}
+
+// تحديث دالة addPatient لإضافة التحقق من الحد
+async function addPatientWithLimitCheck(data) {
+    // التحقق من الحد الأقصى
+    if (currentUser.role !== 'admin' && !currentUser.isSubscribed && allPatients.length >= 5) {
+        showAlert('dashboardAlert', '⚠️ لقد وصلت للحد الأقصى (5 مرضى). يرجى الاشتراك لإضافة المزيد من المرضى.', 'error');
+        showSubscriptionAlert();
+        closeModal('patientModal');
+        return;
+    }
+    
+    // استدعاء دالة الإضافة الأصلية
+    await addPatient(data);
 }
 // ============ المتغيرات ============
 let currentUser = null, allPatients = [], currentPatientId = null, allAdminUsers = [], allAdminPatients = [];
@@ -1122,6 +1342,8 @@ async function loadPatients() {
             
             // حفظ البيانات المدمجة
             saveAllDataToLocal();
+            // بعد تحميل المرضى
+checkPatientLimit();
         }
     } catch (e) {
         console.error('Error loading patients:', e);
@@ -1161,6 +1383,14 @@ async function loadPatients() {
     `}).join('');
 }
     async function addPatient(data) {
+    // التحقق من الحد الأقصى للمرضى المجانيين
+    if (currentUser.role !== 'admin' && !currentUser.isSubscribed && allPatients.length >= 5) {
+        showAlert('dashboardAlert', '⚠️ لقد وصلت للحد الأقصى (5 مرضى). يرجى الاشتراك لإضافة المزيد من المرضى.', 'error');
+        showSubscriptionAlert();
+        closeModal('patientModal');
+        return;
+    }
+    
     // التحقق من تكرار الاسم
     const existing = allPatients.some(p => p.name === data.name);
     if (existing) {
@@ -1186,6 +1416,10 @@ async function loadPatients() {
     allPatients = [newPatient, ...allPatients];
     renderPatients(allPatients);
     document.getElementById('totalPatients').textContent = allPatients.length;
+    
+    // التحقق من الحد بعد الإضافة
+    checkPatientLimit();
+    
     closeModal('patientModal');
     
     // إذا كان هناك إنترنت، حاول المزامنة
@@ -1198,7 +1432,6 @@ async function loadPatients() {
             });
             if (r.ok) {
                 const result = await r.json();
-                // تحديث المعرف المحلي بالمعرف الحقيقي
                 let updated = getOfflinePatients();
                 const idx = updated.findIndex(p => p._id === newPatient._id);
                 if (idx !== -1) {
@@ -1218,9 +1451,9 @@ async function loadPatients() {
     } else {
         showAlert('dashboardAlert', '📴 تم حفظ المريض محلياً - سيتم المزامنة عند استعادة الاتصال', 'warning');
     }
-        // بعد إضافة المريض
-saveAllDataToLocal();
-}
+    
+    saveAllDataToLocal();
+    }
     
 async function updatePatient(id,data){
     try{
@@ -1602,7 +1835,8 @@ async function loadDashboard() {
     }
     
     await loadStats();
-    checkConnectionStatus();
+checkConnectionStatus();
+checkPatientLimit();
 }
     // مزامنة جميع البيانات المحلية مع السيرفر
 async function syncAllOfflineData() {
@@ -1774,6 +2008,176 @@ window.onload = () => {
     }
     checkConnectionStatus();
 };
+    // ============ المزامنة التلقائية مع السيرفر ============
+
+// المزامنة الكاملة - تحفظ البيانات المحلية وترفعها للسيرفر
+async function syncAllDataWithServer() {
+    if (!navigator.onLine || !currentUser) {
+        console.log('📴 Cannot sync: offline or no user');
+        showAlert('dashboardAlert', 'لا يوجد اتصال بالإنترنت. سيتم المزامنة عند استعادة الاتصال.', 'warning');
+        return false;
+    }
+    
+    console.log('🔄 بدء المزامنة مع السيرفر...');
+    showAlert('dashboardAlert', '🔄 جاري مزامنة البيانات مع الخادم...', 'success');
+    
+    let syncedPatients = 0;
+    let failedPatients = [];
+    let syncedTreatments = 0;
+    
+    // 1. مزامنة المرضى المحليين
+    const offlinePatients = JSON.parse(localStorage.getItem(`offline_patients_${currentUser.id}`) || '[]');
+    const pendingPatients = offlinePatients.filter(p => p.pendingSync === true);
+    
+    console.log(`📋 Found ${pendingPatients.length} pending patients to sync`);
+    
+    for (const p of pendingPatients) {
+        try {
+            const r = await fetch('/api/patients', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: p.name,
+                    phone: p.phone,
+                    age: p.age,
+                    address: p.address,
+                    notes: p.notes,
+                    userId: currentUser.id
+                })
+            });
+            
+            if (r.ok) {
+                const result = await r.json();
+                console.log(`✅ Synced patient: ${p.name} -> ID: ${result.patient._id}`);
+                
+                // تحديث المعرف في allPatients
+                const idx = allPatients.findIndex(ap => ap._id === p._id);
+                if (idx !== -1) {
+                    allPatients[idx]._id = result.patient._id;
+                    allPatients[idx].pendingSync = false;
+                    allPatients[idx].offline = false;
+                }
+                syncedPatients++;
+            } else {
+                console.error(`❌ Failed to sync patient: ${p.name}`);
+                failedPatients.push(p);
+            }
+        } catch (e) {
+            console.error(`❌ Error syncing patient ${p.name}:`, e);
+            failedPatients.push(p);
+        }
+    }
+    
+    // تحديث قائمة المرضى المحليين
+    if (syncedPatients > 0) {
+        // احتفظ بالمرضى الذين لم تتم مزامنتهم
+        const remainingPatients = offlinePatients.filter(p => !p.pendingSync || failedPatients.includes(p));
+        localStorage.setItem(`offline_patients_${currentUser.id}`, JSON.stringify(remainingPatients));
+        console.log(`🗑️ Removed ${syncedPatients} synced patients from local storage`);
+    }
+    
+    // 2. مزامنة المعالجات المحلية
+    const offlineTreatments = JSON.parse(localStorage.getItem(`offline_treatments_${currentUser.id}`) || '[]');
+    const pendingTreatments = offlineTreatments.filter(t => t.pendingSync === true);
+    
+    for (const t of pendingTreatments) {
+        try {
+            // البحث عن المعرف الحقيقي للمريض
+            let patientId = t.patientId;
+            if (patientId.startsWith('offline_')) {
+                const matchedPatient = allPatients.find(p => 
+                    p._id === patientId || 
+                    p.name === t.patientName ||
+                    (p.phone && p.phone === t.patientPhone)
+                );
+                if (matchedPatient && !matchedPatient._id.startsWith('offline_')) {
+                    patientId = matchedPatient._id;
+                } else {
+                    console.warn(`⚠️ Cannot find patient for treatment, keeping in queue`);
+                    continue;
+                }
+            }
+            
+            const treatmentData = {
+                patientId: patientId,
+                userId: currentUser.id,
+                toothNumber: t.toothNumber,
+                treatmentType: t.treatmentType,
+                cost: t.cost,
+                notes: t.notes,
+                treatmentDate: t.treatmentDate
+            };
+            
+            const r = await fetch('/api/treatments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(treatmentData)
+            });
+            
+            if (r.ok) {
+                syncedTreatments++;
+            } else {
+                console.error(`❌ Failed to sync treatment:`, await r.text());
+            }
+        } catch (e) {
+            console.error(`❌ Error syncing treatment:`, e);
+        }
+    }
+    
+    // مسح المعالجات المزامنة
+    if (syncedTreatments > 0) {
+        const remainingTreatments = offlineTreatments.filter(t => !t.pendingSync);
+        localStorage.setItem(`offline_treatments_${currentUser.id}`, JSON.stringify(remainingTreatments));
+    }
+    
+    // 3. إعادة تحميل البيانات من السيرفر
+    if (syncedPatients > 0 || syncedTreatments > 0) {
+        await loadPatients();
+        renderPatients(allPatients);
+        saveAllDataToLocal();
+        
+        if (failedPatients.length > 0) {
+            showAlert('dashboardAlert', `⚠️ تمت المزامنة جزئياً: ${syncedPatients} مريض ناجح، ${failedPatients.length} في انتظار إعادة المحاولة`, 'warning');
+        } else {
+            showAlert('dashboardAlert', `✅ تمت المزامنة: ${syncedPatients} مريض، ${syncedTreatments} معالجة`, 'success');
+        }
+    } else {
+        showAlert('dashboardAlert', '✅ لا توجد بيانات جديدة للمزامنة', 'success');
+    }
+    
+    // إزالة وضع Offline إذا كان موجوداً
+    document.body.classList.remove('offline-mode');
+    
+    return syncedPatients > 0 || syncedTreatments > 0;
+}
+
+// ============ المزامنة التلقائية عند استعادة الاتصال ============
+
+// الاستماع لعودة الاتصال بالإنترنت
+window.addEventListener('online', async () => {
+    console.log('🔄 استعادة الاتصال بالإنترنت - بدء المزامنة التلقائية');
+    showAlert('dashboardAlert', '🔄 تم استعادة الاتصال. جاري المزامنة التلقائية...', 'success');
+    
+    // انتظار قليلاً للتأكد من استقرار الاتصال
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // بدء المزامنة
+    await syncAllDataWithServer();
+    
+    // إزالة إشعار وضع عدم الاتصال
+    const offlineDiv = document.getElementById('offlineNotification');
+    if (offlineDiv) offlineDiv.remove();
+});
+
+// الاستماع لفقدان الاتصال
+window.addEventListener('offline', () => {
+    console.log('📴 فقدان الاتصال بالإنترنت');
+    document.body.classList.add('offline-mode');
+    showAlert('dashboardAlert', '📴 فقدان الاتصال. سيتم حفظ البيانات محلياً والمزامنة تلقائياً عند عودة الإنترنت.', 'warning');
+});
+
+// التحقق من الحالة عند تحميل الصفحة
+checkConnectionStatus();
 </script>
 </body>
 </html>
