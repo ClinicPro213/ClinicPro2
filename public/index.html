@@ -1615,22 +1615,25 @@ function sendSubscriptionRequest() {
 function checkPatientLimit() {
     if (!currentUser) return;
     
-    // إذا كان مدير أو مشترك، لا نعرض الإشعار
+    // إظهار/إخفاء زر الاشتراك
+    const subBtn = document.getElementById('subscriptionBtn');
+    
+    // إذا كان مدير أو مشترك
     if (currentUser.role === 'admin' || currentUser.isSubscribed) {
         const alertDiv = document.getElementById('subscriptionAlert');
         if (alertDiv) alertDiv.classList.remove('show');
         
-        // إخفاء زر الاشتراك للمشتركين والمديرين
-        const subBtn = document.getElementById('subscriptionBtn');
+        // إخفاء زر الاشتراك
         if (subBtn) subBtn.style.display = 'none';
         
         return;
     }
     
-    // ========== إظهار زر الاشتراك للمستخدمين المجانيين ==========
-    const subBtn = document.getElementById('subscriptionBtn');
+    // ========== للمستخدمين المجانيين ==========
+    // إظهار زر الاشتراك
     if (subBtn) {
         subBtn.style.display = 'flex';
+        console.log('✅ زر الاشتراك ظاهر للمستخدم المجاني');
     }
     
     const patientCount = allPatients.length;
@@ -2435,7 +2438,8 @@ async function loadDashboard() {
         }
         
         // التحقق من حالة الاتصال
-        checkConnectionStatus();
+checkConnectionStatus();
+checkPatientLimit();  // هذا السطر مهم جداً
         return;
     }
     
