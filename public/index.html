@@ -982,7 +982,51 @@ function closeModal(id){const m=document.getElementById(id);if(m)m.style.display
 function showLogin(){document.getElementById('loginPage').style.display='block';document.getElementById('registerPage').style.display='none';document.getElementById('dashboard').style.display='none';document.getElementById('adminPage').style.display='none';}
 function showRegister(){document.getElementById('loginPage').style.display='none';document.getElementById('registerPage').style.display='block';document.getElementById('dashboard').style.display='none';}
 function logout(){localStorage.clear();currentUser=null;showLogin();}
+// ============ استعادة البيانات عند تحميل الصفحة ============
 
+// تحميل جميع البيانات المخزنة محلياً عند بدء التشغيل
+async function loadAllOfflineData() {
+    const userId = localStorage.getItem('userId');
+    if (!userId) return;
+    
+    // استرجاع بيانات المستخدم المخزنة
+    const savedUser = localStorage.getItem(`offline_data_${userId}`);
+    if (savedUser) {
+        const data = JSON.parse(savedUser);
+        currentUser = data.user;
+    }
+    
+    // استرجاع المرضى المخزنين
+    const savedPatients = localStorage.getItem(`offline_patients_${userId}`);
+    if (savedPatients) {
+        allPatients = JSON.parse(savedPatients);
+        renderPatients(allPatients);
+        document.getElementById('totalPatients').textContent = allPatients.length;
+    }
+    
+    // استرجاع المعالجات المخزنة (سيتم استخدامها عند عرض التفاصيل)
+    const savedTreatments = localStorage.getItem(`offline_treatments_${userId}`);
+    if (savedTreatments) {
+        console.log('📦 Treatments loaded from cache:', JSON.parse(savedTreatments).length);
+    }
+}
+
+// حفظ جميع البيانات عند كل تغيير
+function saveAllDataToLocal() {
+    if (!currentUser) return;
+    
+    // حفظ المرضى
+    localStorage.setItem(`offline_patients_${currentUser.id}`, JSON.stringify(allPatients));
+    
+    // حفظ بيانات المستخدم الكاملة
+    localStorage.setItem(`offline_data_${currentUser.id}`, JSON.stringify({
+        user: currentUser,
+        patients: allPatients,
+        savedAt: new Date().toISOString()
+    }));
+    
+    console.log('💾 All data saved to localStorage');
+}
 // ============ رسم الأسنان ============
 function drawTeeth(){const t=[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32];const c=document.getElementById('teethContainer');if(c)c.innerHTML=t.map(n=>`<div class="tooth" onclick="selectTooth(${n})">${n}</div>`).join('');}
 function selectTooth(t){document.getElementById('toothNumber').value=t;document.getElementById('treatmentTypeSelect').value='';document.getElementById('treatmentNotesInput').value='';document.getElementById('treatmentCostInput').value='0';document.getElementById('treatmentPaidInput').value='0';calcRemaining();}
@@ -1045,6 +1089,8 @@ async function saveTreatmentNow() {
             await syncAllOfflineData();
         }, 500);
     }
+    // بعد إضافة المريض
+saveAllDataToLocal();
 }
     
 async function saveAndShareNow(){await saveTreatmentNow();const p=allPatients.find(p=>p._id===currentPatientId);if(p){const msg=`*تقرير المعالجة*\nالمريض: ${p.name}\nالسن: ${document.getElementById('toothNumber').value}\nالنوع: ${document.getElementById('treatmentTypeSelect').value}\nالتكلفة: ${document.getElementById('treatmentCostInput').value}\nالمدفوع: ${document.getElementById('treatmentPaidInput').value}\nClinicPro`;window.open(`https://wa.me/${p.phone||'967773041464'}?text=${encodeURIComponent(msg)}`,'_blank');}}
@@ -1138,14 +1184,19 @@ function renderPatients(pts) {
     } else {
         showAlert('dashboardAlert', '📴 تم حفظ المريض محلياً - سيتم المزامنة عند استعادة الاتصال', 'warning');
     }
+        // بعد إضافة المريض
+saveAllDataToLocal();
 }
+    
 async function updatePatient(id,data){
     try{
         const r=await fetch(`/api/patients/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
-        if(r.ok){showAlert('dashboardAlert','تم التحديث','success');closeModal('patientModal');await loadPatients();}
+        if(r.ok){showAlert('dashboardAlert','تم التحديث','success');closeModal('patientModal');await loadPatients();// بعد إضافة المريض
+saveAllDataToLocal();}
     }catch(e){showAlert('dashboardAlert','خطأ','error');}
 }
-async function deletePatient(id){if(confirm('هل أنت متأكد؟')){await fetch(`/api/patients/${id}`,{method:'DELETE'});await loadPatients();await loadStats();}}
+async function deletePatient(id){if(confirm('هل أنت متأكد؟')){await fetch(`/api/patients/${id}`,{method:'DELETE'});await loadPatients();await loadStats(); // بعد إضافة المريض
+saveAllDataToLocal();}} // بعد إضافة المريض
 async function loadStats(){try{const r=await fetch(`/api/user/${currentUser.id}`);const d=await r.json();document.getElementById('totalPatients').textContent=d.patientCount||0;let r2=(currentUser.role==='admin'||currentUser.isSubscribed)?'غير محدود':Math.max(0,5-(d.patientCount||0));document.getElementById('remainingSlots').textContent=r2;}catch(e){}}
 function searchPatients(){const q=document.getElementById('searchInput').value.toLowerCase();renderPatients(q?allPatients.filter(p=>p.name.toLowerCase().includes(q)):allPatients);}
 function showAddPatientModal(){document.getElementById('modalTitle').textContent='إضافة مريض';document.getElementById('patientForm').reset();document.getElementById('patientId').value='';document.getElementById('patientModal').style.display='flex';}
@@ -1386,16 +1437,138 @@ async function login() {
         }
     }
 }
-async function loadDashboard(){
-    const uid=localStorage.getItem('userId');if(!uid){showLogin();return;}
-    if(!currentUser){try{const r=await fetch(`/api/user/${uid}`);if(r.ok)currentUser=(await r.json()).user;else{showLogin();return;}}catch(e){showLogin();return;}}
-    document.getElementById('loginPage').style.display='none';document.getElementById('registerPage').style.display='none';document.getElementById('dashboard').style.display='block';
-    document.getElementById('userNameDisplay').textContent=currentUser.fullName||currentUser.username;
-    const b=document.getElementById('subscriptionBadge');
-    if(currentUser.role==='admin'){b.innerHTML='👑 مدير';b.className='subscription-badge subscription-active';}
-    else if(currentUser.isSubscribed){b.innerHTML='✨ مشترك';b.className='subscription-badge subscription-active';}
-    else{b.innerHTML='📊 مجاني';b.className='subscription-badge subscription-inactive';}
-    await loadPatients();await loadStats();checkAndShowAdminButton();if(currentUser.role==='admin')await loadAdminUsers();
+async function loadDashboard() {
+    const uid = localStorage.getItem('userId');
+    if (!uid) {
+        showLogin();
+        return;
+    }
+    
+    // محاولة استرجاع البيانات المخزنة أولاً
+    const savedData = localStorage.getItem(`offline_data_${uid}`);
+    if (savedData) {
+        const data = JSON.parse(savedData);
+        currentUser = data.user;
+        allPatients = data.patients || [];
+        renderPatients(allPatients);
+        document.getElementById('totalPatients').textContent = allPatients.length;
+        document.getElementById('remainingSlots').textContent = currentUser.role === 'admin' ? 'غير محدود' : Math.max(0, 5 - allPatients.length);
+        
+        // تحديث اسم المستخدم
+        document.getElementById('userNameDisplay').textContent = currentUser.fullName || currentUser.username;
+        
+        // تحديث حالة الاشتراك
+        const badge = document.getElementById('subscriptionBadge');
+        if (currentUser.role === 'admin') {
+            badge.innerHTML = '👑 مدير';
+            badge.className = 'subscription-badge subscription-active';
+        } else if (currentUser.isSubscribed) {
+            badge.innerHTML = '✨ مشترك';
+            badge.className = 'subscription-badge subscription-active';
+        } else {
+            badge.innerHTML = '📊 مجاني';
+            badge.className = 'subscription-badge subscription-inactive';
+        }
+        
+        // عرض لوحة التحكم
+        document.getElementById('loginPage').style.display = 'none';
+        document.getElementById('registerPage').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+        
+        if (currentUser.role === 'admin') {
+            document.getElementById('adminBtn').style.display = 'block';
+        }
+        
+        // إذا كان هناك إنترنت، حاول التحديث من السيرفر
+        if (navigator.onLine) {
+            try {
+                const r = await fetch(`/api/user/${uid}`);
+                if (r.ok) {
+                    const data = await r.json();
+                    currentUser = data.user;
+                    localStorage.setItem(`offline_data_${uid}`, JSON.stringify({
+                        user: currentUser,
+                        patients: allPatients,
+                        savedAt: new Date().toISOString()
+                    }));
+                }
+                
+                // تحديث المرضى من السيرفر
+                const patientsRes = await fetch(`/api/patients/${uid}`);
+                if (patientsRes.ok) {
+                    const serverPatients = await patientsRes.json();
+                    // دمج مع المرضى المحليين (غير المزامنين)
+                    const offlinePatients = JSON.parse(localStorage.getItem(`offline_patients_${uid}`) || '[]');
+                    const pendingOffline = offlinePatients.filter(p => p.pendingSync === true);
+                    allPatients = [...pendingOffline, ...serverPatients];
+                    renderPatients(allPatients);
+                    saveAllDataToLocal();
+                }
+            } catch (e) {
+                console.log('Using cached data only');
+            }
+        }
+        
+        // التحقق من حالة الاتصال
+        checkConnectionStatus();
+        return;
+    }
+    
+    // إذا لم تكن هناك بيانات مخزنة، جلب من السيرفر
+    if (navigator.onLine) {
+        try {
+            const r = await fetch(`/api/user/${uid}`);
+            if (r.ok) {
+                currentUser = (await r.json()).user;
+                localStorage.setItem(`offline_data_${uid}`, JSON.stringify({
+                    user: currentUser,
+                    patients: [],
+                    savedAt: new Date().toISOString()
+                }));
+                
+                const patientsRes = await fetch(`/api/patients/${uid}`);
+                if (patientsRes.ok) {
+                    allPatients = await patientsRes.json();
+                    renderPatients(allPatients);
+                    saveAllDataToLocal();
+                }
+            } else {
+                showLogin();
+                return;
+            }
+        } catch (e) {
+            showLogin();
+            return;
+        }
+    } else {
+        showLogin();
+        return;
+    }
+    
+    // عرض لوحة التحكم
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('registerPage').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    document.getElementById('userNameDisplay').textContent = currentUser.fullName || currentUser.username;
+    
+    const badge = document.getElementById('subscriptionBadge');
+    if (currentUser.role === 'admin') {
+        badge.innerHTML = '👑 مدير';
+        badge.className = 'subscription-badge subscription-active';
+    } else if (currentUser.isSubscribed) {
+        badge.innerHTML = '✨ مشترك';
+        badge.className = 'subscription-badge subscription-active';
+    } else {
+        badge.innerHTML = '📊 مجاني';
+        badge.className = 'subscription-badge subscription-inactive';
+    }
+    
+    if (currentUser.role === 'admin') {
+        document.getElementById('adminBtn').style.display = 'block';
+    }
+    
+    await loadStats();
+    checkConnectionStatus();
 }
     // مزامنة جميع البيانات المحلية مع السيرفر
 async function syncAllOfflineData() {
