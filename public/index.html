@@ -545,6 +545,47 @@ document.getElementById('registerForm').addEventListener('submit',e=>{e.preventD
 document.getElementById('patientForm').addEventListener('submit',e=>{e.preventDefault();const data={name:document.getElementById('patientName').value,phone:document.getElementById('patientPhone').value,age:parseInt(document.getElementById('patientAge').value),address:document.getElementById('patientAddress').value,notes:document.getElementById('patientNotes').value,nextAppointment:document.getElementById('nextAppointment').value||null};if(document.getElementById('patientId').value)updatePatient(document.getElementById('patientId').value,data);else addPatient(data);});
 window.addEventListener('online',()=>{syncAllDataWithServer();});
 if(localStorage.getItem('userId'))loadDashboard();else showLogin();
+   // جميع الدوال الحالية مثل drawTeeth، saveTreatmentNow، showPatientFullDetails ...
+
+   // ======= هنا أضف كود تسجيل الدخول =======
+   document.getElementById('loginForm').addEventListener('submit', async function(e) {
+       e.preventDefault();
+       const username = document.getElementById('loginUsername').value.trim();
+       const password = document.getElementById('loginPassword').value.trim();
+
+       if (!username || !password) {
+           showAlert('loginAlert', 'الرجاء إدخال اسم المستخدم وكلمة المرور', 'error');
+           return;
+       }
+
+       // تحقق Offline أولاً
+       const offlineData = getOfflineLoginData();
+       if (offlineData && offlineData.username === username && offlineData.password === password) {
+           currentUser = offlineData.userData;
+           showDashboard();
+           return;
+       }
+
+       // محاولة تسجيل الدخول للسيرفر
+       try {
+           const res = await fetch('/api/login', {
+               method: 'POST',
+               headers: {'Content-Type':'application/json'},
+               body: JSON.stringify({username, password})
+           });
+           if (res.ok) {
+               const user = await res.json();
+               currentUser = user;
+               saveOfflineLoginData(user, password);
+               showDashboard();
+           } else {
+               showAlert('loginAlert', 'اسم المستخدم أو كلمة المرور غير صحيحة', 'error');
+           }
+       } catch(err) {
+           showAlert('loginAlert', 'خطأ في الاتصال بالسيرفر', 'error');
+       }
+   });
+
 </script>
 </body>
 </html>
