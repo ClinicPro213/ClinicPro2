@@ -179,110 +179,14 @@ catch(e){saveTreatmentToLocal(treatmentData);showAlert('dashboardAlert','📴 ت
 async function saveAndShareNow(){await saveTreatmentNow();const patient=allPatients.find(p=>p._id===currentPatientId);if(patient){const msg=`*🦷 تقرير المعالجة*\n👤 المريض: ${patient.name}\n🦷 السن: ${document.getElementById('toothNumber').value}\n💊 النوع: ${document.getElementById('treatmentTypeSelect').value}\n💰 التكلفة: ${document.getElementById('treatmentCostInput').value}\n💵 المدفوع: ${document.getElementById('treatmentPaidInput').value}\n🦷 ClinicPro`;window.open(`https://wa.me/${patient.phone||'967773041464'}?text=${encodeURIComponent(msg)}`,'_blank');}}
 
 // ============ عرض تفاصيل المريض ============
-async function showPatientFullDetails(pid) {
-    // البحث عن المريض
-    let patient = allPatients.find(p => p._id === pid);
-    if (!patient && pid.startsWith('offline_')) {
-        const localPts = JSON.parse(localStorage.getItem(`patients_${currentUser.id}`) || '[]');
-        patient = localPts.find(p => p._id === pid);
-    }
-    if (!patient) { showAlert('dashboardAlert', 'المريض غير موجود', 'error'); return; }
-    
-    // جلب المعالجات من localStorage أولاً (دائماً)
-    const allLocalTx = JSON.parse(localStorage.getItem('offline_treatments') || '[]');
-    let treatments = allLocalTx.filter(t => t.patientId === pid);
-    
-    // إذا كان متصل، جلب من السيرفر ودمج
-    if (navigator.onLine) {
-        try {
-            const res = await fetch(`/api/treatments/patient/${pid}`);
-            if (res.ok) {
-                const serverTx = await res.json();
-                // دمج مع المحلي (المحلي له الأولوية)
-                const localIds = new Set(treatments.map(t => t._id));
-                const newFromServer = serverTx.filter(t => !localIds.has(t._id));
-                treatments = [...treatments, ...newFromServer];
-            }
-        } catch(e) { console.log('Server error, using local only'); }
-    }
-    
-    // ترتيب حسب التاريخ
-    treatments.sort((a, b) => new Date(b.treatmentDate) - new Date(a.treatmentDate));
-    
-    // حساب الإجماليات
-    let totalCost = 0, totalPaid = 0;
-    let treatmentsHtml = '';
-    
-    treatments.forEach(t => {
-        const cost = t.cost || 0;
-        let paid = t.paid || 0;
-        if (!paid && t.notes) {
-            const match = t.notes.match(/المدفوع:\s*([\d.]+)/);
-            if (match) paid = parseFloat(match[1]);
-        }
-        totalCost += cost;
-        totalPaid += paid;
-        
-        const isOffline = t.offline === true || t.pendingSync === true;
-        treatmentsHtml += `
-            <div style="padding:10px; border-bottom:1px solid #e2e8f0; ${isOffline ? 'background:#fef3c7;' : ''}">
-                <strong>🦷 السن ${t.toothNumber}</strong> - ${t.treatmentType}
-                ${isOffline ? '<span style="background:#f59e0b; font-size:10px; padding:2px 6px; border-radius:20px; margin-right:8px;">📴 مؤقت</span>' : ''}
-                <br>💰 ${cost} ريال | 💵 ${paid} ريال
-                <br><small>📅 ${new Date(t.treatmentDate).toLocaleDateString('ar-EG')}</small>
-                ${isOffline ? '<br><small style="color:#f59e0b;"><i class="fas fa-sync-alt"></i> في انتظار المزامنة</small>' : ''}
-            </div>
-        `;
-    });
-    
-    const remaining = totalCost - totalPaid;
-    
-    const modalHtml = `
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>${escapeHtml(patient.name)}</h3>
-                <button class="close-btn" onclick="closeModal('patientDetailsModal')">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div style="background:#f1f5f9; padding:15px; border-radius:15px; margin-bottom:20px">
-                    <p><strong>📞 الهاتف:</strong> ${escapeHtml(patient.phone || 'غير محدد')}</p>
-                    <p><strong>📅 العمر:</strong> ${patient.age} سنة</p>
-                    <p><strong>📍 العنوان:</strong> ${escapeHtml(patient.address || 'غير محدد')}</p>
-                    ${patient.pendingSync ? '<p style="color:#f59e0b;"><i class="fas fa-sync-alt"></i> في انتظار المزامنة</p>' : ''}
-                </div>
-                
-                <h4>🦷 سجل المعالجات (${treatments.length})</h4>
-                <div style="max-height:300px; overflow-y:auto; margin-bottom:20px">
-                    ${treatmentsHtml || '<p>لا توجد معالجات مسجلة</p>'}
-                </div>
-                
-                <div style="background:#e0f2fe; padding:15px; border-radius:15px; margin-bottom:20px">
-                    <p><strong>💰 إجمالي التكلفة:</strong> ${totalCost} ريال</p>
-                    <p><strong>💵 إجمالي المدفوع:</strong> ${totalPaid} ريال</p>
-                    <p><strong style="color:${remaining > 0 ? '#ef4444' : '#10b981'};">⚠️ المتبقي:</strong> ${remaining} ريال</p>
-                </div>
-                
-                <div style="display:flex; gap:10px">
-                    <button class="btn" onclick="closeModal('patientDetailsModal'); editPatient('${patient._id}')">تعديل</button>
-                    <button class="btn btn-secondary" onclick="closeModal('patientDetailsModal'); showTreatmentModal('${patient._id}')">إضافة معالجة</button>
-                    <button class="btn btn-whatsapp" onclick="sharePatientReport('${patient._id}')">مشاركة</button>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    let modal = document.getElementById('patientDetailsModal');
-    if (!modal) {
-        const div = document.createElement('div');
-        div.id = 'patientDetailsModal';
-        div.className = 'modal';
-        document.body.appendChild(div);
-        modal = div;
-    }
-    modal.innerHTML = modalHtml;
-    modal.style.display = 'flex';
-}
-    function sharePatientReport(pid){const p=allPatients.find(p=>p._id===pid);if(p)window.open(`https://wa.me/${p.phone||'967773041464'}?text=${encodeURIComponent(`*🦷 تقرير المريض*\n👤 الاسم: ${p.name}\n📞 الهاتف: ${p.phone||'غير مسجل'}\n📅 العمر: ${p.age} سنة`)}`,'_blank');}
+async function showPatientFullDetails(pid){if(pid.startsWith('offline_')){const p=JSON.parse(localStorage.getItem(`patients_${currentUser.id}`)||'[]').find(p=>p._id===pid);if(p){const h=`<div class="modal-content"><div class="modal-header"><h3>${escapeHtml(p.name)} <span style="background:#f59e0b;font-size:12px;padding:2px 8px;border-radius:20px">📴 مؤقت</span></h3><button class="close-btn" onclick="closeModal('patientDetailsModal')">&times;</button></div><div class="modal-body"><div style="background:#f1f5f9;padding:15px;border-radius:15px"><p><strong>📞 الهاتف:</strong> ${escapeHtml(p.phone||'غير محدد')}</p><p><strong>📅 العمر:</strong> ${p.age} سنة</p><p style="color:#f59e0b"><i class="fas fa-sync-alt"></i> في انتظار المزامنة</p></div><button class="btn" onclick="closeModal('patientDetailsModal')">إغلاق</button></div></div>`;let m=document.getElementById('patientDetailsModal');if(!m){const d=document.createElement('div');d.id='patientDetailsModal';d.className='modal';document.body.appendChild(d);m=d;}m.innerHTML=h;m.style.display='flex';return;}}
+const patient=allPatients.find(p=>p._id===pid);if(!patient)return;
+let treatments=[];if(navigator.onLine)try{const r=await fetch(`/api/treatments/patient/${pid}`);if(r.ok)treatments=await r.json();}catch(e){}
+const offline=JSON.parse(localStorage.getItem('offline_treatments')||'[]').filter(t=>t.patientId===pid);
+let totalCost=0,totalPaid=0,treatmentsHtml='';[...offline,...treatments].forEach(t=>{const cost=t.cost||0,paid=t.paid||(t.notes?t.notes.match(/المدفوع:\s*([\d.]+)/)?.[1]:0)||0;totalCost+=cost;totalPaid+=paid;treatmentsHtml+=`<div style="padding:10px;border-bottom:1px solid #e2e8f0;${t.offline?'background:#fef3c7':''}"><strong>🦷 السن ${t.toothNumber}</strong> - ${t.treatmentType}${t.offline?'<span style="background:#f59e0b;font-size:10px;padding:2px 6px;border-radius:20px;margin-right:8px">📴 مؤقت</span>':''}<br>💰 ${cost} ريال | 💵 ${paid} ريال<br><small>📅 ${new Date(t.treatmentDate).toLocaleDateString('ar-EG')}</small>${t.offline?'<br><small style="color:#f59e0b"><i class="fas fa-sync-alt"></i> في انتظار المزامنة</small>':''}</div>`;});
+const modalHtml=`<div class="modal-content"><div class="modal-header"><h3>${escapeHtml(patient.name)}</h3><button class="close-btn" onclick="closeModal('patientDetailsModal')">&times;</button></div><div class="modal-body"><div style="background:#f1f5f9;padding:15px;border-radius:15px;margin-bottom:20px"><p><strong>📞 الهاتف:</strong> ${escapeHtml(patient.phone||'غير محدد')}</p><p><strong>📅 العمر:</strong> ${patient.age} سنة</p><p><strong>📍 العنوان:</strong> ${escapeHtml(patient.address||'غير محدد')}</p></div><h4>🦷 سجل المعالجات (${treatments.length+offline.length})</h4><div style="max-height:300px;overflow-y:auto;margin-bottom:20px">${treatmentsHtml||'<p>لا توجد معالجات</p>'}</div><div style="background:#e0f2fe;padding:15px;border-radius:15px;margin-bottom:20px"><p><strong>💰 إجمالي التكلفة:</strong> ${totalCost} ريال</p><p><strong>💵 إجمالي المدفوع:</strong> ${totalPaid} ريال</p><p><strong style="color:${totalCost-totalPaid>0?'#ef4444':'#10b981'}">⚠️ المتبقي:</strong> ${totalCost-totalPaid} ريال</p></div><div style="display:flex;gap:10px"><button class="btn" onclick="closeModal('patientDetailsModal');editPatient('${patient._id}')">تعديل</button><button class="btn btn-secondary" onclick="closeModal('patientDetailsModal');showTreatmentModal('${patient._id}')">إضافة معالجة</button><button class="btn btn-whatsapp" onclick="sharePatientReport('${patient._id}')">مشاركة</button></div></div></div>`;
+let modal=document.getElementById('patientDetailsModal');if(!modal){const d=document.createElement('div');d.id='patientDetailsModal';d.className='modal';document.body.appendChild(d);modal=d;}modal.innerHTML=modalHtml;modal.style.display='flex';}
+function sharePatientReport(pid){const p=allPatients.find(p=>p._id===pid);if(p)window.open(`https://wa.me/${p.phone||'967773041464'}?text=${encodeURIComponent(`*🦷 تقرير المريض*\n👤 الاسم: ${p.name}\n📞 الهاتف: ${p.phone||'غير مسجل'}\n📅 العمر: ${p.age} سنة`)}`,'_blank');}
 
 // ============ إدارة المرضى ============
 async function loadPatientsFromServer(){if(!navigator.onLine||!currentUser)return;try{const r=await fetch(`/api/patients/${currentUser.id}`);if(r.ok){const server=await r.json(),offline=JSON.parse(localStorage.getItem(`patients_${currentUser.id}`)||'[]');allPatients=[...offline,...server];renderPatients(allPatients);document.getElementById('totalPatients').textContent=allPatients.length;document.getElementById('remainingSlots').textContent=currentUser.role==='admin'?'غير محدود':Math.max(0,5-allPatients.length);}}catch(e){}}
