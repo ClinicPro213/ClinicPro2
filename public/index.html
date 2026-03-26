@@ -1247,8 +1247,8 @@ function saveAllDataToLocal() {
     
     console.log('💾 All data saved to localStorage');
 }
-    // مشاركة تقرير المريض عبر واتساب
-function sharePatientReport(patientId) {
+// مشاركة تقرير المريض عبر واتساب
+async function sharePatientReport(patientId) {
     const patient = allPatients.find(p => p._id === patientId);
     if (!patient) {
         showAlert('dashboardAlert', 'المريض غير موجود', 'error');
@@ -1257,40 +1257,127 @@ function sharePatientReport(patientId) {
     
     // جلب المعالجات المحلية والسيرفر للمريض
     const localTreatments = JSON.parse(localStorage.getItem(`offline_treatments_${currentUser.id}`) || '[]');
-    let treatments = localTreatments.filter(t => t.patientId === patientId);
+    let localTx = localTreatments.filter(t => t.patientId === patientId);
     
+    // جلب معالجات السيرفر إذا كان متصل
+    let serverTx = [];
+    if (navigator.onLine) {
+        try {
+            const r = await fetch(`/api/treatments/patient/${patientId}`);
+            if (r.ok) serverTx = await r.json();
+        } catch (e) {}
+    }
+    
+    // دمج المعالجات مع إزالة التكرار
+    const treatmentsMap = new Map();
+    localTx.forEach(t => treatmentsMap.set(t._id, t));
+    serverTx.forEach(t => {
+        if (!treatmentsMap.has(t._id)) {
+            treatmentsMap.set(t._id, t);
+        }
+    });
+    const allTreatments = Array.from(treatmentsMap.values());
+    allTreatments.sort((a, b) => new Date(b.treatmentDate) - new Date(a.treatmentDate));
+    
+    // حساب الإجماليات
     let totalCost = 0;
     let totalPaid = 0;
     let treatmentsText = '';
     
-    treatments.forEach(t => {
+    allTreatments.forEach((t, idx) => {
         const cost = t.cost || 0;
-        let paid = t.paid || 0;
-        if (!paid && t.notes) {
+        let paid = 0;
+        
+        // استخراج المدفوع من الملاحظات إذا كان من السيرفر
+        if (t.notes && !t.paid) {
             const match = t.notes.match(/المدفوع:\s*([\d.]+)/);
             if (match) paid = parseFloat(match[1]);
+        } else {
+            paid = t.paid || 0;
         }
+        
         totalCost += cost;
         totalPaid += paid;
-        treatmentsText += `\n🦷 السن ${t.toothNumber}: ${t.treatmentType}\n   💰 التكلفة: ${cost} ريال | 💵 المدفوع: ${paid} ريال`;
+        
+        const isOffline = t.offline === true || t.pendingSync === true;
+        treatmentsText += `\n${idx + 1}. 🦷 *السن ${t.toothNumber}*: ${t.treatmentType}`;
+        treatmentsText += `\n   📅 التاريخ: ${new Date(t.treatmentDate).toLocaleDateString('ar-EG')}`;
+        treatmentsText += `\n   💰 التكلفة: ${cost} ريال`;
+        treatmentsText += `\n   💵 المدفوع: ${paid} ريال`;
+        treatmentsText += `\n   ⚠️ المتبقي: ${cost - paid} ريال`;
+        if (t.notes) {
+            const cleanNotes = t.notes.replace(/التكلفة:.*?\n/, '').replace(/المدفوع:.*?\n/, '').replace(/المتبقي:.*?\n/, '');
+            if (cleanNotes.trim()) {
+                treatmentsText += `\n   📝 ملاحظات: ${cleanNotes.trim()}`;
+            }
+        }
+        if (isOffline) treatmentsText += `\n   📴 (مؤقت - ينتظر المزامنة)`;
+        treatmentsText += `\n`;
     });
     
     const remaining = totalCost - totalPaid;
     
-    // بناء الرسالة
-    let message = `*🦷 تقرير المريض - ${patient.name}*\n\n`;
+    // تاريخ اليوم
+    const today = new Date().toLocaleDateString('ar-EG', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+    
+    // بناء الرسالة الكاملة
+    let message = `*🦷 تقرير المريض - ${patient.name}*\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+    
+    message += `*👨‍⚕️ معلومات الطبيب:*\n`;
+    message += `📛 الدكتور: ${currentUser.fullName || currentUser.username}\n`;
+    message += `🏥 العيادة: ${currentUser.clinicName || 'غير محدد'}\n`;
+    message += `📞 هاتف العيادة: ${currentUser.phone || 'غير مسجل'}\n\n`;
+    
+    message += `*👤 معلومات المريض:*\n`;
+    message += `📛 الاسم: ${patient.name}\n`;
     message += `📞 الهاتف: ${patient.phone || 'غير مسجل'}\n`;
     message += `📅 العمر: ${patient.age} سنة\n`;
-    message += `📍 العنوان: ${patient.address || 'غير مسجل'}\n\n`;
-    message += `*📋 سجل المعالجات:*${treatmentsText || '\nلا توجد معالجات مسجلة'}\n\n`;
-    message += `*💰 إجمالي التكلفة:* ${totalCost} ريال\n`;
-    message += `*💵 إجمالي المدفوع:* ${totalPaid} ريال\n`;
-    message += `*⚠️ المتبقي:* ${remaining} ريال\n\n`;
-    message += `🦷 *ClinicPro - نظام إدارة عيادات الأسنان*`;
+    message += `📍 العنوان: ${patient.address || 'غير مسجل'}\n`;
+    if (patient.medicalHistory) {
+        message += `🩺 التاريخ الطبي: ${patient.medicalHistory}\n`;
+    }
+    if (patient.notes) {
+        message += `📝 ملاحظات عامة: ${patient.notes}\n`;
+    }
+    message += `\n`;
+    
+    message += `*🦷 سجل المعالجات (${allTreatments.length} معالجة):*\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━\n`;
+    if (allTreatments.length === 0) {
+        message += `لا توجد معالجات مسجلة لهذا المريض\n`;
+    } else {
+        message += treatmentsText;
+    }
+    message += `\n`;
+    
+    message += `*💰 ملخص الحسابات:*\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `💰 إجمالي التكلفة: ${totalCost} ريال\n`;
+    message += `💵 إجمالي المدفوع: ${totalPaid} ريال\n`;
+    if (remaining > 0) {
+        message += `⚠️ المتبقي: ${remaining} ريال\n`;
+    } else if (remaining < 0) {
+        message += `🔄 فائض: ${Math.abs(remaining)} ريال\n`;
+    } else {
+        message += `✅ تم السداد بالكامل\n`;
+    }
+    message += `\n`;
+    
+    message += `📅 تاريخ التقرير: ${today}\n`;
+    message += `🦷 *ClinicPro - نظام إدارة عيادات الأسنان*\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `📍 تم إنشاء هذا التقرير بواسطة نظام ClinicPro`;
     
     // فتح واتساب
     const phone = patient.phone || '967773041464';
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+    
+    showAlert('dashboardAlert', '✅ تم فتح واتساب لمشاركة التقرير', 'success');
 }
 // ============ رسم الأسنان ============
 function drawTeeth(){const t=[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32];const c=document.getElementById('teethContainer');if(c)c.innerHTML=t.map(n=>`<div class="tooth" onclick="selectTooth(${n})">${n}</div>`).join('');}
