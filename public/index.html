@@ -1047,58 +1047,7 @@ function refreshAdminPatients() {
     loadAllPatients();
 }
 
-        async function saveTreatmentNow() {
-            const tooth = document.getElementById('toothNumber').value;
-            if (!tooth) { showAlert('dashboardAlert', 'اختر السن أولاً', 'error'); return; }
-            const type = document.getElementById('treatmentTypeSelect').value;
-            if (!type) { showAlert('dashboardAlert', 'اختر نوع المعالجة', 'error'); return; }
-            
-            const notes = document.getElementById('treatmentNotesInput').value;
-            const cost = parseFloat(document.getElementById('treatmentCostInput').value) || 0;
-            const paid = parseFloat(document.getElementById('treatmentPaidInput').value) || 0;
-            if(!navigator.onLine){
-
-saveOffline("addTreatment",{
-patientId: currentPatientId,
-userId: currentUser.id,
-toothNumber: parseInt(tooth),
-treatmentType: type,
-cost: cost,
-paid: paid,
-notes: notes
-});
-
-showAlert('dashboardAlert','📴 تم حفظ المعالجة بدون إنترنت','success');
-
-closeModal('treatmentModal');
-
-return;
-
-            }
-        
-            const res = await fetch('/api/treatments', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    patientId: currentPatientId,
-                    userId: currentUser.id,
-                    toothNumber: parseInt(tooth),
-                    treatmentType: type,
-                    description: '',
-                    cost: cost,
-                    notes: `التكلفة: ${cost} | المدفوع: ${paid} | المتبقي: ${cost-paid}\n${notes}`,
-                    treatmentDate: new Date().toISOString()
-                })
-            });
-            
-            if (res.ok) {
-                showAlert('dashboardAlert', `✅ تم حفظ معالجة السن ${tooth}`, 'success');
-                closeModal('treatmentModal');
-                await loadPatients();
-            } else {
-                showAlert('dashboardAlert', 'فشل الحفظ', 'error');
-            }
-        }
+    
 
         async function saveAndShareNow() {
             const tooth = document.getElementById('toothNumber').value;
