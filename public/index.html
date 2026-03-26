@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ClinicPro">
+<meta name="theme-color" content="#1e40af">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#1e40af">
@@ -2867,5 +2874,132 @@ window.addEventListener('offline', () => {
 // التحقق من الحالة عند تحميل الصفحة
 checkConnectionStatus();
 </script>
+    <script>
+// ============ PWA ============
+
+// تسجيل Service Worker
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+                console.log('✅ Service Worker registered:', registration.scope);
+                
+                // التحقق من التحديثات
+                registration.addEventListener('updatefound', () => {
+                    const newWorker = registration.installing;
+                    console.log('🔄 New Service Worker installing...');
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            console.log('🔄 New update available!');
+                            showUpdateNotification();
+                        }
+                    });
+                });
+            })
+            .catch(error => {
+                console.log('❌ Service Worker registration failed:', error);
+            });
+    });
+}
+
+// إشعار بالتحديث
+function showUpdateNotification() {
+    const updateDiv = document.createElement('div');
+    updateDiv.innerHTML = `
+        <div style="position: fixed; bottom: 20px; right: 20px; background: #1e40af; color: white; padding: 12px 20px; border-radius: 50px; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-sync-alt"></i>
+            <span>تحديث جديد متاح! اضغط لإعادة التحميل</span>
+            <button onclick="location.reload()" style="background: white; color: #1e40af; border: none; padding: 4px 12px; border-radius: 20px; cursor: pointer;">تحديث</button>
+        </div>
+    `;
+    document.body.appendChild(updateDiv);
+    setTimeout(() => updateDiv.remove(), 10000);
+}
+
+// زر تثبيت التطبيق
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    console.log('✅ يمكن تثبيت التطبيق');
+    
+    // إظهار زر تثبيت مخصص بعد 2 ثانية
+    setTimeout(() => {
+        const installBtn = document.createElement('div');
+        installBtn.id = 'installButton';
+        installBtn.innerHTML = `
+            <button style="position: fixed; bottom: 20px; left: 20px; background: #10b981; color: white; border: none; padding: 12px 20px; border-radius: 50px; z-index: 10000; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-download"></i>
+                تثبيت التطبيق
+            </button>
+        `;
+        installBtn.querySelector('button').onclick = async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`User response: ${outcome}`);
+                deferredPrompt = null;
+                installBtn.remove();
+            }
+        };
+        document.body.appendChild(installBtn);
+        
+        setTimeout(() => {
+            if (installBtn) installBtn.remove();
+        }, 30000);
+    }, 2000);
+});
+
+// عند تثبيت التطبيق
+window.addEventListener('appinstalled', (evt) => {
+    console.log('✅ App installed successfully!');
+    const installBtn = document.getElementById('installButton');
+    if (installBtn) installBtn.remove();
+});
+
+// التحقق من حالة الاتصال
+function checkOnlineStatus() {
+    if (navigator.onLine) {
+        console.log('✅ Online');
+        document.body.classList.remove('offline-mode');
+    } else {
+        console.log('📴 Offline');
+        document.body.classList.add('offline-mode');
+        showOfflineNotification();
+    }
+}
+
+// إشعار وضع عدم الاتصال
+function showOfflineNotification() {
+    const offlineDiv = document.createElement('div');
+    offlineDiv.id = 'offlineNotification';
+    offlineDiv.innerHTML = `
+        <div style="position: fixed; top: 70px; left: 20px; right: 20px; background: #ef4444; color: white; padding: 10px; border-radius: 12px; text-align: center; z-index: 10000; display: flex; align-items: center; justify-content: center; gap: 10px;">
+            <i class="fas fa-wifi-slash"></i>
+            <span>لا يوجد اتصال بالإنترنت. سيتم حفظ البيانات محلياً والمزامنة تلقائياً عند استعادة الاتصال.</span>
+        </div>
+    `;
+    document.body.appendChild(offlineDiv);
+    setTimeout(() => {
+        if (offlineDiv) offlineDiv.remove();
+    }, 5000);
+}
+
+// الاستماع لتغيير حالة الاتصال
+window.addEventListener('online', () => {
+    console.log('🔄 Connection restored');
+    const offlineDiv = document.getElementById('offlineNotification');
+    if (offlineDiv) offlineDiv.remove();
+    syncAllDataWithServer();
+});
+
+window.addEventListener('offline', () => {
+    console.log('📴 Connection lost');
+    showOfflineNotification();
+});
+
+// التحقق من الحالة عند تحميل الصفحة
+checkOnlineStatus();
+    </script>
 </body>
 </html>
