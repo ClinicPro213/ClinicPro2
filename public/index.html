@@ -774,6 +774,268 @@ div {
     margin-top: 5px;
     border-radius: 8px;
 }
+        /* ============ صفحة الاشتراك ============ */
+.subscription-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.subscription-card {
+    background: white;
+    border-radius: 32px;
+    padding: 30px;
+    text-align: center;
+    position: relative;
+    margin-bottom: 40px;
+    box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    transition: transform 0.3s;
+}
+
+.subscription-card:hover {
+    transform: translateY(-5px);
+}
+
+.subscription-card.premium {
+    background: linear-gradient(135deg, #fff 0%, #f8fafc 100%);
+    border: 2px solid #f59e0b;
+}
+
+.card-badge {
+    position: absolute;
+    top: -12px;
+    right: 20px;
+    background: #f59e0b;
+    color: white;
+    padding: 5px 15px;
+    border-radius: 30px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.card-icon i {
+    font-size: 60px;
+    color: #f59e0b;
+    margin-bottom: 15px;
+}
+
+.subscription-card h2 {
+    font-size: 28px;
+    color: #0f172a;
+    margin-bottom: 15px;
+}
+
+.price {
+    margin: 20px 0;
+}
+
+.currency {
+    font-size: 24px;
+    font-weight: bold;
+    color: #1e40af;
+}
+
+.amount {
+    font-size: 48px;
+    font-weight: bold;
+    color: #1e40af;
+}
+
+.period {
+    font-size: 16px;
+    color: #64748b;
+}
+
+.features {
+    text-align: right;
+    margin-top: 25px;
+}
+
+.feature {
+    padding: 8px 0;
+    color: #334155;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.feature i {
+    color: #10b981;
+    font-size: 18px;
+}
+
+/* طرق الدفع */
+.payment-methods-section {
+    background: white;
+    border-radius: 28px;
+    padding: 25px;
+    margin-bottom: 30px;
+}
+
+.payment-methods-section h3 {
+    font-size: 22px;
+    color: #0f172a;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.payment-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.payment-card {
+    background: #f8fafc;
+    border-radius: 20px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    border: 2px solid #e2e8f0;
+}
+
+.payment-card:hover {
+    transform: translateY(-5px);
+    border-color: #3b82f6;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.payment-icon i {
+    font-size: 48px;
+    color: #3b82f6;
+    margin-bottom: 10px;
+}
+
+.payment-name {
+    font-size: 18px;
+    font-weight: bold;
+    color: #0f172a;
+    margin-bottom: 10px;
+}
+
+.payment-number {
+    font-size: 20px;
+    font-weight: bold;
+    color: #1e40af;
+    font-family: monospace;
+    margin: 10px 0;
+}
+
+.payment-copy {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 10px;
+}
+
+/* تعليمات الدفع */
+.payment-instructions {
+    background: #f1f5f9;
+    border-radius: 28px;
+    padding: 25px;
+}
+
+.payment-instructions h4 {
+    font-size: 18px;
+    color: #0f172a;
+    margin-bottom: 15px;
+}
+
+.payment-instructions ol {
+    padding-right: 20px;
+    margin-bottom: 20px;
+}
+
+.payment-instructions li {
+    margin: 10px 0;
+    color: #334155;
+}
+
+.contact-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 20px;
+}
+
+.whatsapp-payment, .telegram-payment {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s;
+    color: white;
+}
+
+.whatsapp-payment {
+    background: #25D366;
+}
+
+.whatsapp-payment:hover {
+    background: #128C7E;
+    transform: scale(1.02);
+}
+
+.telegram-payment {
+    background: #0088cc;
+}
+
+.telegram-payment:hover {
+    background: #006699;
+    transform: scale(1.02);
+}
+
+.copy-notification {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #10b981;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 50px;
+    display: none;
+    z-index: 9999;
+    font-size: 14px;
+    animation: fadeInUp 0.3s ease;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+@media (max-width: 768px) {
+    .subscription-card {
+        padding: 20px;
+    }
+    .amount {
+        font-size: 36px;
+    }
+    .payment-grid {
+        grid-template-columns: 1fr;
+    }
+    .contact-actions {
+        flex-direction: column;
+    }
+    .whatsapp-payment, .telegram-payment {
+        width: 100%;
+        justify-content: center;
+    }
+}
         /* Contact Buttons */
 .contact-buttons {
     display: flex;
@@ -847,6 +1109,13 @@ div {
 
 .admin-tab-btn.active {
     background: #3b82f6;
+}
+        .subscription-btn {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.subscription-btn:hover {
+    background: linear-gradient(135deg, #d97706, #b45309);
 }
         /* Subscription Alert - ثابت في أسفل الصفحة */
 .subscription-alert {
@@ -978,6 +1247,9 @@ div {
                 <div id="subscriptionBadge" class="subscription-badge subscription-inactive">📊 مجاني</div>
                 <button id="adminBtn" class="btn" style="width:auto;padding:8px 16px;background:#8b5cf6;display:none" onclick="showAdminPage()">👑 لوحة المدير</button>
                 <div class="contact-buttons">
+    <button id="subscriptionBtn" class="contact-btn subscription-btn" onclick="showSubscriptionPage()" style="display: none;">
+        <i class="fas fa-crown"></i> بيانات الاشتراك
+    </button>
     <button class="contact-btn whatsapp-btn" onclick="contactWhatsApp()">
         <i class="fab fa-whatsapp"></i> واتساب
     </button>
@@ -1002,6 +1274,86 @@ div {
             <div id="patientsGrid" class="patients-grid"></div>
             <div id="adminPanel" style="display:none"></div>
         </div>
+        <!-- Subscription Page -->
+<div id="subscriptionPage" class="dashboard" style="display: none;">
+    <div class="navbar">
+        <div class="logo"><i class="fas fa-crown"></i><h2>باقات الاشتراك</h2></div>
+        <div class="user-info">
+            <div class="doctor-info"><i class="fas fa-user-md"></i><span id="subUserName"></span></div>
+            <button class="btn" style="width:auto;padding:8px 16px;" onclick="closeSubscriptionPage()">
+                <i class="fas fa-arrow-right"></i> العودة
+            </button>
+        </div>
+    </div>
+    <div class="main-content">
+        <div class="subscription-container">
+            <!-- الباقة المميزة -->
+            <div class="subscription-card premium">
+                <div class="card-badge">الأكثر طلباً</div>
+                <div class="card-icon"><i class="fas fa-gem"></i></div>
+                <h2>الباقة المميزة</h2>
+                <div class="price">
+                    <span class="currency">﷼</span>
+                    <span class="amount">3,000</span>
+                    <span class="period">/ سنوي</span>
+                </div>
+                <div class="features">
+                    <div class="feature"><i class="fas fa-check-circle"></i> عدد غير محدود من المرضى</div>
+                    <div class="feature"><i class="fas fa-check-circle"></i> معالجات غير محدودة</div>
+                    <div class="feature"><i class="fas fa-check-circle"></i> تقارير مفصلة</div>
+                    <div class="feature"><i class="fas fa-check-circle"></i> دعم فني على مدار الساعة</div>
+                    <div class="feature"><i class="fas fa-check-circle"></i> تحديثات مجانية</div>
+                </div>
+            </div>
+
+            <!-- طرق الدفع -->
+            <div class="payment-methods-section">
+                <h3><i class="fas fa-credit-card"></i> طرق الدفع المتاحة</h3>
+                <div class="payment-grid">
+                    <div class="payment-card" onclick="copyToClipboard('773041464', 'جيب')">
+                        <div class="payment-icon"><i class="fas fa-money-bill-wave"></i></div>
+                        <div class="payment-name">جيب</div>
+                        <div class="payment-number">773041464</div>
+                        <div class="payment-copy">انقر لنسخ الرقم</div>
+                    </div>
+                    <div class="payment-card" onclick="copyToClipboard('773041464', 'محفظة كاش')">
+                        <div class="payment-icon"><i class="fas fa-wallet"></i></div>
+                        <div class="payment-name">محفظة كاش</div>
+                        <div class="payment-number">773041464</div>
+                        <div class="payment-copy">انقر لنسخ الرقم</div>
+                    </div>
+                    <div class="payment-card" onclick="copyToClipboard('3015418876', 'كريمي')">
+                        <div class="payment-icon"><i class="fas fa-university"></i></div>
+                        <div class="payment-name">كريمي</div>
+                        <div class="payment-number">3015418876</div>
+                        <div class="payment-copy">انقر لنسخ الرقم</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- تعليمات الدفع -->
+            <div class="payment-instructions">
+                <h4><i class="fas fa-info-circle"></i> تعليمات الدفع</h4>
+                <ol>
+                    <li>قم بتحويل المبلغ <strong>3,000 ريال يمني</strong> إلى أحد الأرقام أعلاه</li>
+                    <li>بعد الإيداع، تواصل معنا عبر واتساب أو تيليجرام لإرسال صورة الإيداع</li>
+                    <li>سيتم تفعيل اشتراكك خلال 24 ساعة من استلام الإيداع</li>
+                </ol>
+                <div class="contact-actions">
+                    <button class="whatsapp-payment" onclick="sendPaymentWhatsApp()">
+                        <i class="fab fa-whatsapp"></i> إرسال إيصال عبر واتساب
+                    </button>
+                    <button class="telegram-payment" onclick="sendPaymentTelegram()">
+                        <i class="fab fa-telegram"></i> إرسال إيصال عبر تيليجرام
+                    </button>
+                </div>
+            </div>
+
+            <!-- إشعار النسخ -->
+            <div id="copyNotification" class="copy-notification">✅ تم نسخ الرقم بنجاح</div>
+        </div>
+    </div>
+</div>
     </div>
 
     <!-- Admin Page -->
@@ -1136,6 +1488,57 @@ function checkConnectionStatus() {
         document.body.classList.remove('offline-mode');
     }
 }
+    // ============ صفحة الاشتراك ============
+
+// عرض صفحة الاشتراك
+function showSubscriptionPage() {
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('subscriptionPage').style.display = 'block';
+    document.getElementById('subUserName').textContent = currentUser.fullName || currentUser.username;
+}
+
+// إغلاق صفحة الاشتراك والعودة للوحة الرئيسية
+function closeSubscriptionPage() {
+    document.getElementById('subscriptionPage').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+}
+
+// نسخ الرقم إلى الحافظة
+function copyToClipboard(number, method) {
+    navigator.clipboard.writeText(number).then(() => {
+        const notification = document.getElementById('copyNotification');
+        notification.textContent = `✅ تم نسخ رقم ${method} بنجاح: ${number}`;
+        notification.style.display = 'block';
+        setTimeout(() => {
+            notification.style.display = 'none';
+        }, 3000);
+    });
+}
+
+// إرسال إيصال عبر واتساب
+function sendPaymentWhatsApp() {
+    const message = `*طلب تفعيل اشتراك ClinicPro*\n\n` +
+        `👤 *اسم المستخدم:* ${currentUser.fullName || currentUser.username}\n` +
+        `👨‍⚕️ *اسم العيادة:* ${currentUser.clinicName || 'غير محدد'}\n` +
+        `📞 *رقم الهاتف:* ${currentUser.phone || 'غير مسجل'}\n` +
+        `💰 *المبلغ:* 3,000 ريال يمني\n` +
+        `🦷 *ClinicPro*\n\n` +
+        `تم إيداع المبلغ وسأرفق صورة الإيداع`;
+    
+    window.open(`https://wa.me/967773041464?text=${encodeURIComponent(message)}`, '_blank');
+}
+
+// إرسال إيصال عبر تيليجرام
+function sendPaymentTelegram() {
+    const message = `طلب تفعيل اشتراك ClinicPro\n\n` +
+        `اسم المستخدم: ${currentUser.fullName || currentUser.username}\n` +
+        `اسم العيادة: ${currentUser.clinicName || 'غير محدد'}\n` +
+        `رقم الهاتف: ${currentUser.phone || 'غير مسجل'}\n` +
+        `المبلغ: 3,000 ريال يمني\n\n` +
+        `تم إيداع المبلغ وسأرفق صورة الإيداع`;
+    
+    window.open(`https://t.me/moatazdent?text=${encodeURIComponent(message)}`, '_blank');
+}
     // ============ زر التواصل ============
 
 // التواصل عبر واتساب
@@ -1216,7 +1619,18 @@ function checkPatientLimit() {
     if (currentUser.role === 'admin' || currentUser.isSubscribed) {
         const alertDiv = document.getElementById('subscriptionAlert');
         if (alertDiv) alertDiv.classList.remove('show');
+        
+        // إخفاء زر الاشتراك للمشتركين والمديرين
+        const subBtn = document.getElementById('subscriptionBtn');
+        if (subBtn) subBtn.style.display = 'none';
+        
         return;
+    }
+    
+    // ========== إظهار زر الاشتراك للمستخدمين المجانيين ==========
+    const subBtn = document.getElementById('subscriptionBtn');
+    if (subBtn) {
+        subBtn.style.display = 'flex';
     }
     
     const patientCount = allPatients.length;
@@ -1259,7 +1673,6 @@ function checkPatientLimit() {
         }
     }
 }
-
 // تحديث دالة addPatient لإضافة التحقق من الحد
 async function addPatientWithLimitCheck(data) {
     // التحقق من الحد الأقصى
