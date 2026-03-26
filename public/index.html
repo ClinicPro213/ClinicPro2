@@ -774,6 +774,56 @@ div {
     margin-top: 5px;
     border-radius: 8px;
 }
+        /* Contact Buttons */
+.contact-buttons {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.contact-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 40px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s;
+    color: white;
+}
+
+.whatsapp-btn {
+    background: #25D366;
+}
+
+.whatsapp-btn:hover {
+    background: #128C7E;
+    transform: scale(1.02);
+}
+
+.telegram-btn {
+    background: #0088cc;
+}
+
+.telegram-btn:hover {
+    background: #006699;
+    transform: scale(1.02);
+}
+
+@media (max-width: 768px) {
+    .contact-buttons {
+        justify-content: center;
+        width: 100%;
+    }
+    .contact-btn {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+}
 
 /* Admin Tabs */
 .admin-tabs {
@@ -927,7 +977,15 @@ div {
                 <div class="doctor-info"><i class="fas fa-user-md"></i><span id="userNameDisplay"></span></div>
                 <div id="subscriptionBadge" class="subscription-badge subscription-inactive">📊 مجاني</div>
                 <button id="adminBtn" class="btn" style="width:auto;padding:8px 16px;background:#8b5cf6;display:none" onclick="showAdminPage()">👑 لوحة المدير</button>
-                <button class="logout-btn" onclick="logout()">خروج</button>
+                <div class="contact-buttons">
+    <button class="contact-btn whatsapp-btn" onclick="contactWhatsApp()">
+        <i class="fab fa-whatsapp"></i> واتساب
+    </button>
+    <button class="contact-btn telegram-btn" onclick="contactTelegram()">
+        <i class="fab fa-telegram"></i> تيليجرام
+    </button>
+    <button class="logout-btn" onclick="logout()">خروج</button>
+                </div>
             </div>
         </div>
         <div class="main-content">
@@ -1078,6 +1136,29 @@ function checkConnectionStatus() {
         document.body.classList.remove('offline-mode');
     }
 }
+    // ============ زر التواصل ============
+
+// التواصل عبر واتساب
+function contactWhatsApp() {
+    if (!currentUser) return;
+    
+    // بناء رسالة الترحيب
+    const message = `مرحباً، أنا ${currentUser.fullName || currentUser.username} من عيادة ${currentUser.clinicName || 'عيادة الأسنان'}`;
+    const encodedMessage = encodeURIComponent(message);
+    
+    // فتح واتساب مع رقم المدير
+    window.open(`https://wa.me/967773041464?text=${encodedMessage}`, '_blank');
+}
+
+// التواصل عبر تيليجرام
+function contactTelegram() {
+    // معرف التيليجرام الخاص بك
+    const telegramUsername = "moatazdent";
+    
+    // فتح تيليجرام
+    window.open(`https://t.me/${telegramUsername}`, '_blank');
+}
+    
     // ============ نظام الاشتراك ============
 
 // عرض إشعار الاشتراك الثابت
