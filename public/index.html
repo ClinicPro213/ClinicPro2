@@ -424,9 +424,94 @@ async function addPatient(data) {
 // ============ المصادقة ============
 async function register(){const data={fullName:document.getElementById('regFullName').value,username:document.getElementById('regUsername').value,password:document.getElementById('regPassword').value,phone:document.getElementById('regPhone').value,age:parseInt(document.getElementById('regAge').value),clinicName:document.getElementById('regClinicName').value,address:document.getElementById('regAddress').value};if(!data.fullName||!data.username||!data.password){showAlert('registerAlert','املأ جميع الحقول','error');return;}
 try{const r=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const res=await r.json();if(r.ok&&res.success){currentUser=res.user;localStorage.setItem('userId',currentUser.id);await loadDashboard();showAlert('dashboardAlert','تم إنشاء الحساب','success');}else showAlert('registerAlert',res.message||'فشل','error');}catch(e){showAlert('registerAlert','خطأ في الاتصال','error');}}
-async function login(){const u=document.getElementById('loginUsername').value,p=document.getElementById('loginPassword').value;if(!u||!p){showAlert('loginAlert','يرجى إدخال اسم المستخدم وكلمة المرور','error');return;}
-if(navigator.onLine){try{const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});const res=await r.json();if(r.ok&&res.success){currentUser=res.user;localStorage.setItem('userId',currentUser.id);
-// حفظ بيانات تسجيل الدخول للاستخدام بدون إنترنت
+async function login() {
+    const u = document.getElementById('loginUsername').value;
+    const p = document.getElementById('loginPassword').value;
+    
+    if (!u || !p) {
+        showAlert('loginAlert', 'يرجى إدخال اسم المستخدم وكلمة المرور', 'error');
+        return;
+    }
+    
+    console.log('🔐 محاولة تسجيل الدخول:', u);
+    
+    if (navigator.onLine) {
+        console.log('📡 متصل بالإنترنت - إرسال طلب للخادم');
+        try {
+            const r = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: u, password: p })
+            });
+            
+            console.log('📡 استجابة الخادم:', r.status);
+            const res = await r.json();
+            console.log('📡 بيانات الاستجابة:', res);
+            
+            if (r.ok && res.success) {
+                console.log('✅ تسجيل الدخول ناجح');
+                currentUser = res.user;
+                localStorage.setItem('userId', currentUser.id);
+                
+                // حفظ بيانات تسجيل الدخول للاستخدام بدون إنترنت
+                localStorage.setItem('offlineAuth', JSON.stringify({
+                    userId: currentUser.id,
+                    username: u,
+                    password: p,
+                    userData: currentUser,
+                    savedAt: new Date().toISOString()
+                }));
+                
+                // جلب المرضى
+                const patientsRes = await fetch(`/api/patients/${currentUser.id}`);
+                const patients = await patientsRes.json();
+                localStorage.setItem(`patients_${currentUser.id}`, JSON.stringify(patients));
+                localStorage.setItem(`treatments_${currentUser.id}`, JSON.stringify([]));
+                
+                await loadDashboard();
+                showAlert('dashboardAlert', 'تم تسجيل الدخول', 'success');
+            } else {
+                console.log('❌ فشل تسجيل الدخول:', res.message);
+                showAlert('loginAlert', res.message || 'فشل تسجيل الدخول', 'error');
+            }
+        } catch (e) {
+            console.error('❌ خطأ في الاتصال:', e);
+            showAlert('loginAlert', 'خطأ في الاتصال بالخادم: ' + e.message, 'error');
+        }
+    } else {
+        console.log('📴 غير متصل بالإنترنت - محاولة الدخول من البيانات المحفوظة');
+        const saved = localStorage.getItem('offlineAuth');
+        console.log('📴 البيانات المحفوظة:', saved);
+        
+        if (saved) {
+            const a = JSON.parse(saved);
+            if (a.username === u && a.password === p) {
+                console.log('✅ تسجيل دخول Offline ناجح');
+                currentUser = a.userData;
+                localStorage.setItem('userId', currentUser.id);
+                allPatients = JSON.parse(localStorage.getItem(`patients_${currentUser.id}`) || '[]');
+                renderPatients(allPatients);
+                
+                document.getElementById('loginPage').style.display = 'none';
+                document.getElementById('registerPage').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+                document.getElementById('userNameDisplay').textContent = currentUser.fullName;
+                document.getElementById('totalPatients').textContent = allPatients.length;
+                document.getElementById('remainingSlots').textContent = currentUser.role === 'admin' ? 'غير محدود' : Math.max(0, 5 - allPatients.length);
+                
+                showAlert('dashboardAlert', '📴 وضع عدم الاتصال', 'warning');
+                if (currentUser.role === 'admin') document.getElementById('adminBtn').style.display = 'block';
+            } else {
+                console.log('❌ بيانات غير صحيحة');
+                showAlert('loginAlert', 'بيانات غير صحيحة', 'error');
+            }
+        } else {
+            console.log('❌ لا توجد بيانات محفوظة');
+            showAlert('loginAlert', 'لا توجد بيانات محفوظة للدخول بدون إنترنت. يرجى تسجيل الدخول أولاً مع وجود إنترنت.', 'error');
+        }
+    }
+}
+                                           // حفظ بيانات تسجيل الدخول للاستخدام بدون إنترنت
 localStorage.setItem('offlineAuth',JSON.stringify({userId:currentUser.id,username:u,password:p,userData:currentUser,savedAt:new Date().toISOString()}));
 const patients=await(await fetch(`/api/patients/${currentUser.id}`)).json();localStorage.setItem(`patients_${currentUser.id}`,JSON.stringify(patients));
 localStorage.setItem(`treatments_${currentUser.id}`,JSON.stringify([]));
