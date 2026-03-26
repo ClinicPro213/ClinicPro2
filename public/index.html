@@ -1247,16 +1247,16 @@ div {
                 <div id="subscriptionBadge" class="subscription-badge subscription-inactive">📊 مجاني</div>
                 <button id="adminBtn" class="btn" style="width:auto;padding:8px 16px;background:#8b5cf6;display:none" onclick="showAdminPage()">👑 لوحة المدير</button>
                 <div class="contact-buttons">
-    <button id="subscriptionBtn" class="contact-btn subscription-btn" onclick="showSubscriptionPage()" style="display: none;">
-        <i class="fas fa-crown"></i> بيانات الاشتراك
-    </button>
-    <button class="contact-btn whatsapp-btn" onclick="contactWhatsApp()">
-        <i class="fab fa-whatsapp"></i> واتساب
-    </button>
-    <button class="contact-btn telegram-btn" onclick="contactTelegram()">
-        <i class="fab fa-telegram"></i> تيليجرام
-    </button>
-    <button class="logout-btn" onclick="logout()">خروج</button>
+                    <button id="subscriptionBtn" class="contact-btn subscription-btn" onclick="showSubscriptionPage()" style="display: none;">
+                        <i class="fas fa-crown"></i> بيانات الاشتراك
+                    </button>
+                    <button class="contact-btn whatsapp-btn" onclick="contactWhatsApp()">
+                        <i class="fab fa-whatsapp"></i> واتساب
+                    </button>
+                    <button class="contact-btn telegram-btn" onclick="contactTelegram()">
+                        <i class="fab fa-telegram"></i> تيليجرام
+                    </button>
+                    <button class="logout-btn" onclick="logout()">خروج</button>
                 </div>
             </div>
         </div>
@@ -1274,86 +1274,6 @@ div {
             <div id="patientsGrid" class="patients-grid"></div>
             <div id="adminPanel" style="display:none"></div>
         </div>
-        <!-- Subscription Page -->
-<div id="subscriptionPage" class="dashboard" style="display: none;">
-    <div class="navbar">
-        <div class="logo"><i class="fas fa-crown"></i><h2>باقات الاشتراك</h2></div>
-        <div class="user-info">
-            <div class="doctor-info"><i class="fas fa-user-md"></i><span id="subUserName"></span></div>
-            <button class="btn" style="width:auto;padding:8px 16px;" onclick="closeSubscriptionPage()">
-                <i class="fas fa-arrow-right"></i> العودة
-            </button>
-        </div>
-    </div>
-    <div class="main-content">
-        <div class="subscription-container">
-            <!-- الباقة المميزة -->
-            <div class="subscription-card premium">
-                <div class="card-badge">الأكثر طلباً</div>
-                <div class="card-icon"><i class="fas fa-gem"></i></div>
-                <h2>الباقة المميزة</h2>
-                <div class="price">
-                    <span class="currency">﷼</span>
-                    <span class="amount">3,000</span>
-                    <span class="period">/ سنوي</span>
-                </div>
-                <div class="features">
-                    <div class="feature"><i class="fas fa-check-circle"></i> عدد غير محدود من المرضى</div>
-                    <div class="feature"><i class="fas fa-check-circle"></i> معالجات غير محدودة</div>
-                    <div class="feature"><i class="fas fa-check-circle"></i> تقارير مفصلة</div>
-                    <div class="feature"><i class="fas fa-check-circle"></i> دعم فني على مدار الساعة</div>
-                    <div class="feature"><i class="fas fa-check-circle"></i> تحديثات مجانية</div>
-                </div>
-            </div>
-
-            <!-- طرق الدفع -->
-            <div class="payment-methods-section">
-                <h3><i class="fas fa-credit-card"></i> طرق الدفع المتاحة</h3>
-                <div class="payment-grid">
-                    <div class="payment-card" onclick="copyToClipboard('773041464', 'جيب')">
-                        <div class="payment-icon"><i class="fas fa-money-bill-wave"></i></div>
-                        <div class="payment-name">جيب</div>
-                        <div class="payment-number">773041464</div>
-                        <div class="payment-copy">انقر لنسخ الرقم</div>
-                    </div>
-                    <div class="payment-card" onclick="copyToClipboard('773041464', 'محفظة كاش')">
-                        <div class="payment-icon"><i class="fas fa-wallet"></i></div>
-                        <div class="payment-name">محفظة كاش</div>
-                        <div class="payment-number">773041464</div>
-                        <div class="payment-copy">انقر لنسخ الرقم</div>
-                    </div>
-                    <div class="payment-card" onclick="copyToClipboard('3015418876', 'كريمي')">
-                        <div class="payment-icon"><i class="fas fa-university"></i></div>
-                        <div class="payment-name">كريمي</div>
-                        <div class="payment-number">3015418876</div>
-                        <div class="payment-copy">انقر لنسخ الرقم</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- تعليمات الدفع -->
-            <div class="payment-instructions">
-                <h4><i class="fas fa-info-circle"></i> تعليمات الدفع</h4>
-                <ol>
-                    <li>قم بتحويل المبلغ <strong>3,000 ريال يمني</strong> إلى أحد الأرقام أعلاه</li>
-                    <li>بعد الإيداع، تواصل معنا عبر واتساب أو تيليجرام لإرسال صورة الإيداع</li>
-                    <li>سيتم تفعيل اشتراكك خلال 24 ساعة من استلام الإيداع</li>
-                </ol>
-                <div class="contact-actions">
-                    <button class="whatsapp-payment" onclick="sendPaymentWhatsApp()">
-                        <i class="fab fa-whatsapp"></i> إرسال إيصال عبر واتساب
-                    </button>
-                    <button class="telegram-payment" onclick="sendPaymentTelegram()">
-                        <i class="fab fa-telegram"></i> إرسال إيصال عبر تيليجرام
-                    </button>
-                </div>
-            </div>
-
-            <!-- إشعار النسخ -->
-            <div id="copyNotification" class="copy-notification">✅ تم نسخ الرقم بنجاح</div>
-        </div>
-    </div>
-</div>
     </div>
 
     <!-- Admin Page -->
@@ -1375,35 +1295,148 @@ div {
             <div id="adminPatientsSection" style="display:none"><div class="search-bar"><input type="text" id="adminPatientSearch" placeholder="بحث..." onkeyup="searchAdminPatients()"><button class="btn" onclick="refreshAdminPatients()">تحديث</button></div><div id="adminPatientsList" class="patients-grid"></div></div>
         </div>
     </div>
-    <!-- Subscription Alert (ثابت) -->
-<div id="subscriptionAlert" class="subscription-alert">
-    <div class="subscription-alert-content">
-        <i class="fas fa-crown"></i>
-        <div class="subscription-alert-text">
-            <strong>⚠️ لقد وصلت للحد الأقصى المجاني (5 مرضى)</strong><br>
-            <small>للحصول على عدد غير محدود من المرضى والمزيد من الميزات، يرجى الاشتراك في الباقة المدفوعة</small>
+
+    <!-- Subscription Page -->
+    <div id="subscriptionPage" class="dashboard" style="display: none;">
+        <div class="navbar">
+            <div class="logo"><i class="fas fa-crown"></i><h2>باقات الاشتراك</h2></div>
+            <div class="user-info">
+                <div class="doctor-info"><i class="fas fa-user-md"></i><span id="subUserName"></span></div>
+                <button class="btn" style="width:auto;padding:8px 16px;" onclick="closeSubscriptionPage()">
+                    <i class="fas fa-arrow-right"></i> العودة
+                </button>
+            </div>
+        </div>
+        <div class="main-content">
+            <div class="subscription-container">
+                <!-- الباقة المميزة -->
+                <div class="subscription-card premium">
+                    <div class="card-badge">الأكثر طلباً</div>
+                    <div class="card-icon"><i class="fas fa-gem"></i></div>
+                    <h2>الباقة المميزة</h2>
+                    <div class="price">
+                        <span class="currency">﷼</span>
+                        <span class="amount">3,000</span>
+                        <span class="period">/ سنوي</span>
+                    </div>
+                    <div class="features">
+                        <div class="feature"><i class="fas fa-check-circle"></i> عدد غير محدود من المرضى</div>
+                        <div class="feature"><i class="fas fa-check-circle"></i> معالجات غير محدودة</div>
+                        <div class="feature"><i class="fas fa-check-circle"></i> تقارير مفصلة</div>
+                        <div class="feature"><i class="fas fa-check-circle"></i> دعم فني على مدار الساعة</div>
+                        <div class="feature"><i class="fas fa-check-circle"></i> تحديثات مجانية</div>
+                    </div>
+                </div>
+
+                <!-- طرق الدفع -->
+                <div class="payment-methods-section">
+                    <h3><i class="fas fa-credit-card"></i> طرق الدفع المتاحة</h3>
+                    <div class="payment-grid">
+                        <div class="payment-card" onclick="copyToClipboard('773041464', 'جيب')">
+                            <div class="payment-icon"><i class="fas fa-money-bill-wave"></i></div>
+                            <div class="payment-name">جيب</div>
+                            <div class="payment-number">773041464</div>
+                            <div class="payment-copy">انقر لنسخ الرقم</div>
+                        </div>
+                        <div class="payment-card" onclick="copyToClipboard('773041464', 'محفظة كاش')">
+                            <div class="payment-icon"><i class="fas fa-wallet"></i></div>
+                            <div class="payment-name">محفظة كاش</div>
+                            <div class="payment-number">773041464</div>
+                            <div class="payment-copy">انقر لنسخ الرقم</div>
+                        </div>
+                        <div class="payment-card" onclick="copyToClipboard('3015418876', 'كريمي')">
+                            <div class="payment-icon"><i class="fas fa-university"></i></div>
+                            <div class="payment-name">كريمي</div>
+                            <div class="payment-number">3015418876</div>
+                            <div class="payment-copy">انقر لنسخ الرقم</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- تعليمات الدفع -->
+                <div class="payment-instructions">
+                    <h4><i class="fas fa-info-circle"></i> تعليمات الدفع</h4>
+                    <ol>
+                        <li>قم بتحويل المبلغ <strong>3,000 ريال يمني</strong> إلى أحد الأرقام أعلاه</li>
+                        <li>بعد الإيداع، تواصل معنا عبر واتساب أو تيليجرام لإرسال صورة الإيداع</li>
+                        <li>سيتم تفعيل اشتراكك خلال 24 ساعة من استلام الإيداع</li>
+                    </ol>
+                    <div class="contact-actions">
+                        <button class="whatsapp-payment" onclick="sendPaymentWhatsApp()">
+                            <i class="fab fa-whatsapp"></i> إرسال إيصال عبر واتساب
+                        </button>
+                        <button class="telegram-payment" onclick="sendPaymentTelegram()">
+                            <i class="fab fa-telegram"></i> إرسال إيصال عبر تيليجرام
+                        </button>
+                    </div>
+                </div>
+
+                <!-- إشعار النسخ -->
+                <div id="copyNotification" class="copy-notification">✅ تم نسخ الرقم بنجاح</div>
+            </div>
         </div>
     </div>
-    <div style="display: flex; gap: 10px;">
-        <button class="whatsapp-subscribe-btn" onclick="sendSubscriptionRequest()">
-            <i class="fab fa-whatsapp"></i> اشترك الآن
-        </button>
-        <button class="close-subscription-alert" onclick="closeSubscriptionAlert()">
-            <i class="fas fa-times"></i> تذكير لاحقاً
-        </button>
+
+    <!-- Subscription Alert -->
+    <div id="subscriptionAlert" class="subscription-alert">
+        <div class="subscription-alert-content">
+            <i class="fas fa-crown"></i>
+            <div class="subscription-alert-text">
+                <strong>⚠️ لقد وصلت للحد الأقصى المجاني (5 مرضى)</strong><br>
+                <small>للحصول على عدد غير محدود من المرضى والمزيد من الميزات، يرجى الاشتراك في الباقة المدفوعة</small>
+            </div>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button class="whatsapp-subscribe-btn" onclick="sendSubscriptionRequest()">
+                <i class="fab fa-whatsapp"></i> اشترك الآن
+            </button>
+            <button class="close-subscription-alert" onclick="closeSubscriptionAlert()">
+                <i class="fas fa-times"></i> تذكير لاحقاً
+            </button>
+        </div>
     </div>
-</div>
 
     <!-- Patient Modal -->
-    <div id="patientModal" class="modal"><div class="modal-content"><div class="modal-header"><h3 id="modalTitle">إضافة مريض</h3><button class="close-btn" onclick="closeModal('patientModal')">&times;</button></div><div class="modal-body"><form id="patientForm"><input type="hidden" id="patientId"><div class="input-group"><label>اسم المريض *</label><input type="text" id="patientName" required style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px"></div><div class="input-group"><label>رقم الهاتف</label><input type="text" id="patientPhone" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px"></div><div class="input-group"><label>العمر *</label><input type="number" id="patientAge" required style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px"></div><div class="input-group"><label>العنوان</label><input type="text" id="patientAddress" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px"></div><div class="input-group"><label>ملاحظات</label><textarea id="patientNotes" rows="2" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px"></textarea></div><button type="submit" class="btn" style="width:100%">حفظ</button></form></div></div></div>
+    <div id="patientModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header"><h3 id="modalTitle">إضافة مريض</h3><button class="close-btn" onclick="closeModal('patientModal')">&times;</button></div>
+            <div class="modal-body">
+                <form id="patientForm">
+                    <input type="hidden" id="patientId">
+                    <div class="input-group"><label>اسم المريض *</label><input type="text" id="patientName" required style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px"></div>
+                    <div class="input-group"><label>رقم الهاتف</label><input type="text" id="patientPhone" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px"></div>
+                    <div class="input-group"><label>العمر *</label><input type="number" id="patientAge" required style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px"></div>
+                    <div class="input-group"><label>العنوان</label><input type="text" id="patientAddress" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px"></div>
+                    <div class="input-group"><label>ملاحظات</label><textarea id="patientNotes" rows="2" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px"></textarea></div>
+                    <button type="submit" class="btn" style="width:100%">حفظ</button>
+                </form>
+            </div>
+        </div>
+    </div>
 
     <!-- Treatment Modal -->
-    <div id="treatmentModal" class="modal"><div class="modal-content"><div class="modal-header"><h3>إضافة معالجة</h3><button class="close-btn" onclick="closeModal('treatmentModal')">&times;</button></div><div class="modal-body"><div id="teethContainer" style="display:grid;grid-template-columns:repeat(8,1fr);gap:5px;margin-bottom:20px"></div><div class="input-group"><label>رقم السن</label><input type="number" id="toothNumber" readonly style="background:#f1f5f9;width:100%;padding:10px;border-radius:8px"></div><div class="input-group"><label>نوع المعالجة</label><select id="treatmentTypeSelect" style="width:100%;padding:10px;border-radius:8px"><option value="">-- اختر --</option><option value="فحص">فحص</option><option value="حشو">حشو</option><option value="خلع">خلع</option><option value="تنظيف">تنظيف</option><option value="تلبيس">تلبيس</option><option value="زراعة">زراعة</option><option value="علاج عصب">علاج عصب</option><option value="تبييض">تبييض</option></select></div><div class="input-group"><label>ملاحظات</label><textarea id="treatmentNotesInput" rows="2" style="width:100%;padding:10px;border-radius:8px"></textarea></div><div class="input-group"><label>التكلفة</label><input type="number" id="treatmentCostInput" value="0" step="10" oninput="calcRemaining()" style="width:100%;padding:10px;border-radius:8px"></div><div class="input-group"><label>المدفوع</label><input type="number" id="treatmentPaidInput" value="0" step="10" oninput="calcRemaining()" style="width:100%;padding:10px;border-radius:8px"></div><div style="background:#f1f5f9;padding:12px;border-radius:12px"><div>المتبقي: <span id="remainingSpan">0</span> ريال</div></div><button class="btn" onclick="saveTreatmentNow()" style="width:100%;margin-top:10px">حفظ المعالجة</button><button class="btn btn-whatsapp" onclick="saveAndShareNow()" style="width:100%;margin-top:10px">حفظ ومشاركة</button></div></div></div>
+    <div id="treatmentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header"><h3>إضافة معالجة</h3><button class="close-btn" onclick="closeModal('treatmentModal')">&times;</button></div>
+            <div class="modal-body">
+                <div id="teethContainer" style="display:grid;grid-template-columns:repeat(8,1fr);gap:5px;margin-bottom:20px"></div>
+                <div class="input-group"><label>رقم السن</label><input type="number" id="toothNumber" readonly style="background:#f1f5f9;width:100%;padding:10px;border-radius:8px"></div>
+                <div class="input-group"><label>نوع المعالجة</label><select id="treatmentTypeSelect" style="width:100%;padding:10px;border-radius:8px"><option value="">-- اختر --</option><option value="فحص">فحص</option><option value="حشو">حشو</option><option value="خلع">خلع</option><option value="تنظيف">تنظيف</option><option value="تلبيس">تلبيس</option><option value="زراعة">زراعة</option><option value="علاج عصب">علاج عصب</option><option value="تبييض">تبييض</option></select></div>
+                <div class="input-group"><label>ملاحظات</label><textarea id="treatmentNotesInput" rows="2" style="width:100%;padding:10px;border-radius:8px"></textarea></div>
+                <div class="input-group"><label>التكلفة</label><input type="number" id="treatmentCostInput" value="0" step="10" oninput="calcRemaining()" style="width:100%;padding:10px;border-radius:8px"></div>
+                <div class="input-group"><label>المدفوع</label><input type="number" id="treatmentPaidInput" value="0" step="10" oninput="calcRemaining()" style="width:100%;padding:10px;border-radius:8px"></div>
+                <div style="background:#f1f5f9;padding:12px;border-radius:12px"><div>المتبقي: <span id="remainingSpan">0</span> ريال</div></div>
+                <button class="btn" onclick="saveTreatmentNow()" style="width:100%;margin-top:10px">حفظ المعالجة</button>
+                <button class="btn btn-whatsapp" onclick="saveAndShareNow()" style="width:100%;margin-top:10px">حفظ ومشاركة</button>
+            </div>
+        </div>
+    </div>
 
     <div id="patientDetailsModal" class="modal" style="display:none"></div>
 </div>
 
 <script>
+            
     // ============ OFFLINE SYSTEM ============
 
 // حفظ المريض محلياً
