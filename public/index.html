@@ -1388,7 +1388,7 @@ div {
         </div>
         <div style="display: flex; gap: 10px;">
             <button class="whatsapp-subscribe-btn" onclick="sendSubscriptionRequest()">
-                <i class="fab fa-whatsapp"></i> اشترك الآن
+    <i class="fas fa-crown"></i> بيانات الاشتراك
             </button>
             <button class="close-subscription-alert" onclick="closeSubscriptionAlert()">
                 <i class="fas fa-times"></i> تذكير لاحقاً
@@ -1621,29 +1621,22 @@ function closeSubscriptionAlert() {
     }
 }
 
-// إرسال طلب اشتراك عبر واتساب
+// طلب اشتراك - ينتقل إلى صفحة بيانات الاشتراك
 function sendSubscriptionRequest() {
     if (!currentUser) return;
     
-    // بناء رسالة الاشتراك
-    const message = `*طلب اشتراك جديد في ClinicPro*%0A%0A` +
-        `👤 *اسم المستخدم:* ${currentUser.fullName || currentUser.username}%0A` +
-        `👨‍⚕️ *اسم العيادة:* ${currentUser.clinicName || 'غير محدد'}%0A` +
-        `📞 *رقم الهاتف:* ${currentUser.phone || 'غير مسجل'}%0A` +
-        `📊 *عدد المرضى:* ${allPatients.length} مريض%0A` +
-        `🦷 *ClinicPro - نظام إدارة عيادات الأسنان*%0A%0A` +
-        `يرجى تفعيل الاشتراك المدفوع`;
+    // الانتقال إلى صفحة بيانات الاشتراك
+    showSubscriptionPage();
     
-    // رقم واتساب المدير (يمكنك تغييره)
-    const adminWhatsApp = "967773041464";
-    
-    // فتح واتساب
-    window.open(`https://wa.me/${adminWhatsApp}?text=${message}`, '_blank');
+    // إغلاق الإشعار
+    const alertDiv = document.getElementById('subscriptionAlert');
+    if (alertDiv) {
+        alertDiv.classList.remove('show');
+    }
     
     // تسجيل أن المستخدم طلب الاشتراك
     localStorage.setItem('subscriptionRequested', Date.now().toString());
 }
-
 // التحقق من عدد المرضى وعرض الإشعار
 function checkPatientLimit() {
     if (!currentUser) return;
