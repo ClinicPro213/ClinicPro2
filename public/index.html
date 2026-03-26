@@ -298,49 +298,6 @@ async function loadPatientsWithOffline() {
                                            
     function renderPatients(pts){const g=document.getElementById('patientsGrid');if(!pts||!pts.length){g.innerHTML='<div style="text-align:center;padding:50px">لا يوجد مرضى</div>';return;}
 g.innerHTML=pts.map(p=>`<div class="patient-card" onclick="showPatientFullDetails('${p._id}')"><div class="patient-header"><h3>${escapeHtml(p.name)}${p.pendingSync?'<span style="background:#f59e0b;font-size:10px;padding:2px 6px;border-radius:20px;margin-right:8px">📴 مؤقت</span>':''}</h3><div class="patient-actions" onclick="event.stopPropagation()"><button onclick="editPatient('${p._id}')"><i class="fas fa-edit"></i></button><button onclick="showTreatmentModal('${p._id}')"><i class="fas fa-stethoscope"></i></button><button onclick="deletePatient('${p._id}')"><i class="fas fa-trash"></i></button></div></div><div class="patient-body"><p><i class="fas fa-phone"></i> ${escapeHtml(p.phone||'غير محدد')}</p><p><i class="fas fa-calendar"></i> العمر: ${p.age} سنة</p>${p.pendingSync?'<p style="color:#f59e0b"><i class="fas fa-sync-alt"></i> في انتظار المزامنة</p>':''}</div></div>`).join('');}
-async function addPatient(data) {
-    const newPatient = {
-        ...data,
-        _id: 'offline_' + Date.now(),
-        createdAt: new Date().toISOString(),
-        offline: true,
-        pendingSync: true,
-        userId: currentUser.id
-    };
-    
-    let patients = getPatientsOffline();
-    patients.unshift(newPatient);
-    savePatientsOffline(patients);
-    
-    allPatients = [newPatient, ...allPatients];
-    renderPatients(allPatients);
-    closeModal('patientModal');
-    
-    if (navigator.onLine) {
-        try {
-            const r = await fetch('/api/patients', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...data, userId: currentUser.id })
-            });
-            if (r.ok) {
-                const result = await r.json();
-                patients = getPatientsOffline();
-                const idx = patients.findIndex(p => p._id === newPatient._id);
-                if (idx !== -1) {
-                    patients[idx]._id = result.patient._id;
-                    patients[idx].pendingSync = false;
-                    patients[idx].offline = false;
-                    savePatientsOffline(patients);
-                }
-                await loadPatientsWithOffline();
-                showAlert('dashboardAlert', '✅ تم إضافة المريض', 'success');
-            }
-        } catch(e) { showAlert('dashboardAlert', '📴 تم حفظ المريض محلياً', 'warning'); }
-    } else {
-        showAlert('dashboardAlert', '📴 تم حفظ المريض محلياً', 'warning');
-    }
-}
 async function updatePatient(id,data){try{const r=await fetch(`/api/patients/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});if(r.ok){showAlert('dashboardAlert','تم التحديث','success');closeModal('patientModal');await loadPatientsFromServer();}}catch(e){showAlert('dashboardAlert','خطأ','error');}}
 async function deletePatient(id){if(confirm('هل أنت متأكد؟')){try{await fetch(`/api/patients/${id}`,{method:'DELETE'});await loadPatientsFromServer();await loadStats();}catch(e){showAlert('dashboardAlert','خطأ','error');}}}
 async function loadStats(){try{const r=await fetch(`/api/user/${currentUser.id}`);const d=await r.json();document.getElementById('totalPatients').textContent=d.patientCount||0;document.getElementById('remainingSlots').textContent=currentUser.role==='admin'||currentUser.isSubscribed?'غير محدود':Math.max(0,5-(d.patientCount||0));}catch(e){}}
