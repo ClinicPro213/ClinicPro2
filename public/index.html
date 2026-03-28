@@ -3422,23 +3422,38 @@ async function compressImage(file, maxSizeMB = 1, quality = 0.7) {
     
 </script>
     <script>
-// ============ PWA ============
+// ============ PWA مع تحديث تلقائي ============
 
-// تسجيل Service Worker
+// تسجيل Service Worker مع تحديث تلقائي
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
+        // إضافة رقم عشوائي لتجنب الكاش
+        const swVersion = Date.now();
+        navigator.serviceWorker.register(`/sw.js?v=${swVersion}`, { scope: '/' })
             .then(registration => {
-                console.log('✅ Service Worker registered:', registration.scope);
+                console.log('✅ Service Worker registered:', registration.scope, 'Version:', swVersion);
                 
-                // التحقق من التحديثات
+                // التحقق من وجود تحديثات كل 10 ثواني
+                setInterval(() => {
+                    registration.update();
+                    console.log('🔄 Checking for updates...');
+                }, 10000);
+                
+                // الاستماع لتغييرات Service Worker
                 registration.addEventListener('updatefound', () => {
                     const newWorker = registration.installing;
                     console.log('🔄 New Service Worker installing...');
+                    
                     newWorker.addEventListener('statechange', () => {
                         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                             console.log('🔄 New update available!');
                             showUpdateNotification();
+                        }
+                        
+                        // إذا تم التثبيت بنجاح، قم بالتفعيل فوراً
+                        if (newWorker.state === 'activated') {
+                            console.log('✅ New Service Worker activated, reloading...');
+                            window.location.reload();
                         }
                     });
                 });
@@ -3446,21 +3461,77 @@ if ('serviceWorker' in navigator) {
             .catch(error => {
                 console.log('❌ Service Worker registration failed:', error);
             });
+        
+        // الاستماع لتغيير الـ Controller (عند تحديث Service Worker)
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            console.log('🔄 Service Worker controller changed, reloading page...');
+            window.location.reload();
+        });
     });
 }
 
-// إشعار بالتحديث
+// إشعار التحديث المحسن
 function showUpdateNotification() {
+    // إزالة أي إشعار قديم
+    const oldNotification = document.getElementById('updateNotification');
+    if (oldNotification) oldNotification.remove();
+    
     const updateDiv = document.createElement('div');
+    updateDiv.id = 'updateNotification';
     updateDiv.innerHTML = `
         <div style="position: fixed; bottom: 20px; right: 20px; background: #1e40af; color: white; padding: 12px 20px; border-radius: 50px; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 10px;">
-            <i class="fas fa-sync-alt"></i>
-            <span>تحديث جديد متاح! اضغط لإعادة التحميل</span>
-            <button onclick="location.reload()" style="background: white; color: #1e40af; border: none; padding: 4px 12px; border-radius: 20px; cursor: pointer;">تحديث</button>
+            <i class="fas fa-sync-alt fa-spin"></i>
+            <span>🔄 تحديث جديد متاح!</span>
+            <button onclick="applyUpdate()" style="background: white; color: #1e40af; border: none; padding: 6px 16px; border-radius: 20px; cursor: pointer; font-weight: bold;">
+                تحديث الآن
+            </button>
+            <button onclick="this.parentElement.parentElement.remove()" style="background: none; border: none; color: white; cursor: pointer; font-size: 18px;">
+                ✕
+            </button>
         </div>
     `;
     document.body.appendChild(updateDiv);
-    setTimeout(() => updateDiv.remove(), 10000);
+    
+    // إخفاء الإشعار تلقائياً بعد 15 ثانية
+    setTimeout(() => {
+        if (updateDiv) updateDiv.remove();
+    }, 15000);
+}
+
+// دالة تطبيق التحديث
+async function applyUpdate() {
+    if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (let registration of registrations) {
+            // طلب تحديث فوري
+            registration.update();
+            
+            // العثور على Service Worker المنتظر
+            if (registration.waiting) {
+                registration.waiting.postMessage('skipWaiting');
+            }
+        }
+    }
+    
+    // إخفاء الإشعار
+    const notification = document.getElementById('updateNotification');
+    if (notification) notification.remove();
+    
+    // إظهار رسالة جاري التحديث
+    const loadingMsg = document.createElement('div');
+    loadingMsg.id = 'updateLoadingMsg';
+    loadingMsg.innerHTML = `
+        <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1e40af; color: white; padding: 20px 30px; border-radius: 20px; z-index: 10001; box-shadow: 0 4px 20px rgba(0,0,0,0.3); text-align: center;">
+            <i class="fas fa-sync-alt fa-spin" style="font-size: 30px; margin-bottom: 10px;"></i>
+            <div>🔄 جاري تحديث التطبيق...</div>
+        </div>
+    `;
+    document.body.appendChild(loadingMsg);
+    
+    // إعادة التحميل بعد ثانيتين
+    setTimeout(() => {
+        window.location.reload(true);
+    }, 2000);
 }
 
 // زر تثبيت التطبيق
@@ -3470,8 +3541,11 @@ window.addEventListener('beforeinstallprompt', (e) => {
     deferredPrompt = e;
     console.log('✅ يمكن تثبيت التطبيق');
     
-    // إظهار زر تثبيت مخصص بعد 2 ثانية
+    // إظهار زر تثبيت مخصص
     setTimeout(() => {
+        // التحقق من عدم وجود الزر بالفعل
+        if (document.getElementById('installButton')) return;
+        
         const installBtn = document.createElement('div');
         installBtn.id = 'installButton';
         installBtn.innerHTML = `
@@ -3491,6 +3565,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
         };
         document.body.appendChild(installBtn);
         
+        // إخفاء الزر بعد 30 ثانية
         setTimeout(() => {
             if (installBtn) installBtn.remove();
         }, 30000);
@@ -3518,18 +3593,45 @@ function checkOnlineStatus() {
 
 // إشعار وضع عدم الاتصال
 function showOfflineNotification() {
+    // إزالة الإشعار القديم إذا وجد
+    const oldOffline = document.getElementById('offlineNotification');
+    if (oldOffline) oldOffline.remove();
+    
     const offlineDiv = document.createElement('div');
     offlineDiv.id = 'offlineNotification';
     offlineDiv.innerHTML = `
         <div style="position: fixed; top: 70px; left: 20px; right: 20px; background: #ef4444; color: white; padding: 10px; border-radius: 12px; text-align: center; z-index: 10000; display: flex; align-items: center; justify-content: center; gap: 10px;">
             <i class="fas fa-wifi-slash"></i>
             <span>لا يوجد اتصال بالإنترنت. سيتم حفظ البيانات محلياً والمزامنة تلقائياً عند استعادة الاتصال.</span>
+            <button onclick="this.parentElement.parentElement.remove()" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 4px 8px; border-radius: 20px; cursor: pointer;">إغلاق</button>
         </div>
     `;
     document.body.appendChild(offlineDiv);
+    
+    // إخفاء تلقائياً بعد 8 ثواني
     setTimeout(() => {
         if (offlineDiv) offlineDiv.remove();
-    }, 5000);
+    }, 8000);
+}
+
+// مسح الكاش القديم
+async function clearOldCaches() {
+    if ('caches' in window) {
+        try {
+            const cacheKeys = await caches.keys();
+            const currentVersion = Date.now();
+            
+            for (const key of cacheKeys) {
+                // مسح الكاشات القديمة
+                if (key.includes('clinicpro') && !key.includes(currentVersion.toString())) {
+                    console.log('🗑️ Deleting old cache:', key);
+                    await caches.delete(key);
+                }
+            }
+        } catch (error) {
+            console.log('Error clearing caches:', error);
+        }
+    }
 }
 
 // الاستماع لتغيير حالة الاتصال
@@ -3537,7 +3639,20 @@ window.addEventListener('online', () => {
     console.log('🔄 Connection restored');
     const offlineDiv = document.getElementById('offlineNotification');
     if (offlineDiv) offlineDiv.remove();
-    syncAllDataWithServer();
+    
+    // مزامنة البيانات عند استعادة الاتصال
+    if (typeof syncAllDataWithServer === 'function') {
+        syncAllDataWithServer();
+    }
+    
+    // التحقق من تحديثات Service Worker
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+            registrations.forEach(registration => {
+                registration.update();
+            });
+        });
+    }
 });
 
 window.addEventListener('offline', () => {
@@ -3545,8 +3660,28 @@ window.addEventListener('offline', () => {
     showOfflineNotification();
 });
 
+// مسح الكاش القديم عند تحميل الصفحة
+clearOldCaches();
+
 // التحقق من الحالة عند تحميل الصفحة
 checkOnlineStatus();
+
+// تحديث الصفحة تلقائياً عند العودة من الخلفية
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && navigator.onLine) {
+        console.log('🔄 Page visible, checking for updates...');
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+                registrations.forEach(registration => {
+                    registration.update();
+                });
+            });
+        }
+        if (typeof syncAllDataWithServer === 'function') {
+            syncAllDataWithServer();
+        }
+    }
+});
     </script>
 </body>
 </html>
