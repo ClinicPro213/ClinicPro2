@@ -1139,6 +1139,161 @@ div {
 .subscription-btn:hover {
     background: linear-gradient(135deg, #d97706, #b45309);
 }
+        /* ============ صور المرضى ============ */
+.patient-images-section {
+    background: #fff;
+    border-radius: 20px;
+    padding: 16px;
+    margin: 15px 0;
+}
+
+.images-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.image-card {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    aspect-ratio: 1;
+    background: #f1f5f9;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.image-card:hover {
+    transform: scale(1.05);
+}
+
+.image-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.image-actions {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    display: flex;
+    gap: 5px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.image-card:hover .image-actions {
+    opacity: 1;
+}
+
+.image-delete {
+    background: rgba(239, 68, 68, 0.9);
+    border: none;
+    color: white;
+    padding: 5px 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.image-badge {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    background: rgba(0,0,0,0.6);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 20px;
+    font-size: 10px;
+}
+
+.add-image-btn {
+    background: #f1f5f9;
+    border: 2px dashed #cbd5e1;
+    border-radius: 12px;
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.add-image-btn:hover {
+    border-color: #3b82f6;
+    background: #eff6ff;
+}
+
+.add-image-btn i {
+    font-size: 32px;
+    color: #64748b;
+}
+
+.add-image-btn span {
+    font-size: 12px;
+    color: #64748b;
+}
+
+/* نافذة عرض الصورة المكبرة */
+.image-viewer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.95);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.image-viewer img {
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+}
+
+.image-viewer-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    font-size: 30px;
+    cursor: pointer;
+    padding: 10px;
+    border-radius: 50%;
+}
+
+/* نافذة إضافة صورة */
+.add-image-modal {
+    max-width: 500px;
+}
+
+.image-preview {
+    margin-top: 15px;
+    text-align: center;
+}
+
+.image-preview img {
+    max-width: 100%;
+    max-height: 200px;
+    border-radius: 12px;
+}
+
+@media (max-width: 768px) {
+    .images-grid {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 8px;
+    }
+}
         /* Subscription Alert - ثابت في أسفل الصفحة */
 .subscription-alert {
     position: fixed;
@@ -1455,6 +1610,29 @@ div {
     </div>
 
     <div id="patientDetailsModal" class="modal" style="display:none"></div>
+    <!-- Add Image Modal -->
+<div id="addImageModal" class="modal">
+    <div class="modal-content add-image-modal">
+        <div class="modal-header">
+            <h3>إضافة صورة للمريض</h3>
+            <button class="close-btn" onclick="closeModal('addImageModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="input-group">
+                <label>اختر صورة</label>
+                <input type="file" id="imageFileInput" accept="image/*" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px">
+            </div>
+            <div class="input-group">
+                <label>وصف الصورة (اختياري)</label>
+                <input type="text" id="imageCaption" placeholder="مثلاً: صورة قبل العلاج" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px">
+            </div>
+            <div id="imagePreview" class="image-preview" style="display:none">
+                <img id="previewImg" src="">
+            </div>
+            <button class="btn" onclick="savePatientImage()" style="width:100%;margin-top:15px">حفظ الصورة</button>
+        </div>
+    </div>
+</div>
 </div>
 
 <script>
@@ -2168,7 +2346,6 @@ function showAddPatientModal(){document.getElementById('modalTitle').textContent
 function editPatient(id){const p=allPatients.find(p=>p._id===id);if(p){document.getElementById('modalTitle').textContent='تعديل مريض';document.getElementById('patientId').value=p._id;document.getElementById('patientName').value=p.name;document.getElementById('patientPhone').value=p.phone||'';document.getElementById('patientAge').value=p.age;document.getElementById('patientAddress').value=p.address||'';document.getElementById('patientNotes').value=p.notes||'';document.getElementById('patientModal').style.display='flex';}}
 async function showPatientFullDetails(pid) {
     try {
-        // البحث عن المريض في القائمة
         const patient = allPatients.find(p => p._id === pid);
         if (!patient) {
             showAlert('dashboardAlert', 'المريض غير موجود', 'error');
@@ -2177,54 +2354,38 @@ async function showPatientFullDetails(pid) {
         
         const isOfflinePatient = patient.pendingSync === true || patient.offline === true;
         
-        // جلب المعالجات من localStorage أولاً (المعالجات المحلية)
+        // جلب المعالجات
         const localTreatments = JSON.parse(localStorage.getItem(`offline_treatments_${currentUser.id}`) || '[]');
         let treatments = localTreatments.filter(t => t.patientId === pid);
         
-        // إذا كان متصل بالإنترنت، جلب من السيرفر ودمج
         let serverTreatments = [];
         if (navigator.onLine) {
             try {
                 const r = await fetch(`/api/treatments/patient/${pid}`);
-                if (r.ok) {
-                    serverTreatments = await r.json();
-                }
-            } catch (e) {
-                console.log('Cannot fetch from server, using local only');
-            }
+                if (r.ok) serverTreatments = await r.json();
+            } catch (e) {}
         }
         
-        // دمج المعالجات (المحلية أولاً)
-        // دمج المعالجات مع إزالة التكرار (باستخدام الـ id)
-const allTreatmentsMap = new Map();
-// أضف المعالجات المحلية أولاً
-treatments.forEach(t => allTreatmentsMap.set(t._id, t));
-// أضف معالجات السيرفر مع تجنب التكرار
-serverTreatments.forEach(t => {
-    if (!allTreatmentsMap.has(t._id)) {
-        allTreatmentsMap.set(t._id, t);
-    }
-});
-const allTreatments = Array.from(allTreatmentsMap.values());
-allTreatments.sort((a, b) => new Date(b.treatmentDate) - new Date(a.treatmentDate));
-
+        const allTreatmentsMap = new Map();
+        treatments.forEach(t => allTreatmentsMap.set(t._id, t));
+        serverTreatments.forEach(t => {
+            if (!allTreatmentsMap.has(t._id)) allTreatmentsMap.set(t._id, t);
+        });
+        const allTreatments = Array.from(allTreatmentsMap.values());
+        allTreatments.sort((a, b) => new Date(b.treatmentDate) - new Date(a.treatmentDate));
         
-        // حساب الإجماليات
         let totalCost = 0, totalPaid = 0;
         let treatmentsHtml = '';
         
         allTreatments.forEach(t => {
             const cost = t.cost || 0;
             let paid = 0;
-            
-            // استخراج المدفوع من الملاحظات إذا كان من السيرفر
             if (t.notes && !t.paid) {
                 const match = t.notes.match(/المدفوع:\s*([\d.]+)/);
                 if (match) paid = parseFloat(match[1]);
             } else {
                 paid = t.paid || 0;
             }
-            
             totalCost += cost;
             totalPaid += paid;
             
@@ -2236,7 +2397,6 @@ allTreatments.sort((a, b) => new Date(b.treatmentDate) - new Date(a.treatmentDat
                     ${isOffline ? '<span style="background:#f59e0b; font-size:10px; padding:2px 6px; border-radius:20px; margin-right:8px;">📴 مؤقت</span>' : ''}
                     <br>💰 ${cost} ريال | 💵 ${paid} ريال
                     <br><small>📅 ${new Date(t.treatmentDate).toLocaleDateString('ar-EG')}</small>
-                    ${isOffline ? '<br><small style="color:#f59e0b;"><i class="fas fa-sync-alt"></i> في انتظار المزامنة</small>' : ''}
                 </div>
             `;
         });
@@ -2244,7 +2404,7 @@ allTreatments.sort((a, b) => new Date(b.treatmentDate) - new Date(a.treatmentDat
         const remaining = totalCost - totalPaid;
         
         const modalHtml = `
-            <div class="modal-content" style="max-width:600px;">
+            <div class="modal-content" style="max-width:650px;">
                 <div class="modal-header">
                     <h3>${escapeHtml(patient.name)} ${isOfflinePatient ? '<span style="background:#f59e0b;font-size:12px;padding:2px 8px;border-radius:20px">📴 مؤقت</span>' : ''}</h3>
                     <button class="close-btn" onclick="closeModal('patientDetailsModal')">&times;</button>
@@ -2254,11 +2414,21 @@ allTreatments.sort((a, b) => new Date(b.treatmentDate) - new Date(a.treatmentDat
                         <p><strong>📞 الهاتف:</strong> ${escapeHtml(patient.phone || 'غير محدد')}</p>
                         <p><strong>📅 العمر:</strong> ${patient.age} سنة</p>
                         <p><strong>📍 العنوان:</strong> ${escapeHtml(patient.address || 'غير محدد')}</p>
-                        ${isOfflinePatient ? '<p style="color:#f59e0b;"><i class="fas fa-sync-alt"></i> هذا المريض تم إضافته بدون إنترنت وسيتم مزامنته تلقائياً عند استعادة الاتصال</p>' : ''}
+                    </div>
+                    
+                    <!-- قسم الصور الجديد -->
+                    <div class="patient-images-section">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                            <h4>📸 صور المريض</h4>
+                            <button class="btn" style="width:auto; padding:6px 12px; font-size:12px;" onclick="openAddImageModal('${patient._id}')">
+                                <i class="fas fa-plus"></i> إضافة صورة
+                            </button>
+                        </div>
+                        <div id="imagesContainer_${patient._id}"></div>
                     </div>
                     
                     <h4>🦷 سجل المعالجات (${allTreatments.length})</h4>
-                    <div style="max-height:350px; overflow-y:auto; margin-bottom:20px;">
+                    <div style="max-height:300px; overflow-y:auto; margin-bottom:20px;">
                         ${treatmentsHtml || '<p style="text-align:center;padding:20px;">لا توجد معالجات مسجلة</p>'}
                     </div>
                     
@@ -2271,7 +2441,7 @@ allTreatments.sort((a, b) => new Date(b.treatmentDate) - new Date(a.treatmentDat
                     <div style="display:flex; gap:10px; flex-wrap:wrap;">
                         <button class="btn" onclick="closeModal('patientDetailsModal'); editPatient('${patient._id}')" style="flex:1;">تعديل</button>
                         <button class="btn btn-secondary" onclick="closeModal('patientDetailsModal'); showTreatmentModal('${patient._id}')" style="flex:1;">إضافة معالجة</button>
-                        <button class="btn btn-whatsapp" onclick="sharePatientReport('${patient._id}')" style="flex:1;">مشاركة</button>
+                        <button class="btn btn-whatsapp" onclick="sharePatientWithImages('${patient._id}')" style="flex:1;">مشاركة مع الصور</button>
                     </div>
                 </div>
             </div>
@@ -2287,6 +2457,9 @@ allTreatments.sort((a, b) => new Date(b.treatmentDate) - new Date(a.treatmentDat
         }
         modal.innerHTML = modalHtml;
         modal.style.display = 'flex';
+        
+        // عرض الصور بعد تحميل النافذة
+        renderPatientImages(pid);
         
     } catch (error) {
         console.error('Error showing patient details:', error);
@@ -2413,6 +2586,9 @@ async function login() {
         }
     }
 }
+
+
+
 async function loadDashboard() {
     const uid = localStorage.getItem('userId');
     if (!uid) {
@@ -2455,18 +2631,50 @@ async function loadDashboard() {
             document.getElementById('adminBtn').style.display = 'block';
         }
         
+        // تحديث زر الاشتراك
+        const subBtn = document.getElementById('subscriptionBtn');
+        if (subBtn) {
+            if (currentUser.role === 'admin' || currentUser.isSubscribed) {
+                subBtn.style.display = 'none';
+            } else {
+                subBtn.style.display = 'flex';
+            }
+        }
+        
         // إذا كان هناك إنترنت، حاول التحديث من السيرفر
         if (navigator.onLine) {
             try {
                 const r = await fetch(`/api/user/${uid}`);
                 if (r.ok) {
-                    const data = await r.json();
-                    currentUser = data.user;
+                    const userData = await r.json();
+                    currentUser = userData.user;
                     localStorage.setItem(`offline_data_${uid}`, JSON.stringify({
                         user: currentUser,
                         patients: allPatients,
                         savedAt: new Date().toISOString()
                     }));
+                    
+                    // تحديث الواجهة بعد تحديث بيانات المستخدم
+                    document.getElementById('userNameDisplay').textContent = currentUser.fullName || currentUser.username;
+                    if (currentUser.role === 'admin') {
+                        document.getElementById('subscriptionBadge').innerHTML = '👑 مدير';
+                        document.getElementById('subscriptionBadge').className = 'subscription-badge subscription-active';
+                    } else if (currentUser.isSubscribed) {
+                        document.getElementById('subscriptionBadge').innerHTML = '✨ مشترك';
+                        document.getElementById('subscriptionBadge').className = 'subscription-badge subscription-active';
+                    } else {
+                        document.getElementById('subscriptionBadge').innerHTML = '📊 مجاني';
+                        document.getElementById('subscriptionBadge').className = 'subscription-badge subscription-inactive';
+                    }
+                    
+                    // تحديث زر الاشتراك بعد تحديث البيانات
+                    if (subBtn) {
+                        if (currentUser.role === 'admin' || currentUser.isSubscribed) {
+                            subBtn.style.display = 'none';
+                        } else {
+                            subBtn.style.display = 'flex';
+                        }
+                    }
                 }
                 
                 // تحديث المرضى من السيرفر
@@ -2478,16 +2686,23 @@ async function loadDashboard() {
                     const pendingOffline = offlinePatients.filter(p => p.pendingSync === true);
                     allPatients = [...pendingOffline, ...serverPatients];
                     renderPatients(allPatients);
+                    document.getElementById('totalPatients').textContent = allPatients.length;
                     saveAllDataToLocal();
                 }
+                
+                // مزامنة الصور مع السيرفر
+                if (typeof syncPatientImagesToServer === 'function') {
+                    await syncPatientImagesToServer();
+                }
+                
             } catch (e) {
                 console.log('Using cached data only');
             }
         }
         
-        // التحقق من حالة الاتصال
-checkConnectionStatus();
-checkPatientLimit();  // هذا السطر مهم جداً
+        // التحقق من حالة الاتصال والحد الأقصى للمرضى
+        checkConnectionStatus();
+        checkPatientLimit();
         return;
     }
     
@@ -2496,7 +2711,8 @@ checkPatientLimit();  // هذا السطر مهم جداً
         try {
             const r = await fetch(`/api/user/${uid}`);
             if (r.ok) {
-                currentUser = (await r.json()).user;
+                const userData = await r.json();
+                currentUser = userData.user;
                 localStorage.setItem(`offline_data_${uid}`, JSON.stringify({
                     user: currentUser,
                     patients: [],
@@ -2544,10 +2760,26 @@ checkPatientLimit();  // هذا السطر مهم جداً
         document.getElementById('adminBtn').style.display = 'block';
     }
     
+    // تحديث زر الاشتراك
+    const subBtn = document.getElementById('subscriptionBtn');
+    if (subBtn) {
+        if (currentUser.role === 'admin' || currentUser.isSubscribed) {
+            subBtn.style.display = 'none';
+        } else {
+            subBtn.style.display = 'flex';
+        }
+    }
+    
     await loadStats();
-checkConnectionStatus();
-checkPatientLimit();
-}
+    checkConnectionStatus();
+    checkPatientLimit();
+    
+    // مزامنة الصور إذا كان هناك إنترنت
+    if (navigator.onLine && typeof syncPatientImagesToServer === 'function') {
+        await syncPatientImagesToServer();
+    }
+    }
+    
     // مزامنة جميع البيانات المحلية مع السيرفر
 async function syncAllOfflineData() {
     if (!navigator.onLine || !currentUser) {
@@ -2718,7 +2950,7 @@ window.onload = () => {
     }
     checkConnectionStatus();
 };
-    // ============ المزامنة التلقائية مع السيرفر ============
+// ============ المزامنة التلقائية مع السيرفر ============
 
 // المزامنة الكاملة - تحفظ البيانات المحلية وترفعها للسيرفر
 async function syncAllDataWithServer() {
@@ -2734,8 +2966,12 @@ async function syncAllDataWithServer() {
     let syncedPatients = 0;
     let failedPatients = [];
     let syncedTreatments = 0;
+    let syncedImages = 0;
     
-    // 1. مزامنة المرضى المحليين
+    // 1. مزامنة الصور
+    await syncPatientImagesToServer();
+    
+    // 2. مزامنة المرضى المحليين
     const offlinePatients = JSON.parse(localStorage.getItem(`offline_patients_${currentUser.id}`) || '[]');
     const pendingPatients = offlinePatients.filter(p => p.pendingSync === true);
     
@@ -2780,13 +3016,12 @@ async function syncAllDataWithServer() {
     
     // تحديث قائمة المرضى المحليين
     if (syncedPatients > 0) {
-        // احتفظ بالمرضى الذين لم تتم مزامنتهم
         const remainingPatients = offlinePatients.filter(p => !p.pendingSync || failedPatients.includes(p));
         localStorage.setItem(`offline_patients_${currentUser.id}`, JSON.stringify(remainingPatients));
         console.log(`🗑️ Removed ${syncedPatients} synced patients from local storage`);
     }
     
-    // 2. مزامنة المعالجات المحلية
+    // 3. مزامنة المعالجات المحلية
     const offlineTreatments = JSON.parse(localStorage.getItem(`offline_treatments_${currentUser.id}`) || '[]');
     const pendingTreatments = offlineTreatments.filter(t => t.pendingSync === true);
     
@@ -2840,16 +3075,22 @@ async function syncAllDataWithServer() {
         localStorage.setItem(`offline_treatments_${currentUser.id}`, JSON.stringify(remainingTreatments));
     }
     
-    // 3. إعادة تحميل البيانات من السيرفر
-    if (syncedPatients > 0 || syncedTreatments > 0) {
+    // 4. مزامنة الصور (استدعاء إضافي للتأكيد)
+    await syncPatientImagesToServer();
+    
+    // 5. إعادة تحميل البيانات من السيرفر
+    if (syncedPatients > 0 || syncedTreatments > 0 || syncedImages > 0) {
         await loadPatients();
         renderPatients(allPatients);
         saveAllDataToLocal();
         
+        let message = `✅ تمت المزامنة: ${syncedPatients} مريض, ${syncedTreatments} معالجة`;
+        if (syncedImages > 0) message += `, ${syncedImages} صورة`;
+        
         if (failedPatients.length > 0) {
-            showAlert('dashboardAlert', `⚠️ تمت المزامنة جزئياً: ${syncedPatients} مريض ناجح، ${failedPatients.length} في انتظار إعادة المحاولة`, 'warning');
+            showAlert('dashboardAlert', `⚠️ تمت المزامنة جزئياً: ${message}`, 'warning');
         } else {
-            showAlert('dashboardAlert', `✅ تمت المزامنة: ${syncedPatients} مريض، ${syncedTreatments} معالجة`, 'success');
+            showAlert('dashboardAlert', message, 'success');
         }
     } else {
         showAlert('dashboardAlert', '✅ لا توجد بيانات جديدة للمزامنة', 'success');
@@ -2858,9 +3099,8 @@ async function syncAllDataWithServer() {
     // إزالة وضع Offline إذا كان موجوداً
     document.body.classList.remove('offline-mode');
     
-    return syncedPatients > 0 || syncedTreatments > 0;
+    return syncedPatients > 0 || syncedTreatments > 0 || syncedImages > 0;
 }
-
 // ============ المزامنة التلقائية عند استعادة الاتصال ============
 
 // الاستماع لعودة الاتصال بالإنترنت
@@ -2888,6 +3128,238 @@ window.addEventListener('offline', () => {
 
 // التحقق من الحالة عند تحميل الصفحة
 checkConnectionStatus();
+    // ============ إدارة صور المرضى ============
+
+// حفظ الصورة محلياً
+function savePatientImageLocally(patientId, imageData, caption) {
+    let patientImages = JSON.parse(localStorage.getItem(`patient_images_${currentUser.id}`) || '{}');
+    if (!patientImages[patientId]) {
+        patientImages[patientId] = [];
+    }
+    
+    const newImage = {
+        id: 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+        data: imageData,
+        caption: caption || '',
+        createdAt: new Date().toISOString(),
+        pendingSync: true
+    };
+    
+    patientImages[patientId].push(newImage);
+    localStorage.setItem(`patient_images_${currentUser.id}`, JSON.stringify(patientImages));
+    
+    return newImage;
+}
+
+// جلب صور المريض
+function getPatientImages(patientId) {
+    const allImages = JSON.parse(localStorage.getItem(`patient_images_${currentUser.id}`) || '{}');
+    return allImages[patientId] || [];
+}
+
+// حذف صورة
+function deletePatientImage(patientId, imageId) {
+    let patientImages = JSON.parse(localStorage.getItem(`patient_images_${currentUser.id}`) || '{}');
+    if (patientImages[patientId]) {
+        patientImages[patientId] = patientImages[patientId].filter(img => img.id !== imageId);
+        localStorage.setItem(`patient_images_${currentUser.id}`, JSON.stringify(patientImages));
+    }
+    return patientImages[patientId] || [];
+}
+
+// عرض الصور في نافذة التفاصيل
+function renderPatientImages(patientId) {
+    const images = getPatientImages(patientId);
+    const container = document.getElementById(`imagesContainer_${patientId}`);
+    if (!container) return;
+    
+    if (images.length === 0) {
+        container.innerHTML = '<div style="text-align:center;padding:20px;color:#64748b;">📷 لا توجد صور لهذا المريض</div>';
+        return;
+    }
+    
+    container.innerHTML = `
+        <div class="images-grid">
+            ${images.map(img => `
+                <div class="image-card" onclick="viewFullImage('${img.data}')">
+                    <img src="${img.data}" alt="${escapeHtml(img.caption) || 'صورة المريض'}">
+                    <div class="image-actions" onclick="event.stopPropagation()">
+                        <button class="image-delete" onclick="deleteImageConfirm('${patientId}', '${img.id}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    ${img.caption ? `<div class="image-badge">${escapeHtml(img.caption)}</div>` : ''}
+                    ${img.pendingSync ? '<div class="image-badge" style="background:#f59e0b;">📴</div>' : ''}
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+// عرض الصورة مكبرة
+function viewFullImage(imageData) {
+    const viewer = document.createElement('div');
+    viewer.className = 'image-viewer';
+    viewer.onclick = () => viewer.remove();
+    viewer.innerHTML = `
+        <button class="image-viewer-close" onclick="this.parentElement.remove()">&times;</button>
+        <img src="${imageData}" alt="صورة مكبرة">
+    `;
+    document.body.appendChild(viewer);
+}
+
+// تأكيد حذف الصورة
+function deleteImageConfirm(patientId, imageId) {
+    if (confirm('هل أنت متأكد من حذف هذه الصورة؟')) {
+        deletePatientImage(patientId, imageId);
+        renderPatientImages(patientId);
+        showAlert('dashboardAlert', '✅ تم حذف الصورة', 'success');
+    }
+}
+
+// فتح نافذة إضافة صورة
+let currentImagePatientId = null;
+
+function openAddImageModal(patientId) {
+    currentImagePatientId = patientId;
+    document.getElementById('imageFileInput').value = '';
+    document.getElementById('imageCaption').value = '';
+    document.getElementById('imagePreview').style.display = 'none';
+    document.getElementById('addImageModal').style.display = 'flex';
+}
+
+// معاينة الصورة قبل الحفظ
+document.addEventListener('DOMContentLoaded', () => {
+    const fileInput = document.getElementById('imageFileInput');
+    if (fileInput) {
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const preview = document.getElementById('previewImg');
+                    preview.src = e.target.result;
+                    document.getElementById('imagePreview').style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+});
+
+// حفظ الصورة
+async function savePatientImage() {
+    const fileInput = document.getElementById('imageFileInput');
+    const caption = document.getElementById('imageCaption').value;
+    
+    if (!fileInput.files || !fileInput.files[0]) {
+        showAlert('dashboardAlert', 'الرجاء اختيار صورة', 'error');
+        return;
+    }
+    
+    const file = fileInput.files[0];
+    
+    // التحقق من حجم الصورة (حد أقصى 5 ميجابايت)
+    if (file.size > 5 * 1024 * 1024) {
+        showAlert('dashboardAlert', 'حجم الصورة كبير جداً. الحد الأقصى 5 ميجابايت', 'error');
+        return;
+    }
+    
+    showAlert('dashboardAlert', '🔄 جاري حفظ الصورة...', 'success');
+    
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        const imageData = e.target.result;
+        
+        // حفظ محلياً
+        const newImage = savePatientImageLocally(currentImagePatientId, imageData, caption);
+        
+        // تحديث العرض
+        renderPatientImages(currentImagePatientId);
+        
+        closeModal('addImageModal');
+        showAlert('dashboardAlert', '✅ تم حفظ الصورة بنجاح', 'success');
+        
+        // إذا كان هناك إنترنت، حاول المزامنة
+        if (navigator.onLine) {
+            await syncPatientImagesToServer();
+        }
+    };
+    
+    reader.readAsDataURL(file);
+}
+
+// مزامنة الصور مع السيرفر
+async function syncPatientImagesToServer() {
+    if (!navigator.onLine || !currentUser) return;
+    
+    const allImages = JSON.parse(localStorage.getItem(`patient_images_${currentUser.id}`) || '{}');
+    let synced = 0;
+    
+    for (const patientId in allImages) {
+        const pendingImages = allImages[patientId].filter(img => img.pendingSync === true);
+        
+        for (const img of pendingImages) {
+            try {
+                const response = await fetch('/api/patient-images', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        patientId: patientId,
+                        userId: currentUser.id,
+                        imageData: img.data,
+                        caption: img.caption,
+                        imageId: img.id
+                    })
+                });
+                
+                if (response.ok) {
+                    img.pendingSync = false;
+                    synced++;
+                }
+            } catch (e) {
+                console.error('Error syncing image:', e);
+            }
+        }
+    }
+    
+    if (synced > 0) {
+        localStorage.setItem(`patient_images_${currentUser.id}`, JSON.stringify(allImages));
+        showAlert('dashboardAlert', `✅ تمت مزامنة ${synced} صورة مع الخادم`, 'success');
+    }
+}
+
+// مشاركة المريض مع الصور
+async function sharePatientWithImages(patientId) {
+    const patient = allPatients.find(p => p._id === patientId);
+    if (!patient) return;
+    
+    const images = getPatientImages(patientId);
+    
+    let message = `*🦷 بيانات المريض - ${patient.name}*\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+    message += `👤 الاسم: ${patient.name}\n`;
+    message += `📞 الهاتف: ${patient.phone || 'غير مسجل'}\n`;
+    message += `📅 العمر: ${patient.age} سنة\n`;
+    message += `📍 العنوان: ${patient.address || 'غير مسجل'}\n`;
+    message += `📝 ملاحظات: ${patient.notes || 'لا توجد'}\n`;
+    message += `\n📸 عدد الصور: ${images.length} صورة\n`;
+    message += `\n🦷 *ClinicPro - نظام إدارة عيادات الأسنان*`;
+    
+    if (images.length > 0) {
+        message += `\n\n*ملاحظة:* تم إرفاق ${images.length} صورة مع هذا التقرير`;
+    }
+    
+    window.open(`https://wa.me/${patient.phone || '967773041464'}?text=${encodeURIComponent(message)}`, '_blank');
+    
+    // إذا كان هناك صور، يمكن مشاركتها أيضاً
+    if (images.length > 0 && images[0].data) {
+        setTimeout(() => {
+            showAlert('dashboardAlert', '📸 يمكنك مشاركة الصور بشكل منفصل عبر واتساب', 'info');
+        }, 1000);
+    }
+}
+    
 </script>
     <script>
 // ============ PWA ============
