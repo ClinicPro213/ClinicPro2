@@ -1,4 +1,4 @@
-const CACHE_NAME = 'clinicpro-v2';
+const CACHE_NAME = 'clinicpro-v2.1';
 const STATIC_CACHE = 'clinicpro-static-v2';
 const DYNAMIC_CACHE = 'clinicpro-dynamic-v2';
 
