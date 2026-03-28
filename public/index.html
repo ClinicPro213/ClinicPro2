@@ -3259,15 +3259,13 @@ async function savePatientImage() {
     
     const file = fileInput.files[0];
     
-    // عرض رسالة جاري الضغط
-    showAlert('dashboardAlert', '🔄 جاري معالجة الصورة وضغطها...', 'success');
+    showAlert('dashboardAlert', '🔄 جاري معالجة الصورة...', 'success');
     
     try {
-        // ضغط الصورة (الحد الأقصى 1 ميجابايت)
-        const compressedImageData = await compressImage(file, 1, 0.7);
+        const compressedImageData = await compressImage(file, 1);
         
         // حفظ محلياً
-        const newImage = savePatientImageLocally(currentImagePatientId, compressedImageData, caption);
+        savePatientImageLocally(currentImagePatientId, compressedImageData, caption);
         
         // تحديث العرض
         renderPatientImages(currentImagePatientId);
@@ -3275,14 +3273,20 @@ async function savePatientImage() {
         closeModal('addImageModal');
         showAlert('dashboardAlert', '✅ تم حفظ الصورة بنجاح', 'success');
         
-        // إذا كان هناك إنترنت، حاول المزامنة
+        // ===== مهم: المزامنة مع السيرفر إذا كان هناك إنترنت =====
         if (navigator.onLine) {
+            // مزامنة فورية
             await syncPatientImagesToServer();
+            // تحديث العرض مرة أخرى لإزالة أيقونة 📴
+            renderPatientImages(currentImagePatientId);
+            showAlert('dashboardAlert', '✅ تمت مزامنة الصورة مع الخادم', 'success');
+        } else {
+            showAlert('dashboardAlert', '📴 تم حفظ الصورة محلياً - ستتم المزامنة عند استعادة الاتصال', 'warning');
         }
         
     } catch (error) {
-        console.error('Error compressing image:', error);
-        showAlert('dashboardAlert', '❌ فشل في معالجة الصورة. حاول مرة أخرى.', 'error');
+        console.error('Error:', error);
+        showAlert('dashboardAlert', '❌ فشل في معالجة الصورة', 'error');
     }
 }
 
