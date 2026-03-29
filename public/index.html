@@ -1634,7 +1634,73 @@ div {
     </div>
 </div>
 </div>
-
+<script>
+// حماية شاملة لـ iPhone/Safari من مشاكل PWA
+(function() {
+    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+    
+    if (isIOS || isSafari) {
+        console.log('🍎 iOS/Safari detected - PWA features disabled');
+        
+        // 1. إلغاء Service Worker فوراً
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                registrations.forEach(function(reg) {
+                    reg.unregister();
+                    console.log('SW unregistered for iOS');
+                });
+            });
+            
+            // منع أي تسجيل جديد للـ SW
+            const originalRegister = navigator.serviceWorker.register;
+            navigator.serviceWorker.register = function() {
+                console.log('SW registration blocked on iOS');
+                return Promise.reject(new Error('SW disabled on iOS'));
+            };
+        }
+        
+        // 2. إزالة manifest.json
+        const manifestLink = document.querySelector('link[rel="manifest"]');
+        if (manifestLink) {
+            manifestLink.remove();
+        }
+        
+        // 3. إزالة أي metatags خاصة بـ PWA
+        const metaTags = document.querySelectorAll('meta[name="apple-mobile-web-app-capable"], meta[name="mobile-web-app-capable"]');
+        metaTags.forEach(tag => tag.remove());
+        
+        // 4. التأكد من ظهور الصفحة
+        setTimeout(function() {
+            if (document.getElementById('loginPage')) {
+                document.getElementById('loginPage').style.display = 'block';
+            }
+        }, 100);
+    } else {
+        console.log('🤖 Android/Other - PWA features enabled');
+        // على Android، يمكن تثبيت التطبيق
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            
+            // إظهار زر التثبيت
+            const installBtn = document.createElement('div');
+            installBtn.innerHTML = '<button style="position:fixed;bottom:20px;left:20px;background:#10b981;color:white;border:none;padding:12px 20px;border-radius:50px;z-index:10000;cursor:pointer"><i class="fas fa-download"></i> تثبيت التطبيق</button>';
+            installBtn.onclick = async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    deferredPrompt = null;
+                    installBtn.remove();
+                }
+            };
+            document.body.appendChild(installBtn);
+        });
+    }
+})();
+</script>
+    
 <script>
             
     // ============ OFFLINE SYSTEM ============
