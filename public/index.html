@@ -3561,18 +3561,8 @@ async function compressImage(file, maxSizeMB = 1, quality = 0.7) {
     
 </script>
     <script>
-// ============ تسجيل Service Worker فقط على Android ============
-if ('serviceWorker' in navigator && /Android/i.test(navigator.userAgent)) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-            .then(registration => {
-                console.log('✅ Service Worker registered on Android');
-            })
-            .catch(error => {
-                console.log('❌ Service Worker registration failed:', error);
-            });
-    });
-}
+// ============ Service Worker معطل نهائياً ============
+console.log('Service Worker disabled for compatibility');
 /*
 // إشعار التحديث المحسن
 function showUpdateNotification() {
