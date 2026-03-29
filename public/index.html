@@ -29,6 +29,26 @@ href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
 
 </head>
 <body>
+    <script>
+    // كشف الأخطاء وعرضها على الشاشة
+    window.onerror = function(message, source, lineno, colno, error) {
+        var errorDiv = document.getElementById('errorDisplay') || (function() {
+            var div = document.createElement('div');
+            div.id = 'errorDisplay';
+            div.style.cssText = 'position:fixed; top:0; left:0; right:0; background:red; color:white; padding:10px; z-index:99999; font-size:12px; white-space:pre-wrap; word-break:break-all;';
+            document.body.appendChild(div);
+            return div;
+        })();
+        errorDiv.innerHTML = '❌ خطأ: ' + message + '<br>' + (error ? error.stack : '');
+        console.error(message, source, lineno, colno, error);
+        return false;
+    };
+    
+    // عرض معلومات النظام
+    console.log('iOS Version:', navigator.userAgent);
+    console.log('Platform:', navigator.platform);
+    </script>
+    
 <div class="container">
     <!-- Login Page -->
     <div id="loginPage" class="auth-card">
