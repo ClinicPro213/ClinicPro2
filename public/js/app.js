@@ -1,3 +1,8 @@
+
+window.onerror = function(message, source, lineno, colno, error) {
+    alert(`Error: ${message}\nSource: ${source}\nLine: ${lineno}:${colno}`);
+};
+
 // ============ PWA: يعمل فقط على Android ============
 (function() {
     const isAndroid = /Android/i.test(navigator.userAgent);
