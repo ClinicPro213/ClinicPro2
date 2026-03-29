@@ -55,6 +55,29 @@ const patientSchema = new mongoose.Schema({
 
 const Patient = mongoose.model('Patient', patientSchema);
 
+// ============ NOTIFICATION SCHEMA ============
+const notificationSchema = new mongoose.Schema({
+    title: { type: String, required: true },
+    body: { type: String, required: true },
+    type: { type: String, enum: ['info', 'success', 'warning', 'danger'], default: 'info' },
+    targetUsers: { type: String, enum: ['all', 'specific'], default: 'all' },
+    userIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // للمستخدمين المحددين
+    sentBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    sentByName: { type: String },
+    createdAt: { type: Date, default: Date.now }
+});
+
+// ============ USER NOTIFICATION READ STATUS ============
+const userNotificationSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    notificationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Notification', required: true },
+    read: { type: Boolean, default: false },
+    readAt: { type: Date },
+    createdAt: { type: Date, default: Date.now }
+});
+
+const Notification = mongoose.model('Notification', notificationSchema);
+const UserNotification = mongoose.model('UserNotification', userNotificationSchema);
 // Treatment Schema
 const treatmentSchema = new mongoose.Schema({
     patientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Patient' },
@@ -225,6 +248,180 @@ app.get('/api/user/:userId', async (req, res) => {
     } catch (error) {
         console.error('Error fetching user:', error);
         res.status(500).json({ message: 'خطأ في جلب بيانات المستخدم: ' + error.message });
+    }
+});
+
+// ============ NOTIFICATION ROUTES ============
+
+// إرسال إشعار (للمدير فقط)
+app.post('/api/notifications', async (req, res) => {
+    try {
+        const { title, body, type, targetUsers, userIds, senderId } = req.body;
+        
+        // التحقق من صلاحيات المدير
+        const sender = await User.findById(senderId);
+        if (!sender || sender.role !== 'admin') {
+            return res.status(403).json({ message: 'غير مصرح لك بإرسال الإشعارات' });
+        }
+        
+        // إنشاء الإشعار
+        const notification = new Notification({
+            title,
+            body,
+            type: type || 'info',
+            targetUsers: targetUsers || 'all',
+            userIds: targetUsers === 'specific' ? userIds : [],
+            sentBy: senderId,
+            sentByName: sender.fullName,
+            createdAt: new Date()
+        });
+        
+        await notification.save();
+        
+        // تحديد المستخدمين المستهدفين
+        let targetUserIds = [];
+        if (targetUsers === 'all') {
+            const allUsers = await User.find({ role: 'user' }); // فقط المستخدمين العاديين
+            targetUserIds = allUsers.map(u => u._id);
+        } else if (targetUsers === 'specific' && userIds && userIds.length > 0) {
+            targetUserIds = userIds;
+        }
+        
+        // إنشاء سجلات القراءة لكل مستخدم
+        const userNotifications = targetUserIds.map(userId => ({
+            userId,
+            notificationId: notification._id,
+            read: false,
+            createdAt: new Date()
+        }));
+        
+        await UserNotification.insertMany(userNotifications);
+        
+        console.log(`✅ Notification sent: "${title}" to ${targetUserIds.length} users`);
+        
+        res.json({ 
+            success: true, 
+            notification: notification,
+            recipientCount: targetUserIds.length
+        });
+        
+    } catch (error) {
+        console.error('Error sending notification:', error);
+        res.status(500).json({ message: 'خطأ في إرسال الإشعار' });
+    }
+});
+
+// جلب إشعارات المستخدم الحالي
+app.get('/api/notifications/user/:userId', async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({ message: 'معرف المستخدم غير صالح' });
+        }
+        
+        // جلب إشعارات المستخدم مع تفاصيل الإشعار
+        const userNotifications = await UserNotification.find({ userId: userId })
+            .populate('notificationId')
+            .sort({ createdAt: -1 });
+        
+        // تنسيق البيانات
+        const notifications = userNotifications.map(un => ({
+            id: un.notificationId._id,
+            title: un.notificationId.title,
+            body: un.notificationId.body,
+            type: un.notificationId.type,
+            createdAt: un.notificationId.createdAt,
+            read: un.read,
+            readAt: un.readAt,
+            sentByName: un.notificationId.sentByName
+        }));
+        
+        // حساب عدد غير المقروء
+        const unreadCount = notifications.filter(n => !n.read).length;
+        
+        res.json({
+            success: true,
+            notifications: notifications,
+            unreadCount: unreadCount
+        });
+        
+    } catch (error) {
+        console.error('Error fetching notifications:', error);
+        res.status(500).json({ message: 'خطأ في جلب الإشعارات' });
+    }
+});
+
+// تعيين إشعار كمقروء
+app.put('/api/notifications/:notificationId/read/:userId', async (req, res) => {
+    try {
+        const { notificationId, userId } = req.params;
+        
+        const userNotification = await UserNotification.findOne({
+            userId: userId,
+            notificationId: notificationId
+        });
+        
+        if (!userNotification) {
+            return res.status(404).json({ message: 'الإشعار غير موجود' });
+        }
+        
+        userNotification.read = true;
+        userNotification.readAt = new Date();
+        await userNotification.save();
+        
+        res.json({ success: true });
+        
+    } catch (error) {
+        console.error('Error marking notification as read:', error);
+        res.status(500).json({ message: 'خطأ في تحديث حالة الإشعار' });
+    }
+});
+
+// تعيين كل الإشعارات كمقروءة
+app.put('/api/notifications/read-all/:userId', async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        
+        await UserNotification.updateMany(
+            { userId: userId, read: false },
+            { read: true, readAt: new Date() }
+        );
+        
+        res.json({ success: true });
+        
+    } catch (error) {
+        console.error('Error marking all as read:', error);
+        res.status(500).json({ message: 'خطأ في تحديث الإشعارات' });
+    }
+});
+
+// جلب عدد الإشعارات غير المقروءة (للمستخدم)
+app.get('/api/notifications/unread-count/:userId', async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        
+        const count = await UserNotification.countDocuments({
+            userId: userId,
+            read: false
+        });
+        
+        res.json({ success: true, count: count });
+        
+    } catch (error) {
+        console.error('Error getting unread count:', error);
+        res.json({ success: true, count: 0 });
+    }
+});
+
+// جلب جميع المستخدمين لإرسال الإشعارات (للمدير)
+app.get('/api/admin/users-list', async (req, res) => {
+    try {
+        const users = await User.find({ role: 'user' }).select('_id fullName username');
+        res.json(users);
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).json({ message: 'خطأ في جلب المستخدمين' });
     }
 });
 
