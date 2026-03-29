@@ -3422,54 +3422,24 @@ async function compressImage(file, maxSizeMB = 1, quality = 0.7) {
     
 </script>
     <script>
-// ============ PWA مع تحديث تلقائي ============
+// ============ PWA بدون تحديث تلقائي ============
 
-// تسجيل Service Worker مع تحديث تلقائي
+// تسجيل Service Worker فقط دون تحديث تلقائي
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        // إضافة رقم عشوائي لتجنب الكاش
-        const swVersion = Date.now();
-        navigator.serviceWorker.register(`/sw.js?v=${swVersion}`, { scope: '/' })
+        navigator.serviceWorker.register('/sw.js')
             .then(registration => {
-                console.log('✅ Service Worker registered:', registration.scope, 'Version:', swVersion);
+                console.log('✅ Service Worker registered successfully');
                 
-                // التحقق من وجود تحديثات كل 10 ثواني
-                setInterval(() => {
-                    registration.update();
-                    console.log('🔄 Checking for updates...');
-                }, 10000);
-                
-                // الاستماع لتغييرات Service Worker
-                registration.addEventListener('updatefound', () => {
-                    const newWorker = registration.installing;
-                    console.log('🔄 New Service Worker installing...');
-                    
-                    newWorker.addEventListener('statechange', () => {
-                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            console.log('🔄 New update available!');
-                            showUpdateNotification();
-                        }
-                        
-                        // إذا تم التثبيت بنجاح، قم بالتفعيل فوراً
-                        if (newWorker.state === 'activated') {
-                            console.log('✅ New Service Worker activated, reloading...');
-                            window.location.reload();
-                        }
-                    });
-                });
+                // ✅ تم إزالة setInterval الذي كان يتحقق من التحديثات كل 10 ثواني
+                // ✅ تم إزالة updatefound و controllerchange التي كانت تعيد تحميل الصفحة
             })
             .catch(error => {
                 console.log('❌ Service Worker registration failed:', error);
             });
-        
-        // الاستماع لتغيير الـ Controller (عند تحديث Service Worker)
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-            console.log('🔄 Service Worker controller changed, reloading page...');
-            window.location.reload();
-        });
     });
 }
-
+./*
 // إشعار التحديث المحسن
 function showUpdateNotification() {
     // إزالة أي إشعار قديم
@@ -3535,7 +3505,7 @@ async function applyUpdate() {
 }
     
     // إعادة التحميل بعد ثانيتين
-    
+    */.
 // زر تثبيت التطبيق
 let deferredPrompt;
 window.addEventListener('beforeinstallprompt', (e) => {
