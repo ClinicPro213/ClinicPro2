@@ -5,27 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#1e40af">
     
-    <!-- PWA Meta Tags -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="ClinicPro">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="ClinicPro">
-    <meta name="msapplication-TileColor" content="#1e40af">
-    <meta name="msapplication-TileImage" content="/icons/icon-144.png">
+    <!-- PWA Meta Tags - معطل على iOS، يعمل فقط على Android -->
+<!--
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ClinicPro">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="ClinicPro">
+<meta name="msapplication-TileColor" content="#1e40af">
+<meta name="msapplication-TileImage" content="/icons/icon-144.png">
     
-    <!-- Favicon (تظهر في علامة تبويب المتصفح) -->
-    <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png">
-    <link rel="shortcut icon" href="/icons/icon-32.png">
+<link rel="manifest" href="/manifest.json">
     
-    <!-- PWA Manifest (ملف تعريف التطبيق) -->
-    <link rel="manifest" href="/manifest.json">
-    
-    <!-- أيقونات iOS -->
-    <link rel="apple-touch-icon" href="/icons/icon-192.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-    
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+-->
     <title>ClinicPro</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -1635,67 +1629,55 @@ div {
 </div>
 </div>
 <script>
-// حماية شاملة لـ iPhone/Safari من مشاكل PWA
+// ============ PWA: يعمل فقط على Android ============
 (function() {
-    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-    const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
     
-    if (isIOS || isSafari) {
-        console.log('🍎 iOS/Safari detected - PWA features disabled');
-        
-        // 1. إلغاء Service Worker فوراً
+    if (isIOS) {
+        console.log('🍎 iOS detected - PWA disabled');
+        // إلغاء أي Service Worker موجود
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                registrations.forEach(function(reg) {
-                    reg.unregister();
-                    console.log('SW unregistered for iOS');
-                });
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+                registrations.forEach(reg => reg.unregister());
             });
-            
-            // منع أي تسجيل جديد للـ SW
-            const originalRegister = navigator.serviceWorker.register;
-            navigator.serviceWorker.register = function() {
-                console.log('SW registration blocked on iOS');
-                return Promise.reject(new Error('SW disabled on iOS'));
-            };
+            // منع تسجيل جديد
+            navigator.serviceWorker.register = () => Promise.reject('SW disabled on iOS');
+        }
+        // إزالة manifest
+        const manifest = document.querySelector('link[rel="manifest"]');
+        if (manifest) manifest.remove();
+    } 
+    else if (isAndroid) {
+        console.log('🤖 Android detected - PWA enabled');
+        // إضافة manifest ديناميكياً
+        if (!document.querySelector('link[rel="manifest"]')) {
+            const link = document.createElement('link');
+            link.rel = 'manifest';
+            link.href = '/manifest.json';
+            document.head.appendChild(link);
         }
         
-        // 2. إزالة manifest.json
-        const manifestLink = document.querySelector('link[rel="manifest"]');
-        if (manifestLink) {
-            manifestLink.remove();
-        }
-        
-        // 3. إزالة أي metatags خاصة بـ PWA
-        const metaTags = document.querySelectorAll('meta[name="apple-mobile-web-app-capable"], meta[name="mobile-web-app-capable"]');
-        metaTags.forEach(tag => tag.remove());
-        
-        // 4. التأكد من ظهور الصفحة
-        setTimeout(function() {
-            if (document.getElementById('loginPage')) {
-                document.getElementById('loginPage').style.display = 'block';
-            }
-        }, 100);
-    } else {
-        console.log('🤖 Android/Other - PWA features enabled');
-        // على Android، يمكن تثبيت التطبيق
+        // زر تثبيت التطبيق على Android
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            
-            // إظهار زر التثبيت
-            const installBtn = document.createElement('div');
-            installBtn.innerHTML = '<button style="position:fixed;bottom:20px;left:20px;background:#10b981;color:white;border:none;padding:12px 20px;border-radius:50px;z-index:10000;cursor:pointer"><i class="fas fa-download"></i> تثبيت التطبيق</button>';
-            installBtn.onclick = async () => {
-                if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    const { outcome } = await deferredPrompt.userChoice;
-                    deferredPrompt = null;
-                    installBtn.remove();
-                }
-            };
-            document.body.appendChild(installBtn);
+            setTimeout(() => {
+                const installBtn = document.createElement('div');
+                installBtn.id = 'androidInstallBtn';
+                installBtn.innerHTML = '<button style="position:fixed;bottom:20px;left:20px;background:#10b981;color:white;border:none;padding:12px 20px;border-radius:50px;z-index:10000;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.2)"><i class="fas fa-download"></i> تثبيت التطبيق</button>';
+                installBtn.onclick = async () => {
+                    if (deferredPrompt) {
+                        deferredPrompt.prompt();
+                        const { outcome } = await deferredPrompt.userChoice;
+                        deferredPrompt = null;
+                        installBtn.remove();
+                    }
+                };
+                document.body.appendChild(installBtn);
+                setTimeout(() => installBtn.remove(), 30000);
+            }, 2000);
         });
     }
 })();
@@ -3579,17 +3561,12 @@ async function compressImage(file, maxSizeMB = 1, quality = 0.7) {
     
 </script>
     <script>
-// ============ PWA بدون تحديث تلقائي ============
-
-// تسجيل Service Worker فقط دون تحديث تلقائي
-if ('serviceWorker' in navigator) {
+// ============ تسجيل Service Worker فقط على Android ============
+if ('serviceWorker' in navigator && /Android/i.test(navigator.userAgent)) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
             .then(registration => {
-                console.log('✅ Service Worker registered successfully');
-                
-                // ✅ تم إزالة setInterval الذي كان يتحقق من التحديثات كل 10 ثواني
-                // ✅ تم إزالة updatefound و controllerchange التي كانت تعيد تحميل الصفحة
+                console.log('✅ Service Worker registered on Android');
             })
             .catch(error => {
                 console.log('❌ Service Worker registration failed:', error);
