@@ -133,14 +133,14 @@ function logout() {
 }
 
 // ============ دالة fetch آمنة مع timeout ============
-function fetchWithTimeout(url, timeout) {
+function fetchWithTimeout(url, options, timeout) {
     timeout = timeout || 8000;
     return new Promise(function(resolve, reject) {
         var timer = setTimeout(function() {
             reject(new Error('Request timeout'));
         }, timeout);
         
-        fetch(url).then(function(response) {
+        fetch(url, options).then(function(response) {
             clearTimeout(timer);
             resolve(response);
         }).catch(function(err) {
@@ -1425,20 +1425,56 @@ async function register() {
 async function login() {
     var u = document.getElementById('loginUsername').value;
     var p = document.getElementById('loginPassword').value;
+    
     if (!u || !p) {
         showAlert('loginAlert', 'يرجى إدخال اسم المستخدم وكلمة المرور', 'error');
         return;
     }
+    
     if (navigator.onLine) {
         try {
+            // إرسال طلب تسجيل الدخول بشكل صحيح
             var r = await fetchWithTimeout('/api/login', 10000);
-            // ملاحظة: يجب إضافة body بشكل صحيح
-            // هذا الكود مختصر، أضف التفاصيل الكاملة
+            
+            // ملاحظة: fetchWithTimeout الحالية لا ترسل POST بشكل صحيح
+            // نحتاج إلى استخدام fetch العادي مع POST
+            var response = await fetch('/api/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: u,
+                    password: p
+                })
+            });
+            
+            var res = await response.json();
+            
+            if (response.ok && res.success) {
+                currentUser = res.user;
+                try {
+                    localStorage.setItem('userId', currentUser.id);
+                    saveOfflineAuth(currentUser, p);
+                } catch(storageError) {
+                    console.log('⚠️ تعذر حفظ البيانات في localStorage');
+                }
+                
+                await loadDashboard();
+                showAlert('dashboardAlert', 'تم تسجيل الدخول', 'success');
+            } else {
+                showAlert('loginAlert', res.message || 'فشل تسجيل الدخول', 'error');
+            }
         } catch (e) {
             console.log('خطأ في الاتصال:', e.message);
-            await tryLocalLogin(u, p);
+            // محاولة تسجيل الدخول محلياً
+            var localSuccess = await tryLocalLogin(u, p);
+            if (!localSuccess) {
+                showAlert('loginAlert', 'لا يمكن الاتصال بالخادم. يرجى التحقق من الاتصال بالإنترنت', 'error');
+            }
         }
     } else {
+        // وضع عدم الاتصال
         await tryLocalLogin(u, p);
     }
 }
