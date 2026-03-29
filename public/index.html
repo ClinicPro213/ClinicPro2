@@ -2,216 +2,303 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>ClinicPro - نظام عيادات الأسنان</title>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
-        .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        input, button { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; }
-        button { background: #10b981; color: white; border: none; cursor: pointer; }
-        .error { background: #fee2e2; color: #dc2626; padding: 10px; border-radius: 8px; margin: 10px 0; display: none; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#1e40af">
+    
+    <!-- PWA Meta Tags - معطل على iOS، يعمل فقط على Android -->
+<!--
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ClinicPro">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="ClinicPro">
+<meta name="msapplication-TileColor" content="#1e40af">
+<meta name="msapplication-TileImage" content="/icons/icon-144.png">
+    
+<link rel="manifest" href="/manifest.json">
+    
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+-->
+    <title>ClinicPro</title>
+
+<link rel="stylesheet"
+href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<link rel="stylesheet" href="css/styles.css">
+
 </head>
 <body>
-    <div class="container">
-        <h1 style="text-align:center;">🦷 ClinicPro</h1>
-        <div id="errorBox" class="error"></div>
-        
-        <div id="loginView">
-            <h2>تسجيل الدخول</h2>
-            <input type="text" id="username" placeholder="اسم المستخدم" autocomplete="off">
-            <input type="password" id="password" placeholder="كلمة المرور">
-            <button onclick="doLogin()">دخول</button>
-            <button onclick="showRegister()" style="background:#6b7280;">إنشاء حساب جديد</button>
-        </div>
-        
-        <div id="registerView" style="display:none;">
-            <h2>إنشاء حساب</h2>
-            <input type="text" id="regName" placeholder="الاسم الكامل">
-            <input type="text" id="regUsername" placeholder="اسم المستخدم">
-            <input type="password" id="regPassword" placeholder="كلمة المرور">
-            <input type="text" id="regPhone" placeholder="رقم الهاتف">
-            <input type="number" id="regAge" placeholder="العمر">
-            <input type="text" id="regClinic" placeholder="اسم العيادة">
-            <button onclick="doRegister()">تسجيل</button>
-            <button onclick="showLogin()" style="background:#6b7280;">عودة</button>
-        </div>
-        
-        <div id="dashboardView" style="display:none;">
-            <h2>مرحباً، <span id="userName">...</span></h2>
-            <div id="stats" style="background:#e0f2fe; padding:10px; border-radius:10px; margin:10px 0;">
-                <p>👥 عدد المرضى: <span id="patientCount">0</span></p>
+    <script>
+    // كشف الأخطاء وعرضها على الشاشة
+    window.onerror = function(message, source, lineno, colno, error) {
+        var errorDiv = document.getElementById('errorDisplay') || (function() {
+            var div = document.createElement('div');
+            div.id = 'errorDisplay';
+            div.style.cssText = 'position:fixed; top:0; left:0; right:0; background:red; color:white; padding:10px; z-index:99999; font-size:12px; white-space:pre-wrap; word-break:break-all;';
+            document.body.appendChild(div);
+            return div;
+        })();
+        errorDiv.innerHTML = '❌ خطأ: ' + message + '<br>' + (error ? error.stack : '');
+        console.error(message, source, lineno, colno, error);
+        return false;
+    };
+    
+    // عرض معلومات النظام
+    console.log('iOS Version:', navigator.userAgent);
+    console.log('Platform:', navigator.platform);
+    </script>
+    
+<div class="container">
+    <!-- Login Page -->
+    <div id="loginPage" class="auth-card">
+        <div class="auth-header"><i class="fas fa-tooth"></i><h1>ClinicPro</h1></div>
+        <div id="loginAlert" class="alert alert-error"></div>
+        <form id="loginForm">
+            <div class="input-group"><label>اسم المستخدم</label><input type="text" id="loginUsername" required style="width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:12px"></div>
+            <div class="input-group"><label>كلمة المرور</label><input type="password" id="loginPassword" required style="width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:12px"></div>
+            <button type="submit" class="btn" style="width:100%">تسجيل الدخول</button>
+        </form>
+        <div style="text-align:center;margin-top:20px">ليس لديك حساب؟ <a onclick="showRegister()" style="color:#3b82f6;cursor:pointer">إنشاء حساب جديد</a></div>
+    </div>
+
+    <!-- Register Page -->
+    <div id="registerPage" class="auth-card" style="display:none">
+        <div class="auth-header"><i class="fas fa-user-plus"></i><h1>إنشاء حساب جديد</h1></div>
+        <div id="registerAlert" class="alert alert-error"></div>
+        <form id="registerForm">
+            <div class="input-group"><label>الاسم الكامل</label><input type="text" id="regFullName" required style="width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:12px"></div>
+            <div class="input-group"><label>اسم المستخدم</label><input type="text" id="regUsername" required style="width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:12px"></div>
+            <div class="input-group"><label>كلمة المرور</label><input type="password" id="regPassword" required style="width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:12px"></div>
+            <div class="input-group"><label>رقم الهاتف</label><input type="text" id="regPhone" style="width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:12px"></div>
+            <div class="input-group"><label>العمر</label><input type="number" id="regAge" required style="width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:12px"></div>
+            <div class="input-group"><label>اسم العيادة</label><input type="text" id="regClinicName" required style="width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:12px"></div>
+            <div class="input-group"><label>العنوان</label><input type="text" id="regAddress" required style="width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:12px"></div>
+            <button type="submit" class="btn" style="width:100%">إنشاء حساب</button>
+        </form>
+        <div style="text-align:center;margin-top:20px">لديك حساب؟ <a onclick="showLogin()" style="color:#3b82f6;cursor:pointer">تسجيل الدخول</a></div>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dashboard" class="dashboard">
+        <div class="navbar">
+            <div class="logo"><i class="fas fa-tooth"></i><h2>ClinicPro</h2></div>
+            <div class="user-info">
+                <div class="doctor-info"><i class="fas fa-user-md"></i><span id="userNameDisplay"></span></div>
+                <div id="subscriptionBadge" class="subscription-badge subscription-inactive">📊 مجاني</div>
+                <button id="adminBtn" class="btn" style="width:auto;padding:8px 16px;background:#8b5cf6;display:none" onclick="showAdminPage()">👑 لوحة المدير</button>
+                <div class="contact-buttons">
+                    <button id="subscriptionBtn" class="contact-btn subscription-btn" onclick="showSubscriptionPage()" style="display: none;">
+                        <i class="fas fa-crown"></i> بيانات الاشتراك
+                    </button>
+                    <button class="contact-btn whatsapp-btn" onclick="contactWhatsApp()">
+                        <i class="fab fa-whatsapp"></i> واتساب
+                    </button>
+                    <button class="contact-btn telegram-btn" onclick="contactTelegram()">
+                        <i class="fab fa-telegram"></i> تيليجرام
+                    </button>
+                    <button class="logout-btn" onclick="logout()">خروج</button>
+                </div>
             </div>
-            <div id="patientsList"></div>
-            <button onclick="showAddPatient()">➕ إضافة مريض</button>
-            <button onclick="doLogout()" style="background:#ef4444;">🚪 تسجيل خروج</button>
+        </div>
+        <div class="main-content">
+            <div id="dashboardAlert" class="alert"></div>
+            <div class="stats-grid">
+                <div class="stat-card"><div class="stat-info"><h3>عدد المرضى</h3><div class="number" id="totalPatients">0</div></div></div>
+                <div class="stat-card"><div class="stat-info"><h3>المتبقي</h3><div class="number" id="remainingSlots">5</div></div></div>
+            </div>
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="🔍 بحث عن مريض..." onkeyup="searchPatients()">
+                <button class="btn" onclick="showAddPatientModal()">+ إضافة مريض</button>
+                <button class="btn btn-whatsapp" onclick="syncAllDataWithServer()">🔄 مزامنة</button>
+            </div>
+            <div id="patientsGrid" class="patients-grid"></div>
+            <div id="adminPanel" style="display:none"></div>
         </div>
     </div>
 
-    <script>
-        // متغيرات عامة
-        var currentUser = null;
-        var allPatients = [];
-        
-        // عرض الأخطاء
-        function showError(msg) {
-            var box = document.getElementById('errorBox');
-            box.textContent = msg;
-            box.style.display = 'block';
-            setTimeout(function() { box.style.display = 'none'; }, 5000);
-        }
-        
-        // تبديل الواجهات
-        function showLogin() {
-            document.getElementById('loginView').style.display = 'block';
-            document.getElementById('registerView').style.display = 'none';
-            document.getElementById('dashboardView').style.display = 'none';
-        }
-        
-        function showRegister() {
-            document.getElementById('loginView').style.display = 'none';
-            document.getElementById('registerView').style.display = 'block';
-            document.getElementById('dashboardView').style.display = 'none';
-        }
-        
-        // تسجيل الدخول المحلي (بدون سيرفر للتجربة)
-        function doLogin() {
-            var username = document.getElementById('username').value;
-            var password = document.getElementById('password').value;
-            
-            if (!username || !password) {
-                showError('يرجى إدخال اسم المستخدم وكلمة المرور');
-                return;
-            }
-            
-            // تجربة بسيطة - يمكن تعديلها لاحقاً
-            if (username === 'test' && password === '123') {
-                currentUser = { id: '1', fullName: 'مستخدم تجريبي', username: username, role: 'user' };
-                document.getElementById('userName').textContent = currentUser.fullName;
-                document.getElementById('dashboardView').style.display = 'block';
-                document.getElementById('loginView').style.display = 'none';
-                loadPatientsFromStorage();
-            } else {
-                showError('اسم المستخدم أو كلمة المرور غير صحيحة');
-            }
-        }
-        
-        function doRegister() {
-            showError('نظام التسجيل قيد التطوير');
-        }
-        
-        function doLogout() {
-            currentUser = null;
-            allPatients = [];
-            showLogin();
-        }
-        
-        function showAddPatient() {
-            var name = prompt('اسم المريض:');
-            if (name) {
-                var newPatient = {
-                    _id: 'p_' + Date.now(),
-                    name: name,
-                    phone: prompt('رقم الهاتف:'),
-                    age: prompt('العمر:'),
-                    createdAt: new Date().toISOString()
-                };
-                allPatients.push(newPatient);
-                savePatientsToStorage();
-                renderPatients();
-                document.getElementById('patientCount').textContent = allPatients.length;
-            }
-        }
-        
-        function renderPatients() {
-            var container = document.getElementById('patientsList');
-            if (!container) return;
-            
-            if (allPatients.length === 0) {
-                container.innerHTML = '<p style="text-align:center;color:#999;">لا يوجد مرضى</p>';
-                return;
-            }
-            
-            var html = '';
-            for (var i = 0; i < allPatients.length; i++) {
-                var p = allPatients[i];
-                html += '<div style="border:1px solid #ddd; padding:10px; margin:10px 0; border-radius:8px;">';
-                html += '<strong>' + escapeHtml(p.name) + '</strong><br>';
-                html += '📞 ' + (p.phone || 'غير محدد') + '<br>';
-                html += '📅 ' + (p.age || 'غير محدد') + ' سنة<br>';
-                html += '<button onclick="deletePatient(\'' + p._id + '\')" style="background:#ef4444; padding:5px 10px; font-size:12px; margin-top:5px;">🗑️ حذف</button>';
-                html += '</div>';
-            }
-            container.innerHTML = html;
-        }
-        
-        function deletePatient(id) {
-            if (confirm('هل أنت متأكد؟')) {
-                var newList = [];
-                for (var i = 0; i < allPatients.length; i++) {
-                    if (allPatients[i]._id !== id) {
-                        newList.push(allPatients[i]);
-                    }
-                }
-                allPatients = newList;
-                savePatientsToStorage();
-                renderPatients();
-                document.getElementById('patientCount').textContent = allPatients.length;
-            }
-        }
-        
-        function escapeHtml(text) {
-            if (!text) return '';
-            return text.replace(/[&<>]/g, function(m) {
-                if (m === '&') return '&amp;';
-                if (m === '<') return '&lt;';
-                if (m === '>') return '&gt;';
-                return m;
-            });
-        }
-        
-        function savePatientsToStorage() {
-            if (!currentUser) return;
-            try {
-                localStorage.setItem('patients_' + currentUser.id, JSON.stringify(allPatients));
-            } catch(e) {
-                console.log('Storage error:', e);
-                showError('لا يمكن حفظ البيانات في هذا المتصفح');
-            }
-        }
-        
-        function loadPatientsFromStorage() {
-            if (!currentUser) return;
-            try {
-                var saved = localStorage.getItem('patients_' + currentUser.id);
-                if (saved) {
-                    allPatients = JSON.parse(saved);
-                } else {
-                    allPatients = [];
-                }
-                renderPatients();
-                document.getElementById('patientCount').textContent = allPatients.length;
-            } catch(e) {
-                console.log('Load error:', e);
-                allPatients = [];
-            }
-        }
-        
-        // بدء التطبيق
-        showLogin();
-        
-        // اختبار localStorage
-        try {
-            localStorage.setItem('test', '1');
-            localStorage.removeItem('test');
-            console.log('localStorage works');
-        } catch(e) {
-            showError('⚠️ هذا المتصفح لا يدعم التخزين المحلي. يرجى تعطيل وضع التصفح الخاص.');
-        }
-        
-        // عرض معلومات النظام
-        console.log('User Agent:', navigator.userAgent);
-        console.log('Platform:', navigator.platform);
-    </script>
+    <!-- Admin Page -->
+    <div id="adminPage" class="dashboard" style="display:none">
+        <div class="navbar">
+            <div class="logo"><i class="fas fa-crown"></i><h2>لوحة المدير</h2></div>
+            <div class="user-info">
+                <div class="doctor-info"><i class="fas fa-user-md"></i><span id="adminUserName"></span></div>
+                <button class="btn" style="width:auto" onclick="showDashboard()">← العودة</button>
+            </div>
+        </div>
+        <div class="main-content">
+            <div id="adminAlert" class="alert"></div>
+            <div style="display:flex;gap:10px;margin-bottom:20px">
+                <button id="tabUsersBtn" class="btn" style="width:auto;background:#3b82f6" onclick="showAdminTab('users')">👥 المستخدمين</button>
+                <button id="tabPatientsBtn" class="btn" style="width:auto;background:#64748b" onclick="showAdminTab('patients')">🦷 جميع المرضى</button>
+            </div>
+            <div id="adminUsersSection"><div class="search-bar"><input type="text" id="adminUserSearch" placeholder="بحث..." onkeyup="searchAdminUsers()"><button class="btn" onclick="refreshAdminUsers()">تحديث</button></div><div id="adminUsersList" class="patients-grid"></div></div>
+            <div id="adminPatientsSection" style="display:none"><div class="search-bar"><input type="text" id="adminPatientSearch" placeholder="بحث..." onkeyup="searchAdminPatients()"><button class="btn" onclick="refreshAdminPatients()">تحديث</button></div><div id="adminPatientsList" class="patients-grid"></div></div>
+        </div>
+    </div>
+
+    <!-- Subscription Page -->
+    <div id="subscriptionPage" class="dashboard" style="display: none;">
+        <div class="navbar">
+            <div class="logo"><i class="fas fa-crown"></i><h2>باقات الاشتراك</h2></div>
+            <div class="user-info">
+                <div class="doctor-info"><i class="fas fa-user-md"></i><span id="subUserName"></span></div>
+                <button class="btn" style="width:auto;padding:8px 16px;" onclick="closeSubscriptionPage()">
+                    <i class="fas fa-arrow-right"></i> العودة
+                </button>
+            </div>
+        </div>
+        <div class="main-content">
+            <div class="subscription-container">
+                <!-- الباقة المميزة -->
+                <div class="subscription-card premium">
+                    <div class="card-badge">الأكثر طلباً</div>
+                    <div class="card-icon"><i class="fas fa-gem"></i></div>
+                    <h2>الباقة المميزة</h2>
+                    <div class="price">
+                        <span class="currency">﷼</span>
+                        <span class="amount">3,000</span>
+                        <span class="period">/شهري </span>
+                    </div>
+                    <div class="features">
+                        <div class="feature"><i class="fas fa-check-circle"></i> عدد غير محدود من المرضى</div>
+                        <div class="feature"><i class="fas fa-check-circle"></i> معالجات غير محدودة</div>
+                        <div class="feature"><i class="fas fa-check-circle"></i> تقارير مفصلة</div>
+                        <div class="feature"><i class="fas fa-check-circle"></i> دعم فني على مدار الساعة</div>
+                        <div class="feature"><i class="fas fa-check-circle"></i> تحديثات مجانية</div>
+                    </div>
+                </div>
+
+                <!-- طرق الدفع -->
+                <div class="payment-methods-section">
+                    <h3><i class="fas fa-credit-card"></i> طرق الدفع المتاحة</h3>
+                    <div class="payment-grid">
+                        <div class="payment-card" onclick="copyToClipboard('773041464', 'جيب')">
+                            <div class="payment-icon"><i class="fas fa-money-bill-wave"></i></div>
+                            <div class="payment-name">جيب</div>
+                            <div class="payment-number">773041464</div>
+                            <div class="payment-copy">انقر لنسخ الرقم</div>
+                        </div>
+                        <div class="payment-card" onclick="copyToClipboard('773041464', 'محفظة كاش')">
+                            <div class="payment-icon"><i class="fas fa-wallet"></i></div>
+                            <div class="payment-name">محفظة كاش</div>
+                            <div class="payment-number">773041464</div>
+                            <div class="payment-copy">انقر لنسخ الرقم</div>
+                        </div>
+                        <div class="payment-card" onclick="copyToClipboard('3015418876', 'كريمي')">
+                            <div class="payment-icon"><i class="fas fa-university"></i></div>
+                            <div class="payment-name">كريمي</div>
+                            <div class="payment-number">3015418876</div>
+                            <div class="payment-copy">انقر لنسخ الرقم</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- تعليمات الدفع -->
+                <div class="payment-instructions">
+                    <h4><i class="fas fa-info-circle"></i> تعليمات الدفع</h4>
+                    <ol>
+                        <li>قم بتحويل المبلغ <strong>3,000 ريال يمني</strong> إلى أحد الأرقام أعلاه</li>
+                        <li>بعد الإيداع، تواصل معنا عبر واتساب أو تيليجرام لإرسال صورة الإيداع</li>
+                        <li>سيتم تفعيل اشتراكك خلال 24 ساعة من استلام الإيداع</li>
+                    </ol>
+                    <div class="contact-actions">
+                        <button class="whatsapp-payment" onclick="sendPaymentWhatsApp()">
+                            <i class="fab fa-whatsapp"></i> إرسال إيصال عبر واتساب
+                        </button>
+                        <button class="telegram-payment" onclick="sendPaymentTelegram()">
+                            <i class="fab fa-telegram"></i> إرسال إيصال عبر تيليجرام
+                        </button>
+                    </div>
+                </div>
+
+                <!-- إشعار النسخ -->
+                <div id="copyNotification" class="copy-notification">✅ تم نسخ الرقم بنجاح</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Subscription Alert -->
+    <div id="subscriptionAlert" class="subscription-alert">
+        <div class="subscription-alert-content">
+            <i class="fas fa-crown"></i>
+            <div class="subscription-alert-text">
+                <strong>⚠️ لقد وصلت للحد الأقصى المجاني (5 مرضى)</strong><br>
+                <small>للحصول على عدد غير محدود من المرضى والمزيد من الميزات، يرجى الاشتراك في الباقة المدفوعة</small>
+            </div>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button class="whatsapp-subscribe-btn" onclick="sendSubscriptionRequest()">
+    <i class="fas fa-crown"></i> بيانات الاشتراك
+            </button>
+            <button class="close-subscription-alert" onclick="closeSubscriptionAlert()">
+                <i class="fas fa-times"></i> تذكير لاحقاً
+            </button>
+        </div>
+    </div>
+
+    <!-- Patient Modal -->
+    <div id="patientModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header"><h3 id="modalTitle">إضافة مريض</h3><button class="close-btn" onclick="closeModal('patientModal')">&times;</button></div>
+            <div class="modal-body">
+                <form id="patientForm">
+                    <input type="hidden" id="patientId">
+                    <div class="input-group"><label>اسم المريض *</label><input type="text" id="patientName" required style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px"></div>
+                    <div class="input-group"><label>رقم الهاتف</label><input type="text" id="patientPhone" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px"></div>
+                    <div class="input-group"><label>العمر *</label><input type="number" id="patientAge" required style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px"></div>
+                    <div class="input-group"><label>العنوان</label><input type="text" id="patientAddress" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px"></div>
+                    <div class="input-group"><label>ملاحظات</label><textarea id="patientNotes" rows="2" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px"></textarea></div>
+                    <button type="submit" class="btn" style="width:100%">حفظ</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Treatment Modal -->
+    <div id="treatmentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header"><h3>إضافة معالجة</h3><button class="close-btn" onclick="closeModal('treatmentModal')">&times;</button></div>
+            <div class="modal-body">
+                <div id="teethContainer" style="display:grid;grid-template-columns:repeat(8,1fr);gap:5px;margin-bottom:20px"></div>
+                <div class="input-group"><label>رقم السن</label><input type="number" id="toothNumber" readonly style="background:#f1f5f9;width:100%;padding:10px;border-radius:8px"></div>
+                <div class="input-group"><label>نوع المعالجة</label><select id="treatmentTypeSelect" style="width:100%;padding:10px;border-radius:8px"><option value="">-- اختر --</option><option value="فحص">فحص</option><option value="حشو">حشو</option><option value="خلع">خلع</option><option value="تنظيف">تنظيف</option><option value="تلبيس">تلبيس</option><option value="زراعة">زراعة</option><option value="علاج عصب">علاج عصب</option><option value="تبييض">تبييض</option></select></div>
+                <div class="input-group"><label>ملاحظات</label><textarea id="treatmentNotesInput" rows="2" style="width:100%;padding:10px;border-radius:8px"></textarea></div>
+                <div class="input-group"><label>التكلفة</label><input type="number" id="treatmentCostInput" value="0" step="10" oninput="calcRemaining()" style="width:100%;padding:10px;border-radius:8px"></div>
+                <div class="input-group"><label>المدفوع</label><input type="number" id="treatmentPaidInput" value="0" step="10" oninput="calcRemaining()" style="width:100%;padding:10px;border-radius:8px"></div>
+                <div style="background:#f1f5f9;padding:12px;border-radius:12px"><div>المتبقي: <span id="remainingSpan">0</span> ريال</div></div>
+                <button class="btn" onclick="saveTreatmentNow()" style="width:100%;margin-top:10px">حفظ المعالجة</button>
+                <button class="btn btn-whatsapp" onclick="saveAndShareNow()" style="width:100%;margin-top:10px">حفظ ومشاركة</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="patientDetailsModal" class="modal" style="display:none"></div>
+    <!-- Add Image Modal -->
+<div id="addImageModal" class="modal">
+    <div class="modal-content add-image-modal">
+        <div class="modal-header">
+            <h3>إضافة صورة للمريض</h3>
+            <button class="close-btn" onclick="closeModal('addImageModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="input-group">
+                <label>اختر صورة</label>
+                <input type="file" id="imageFileInput" accept="image/*" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px">
+            </div>
+            <div class="input-group">
+                <label>وصف الصورة (اختياري)</label>
+                <input type="text" id="imageCaption" placeholder="مثلاً: صورة قبل العلاج" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px">
+            </div>
+            <div id="imagePreview" class="image-preview" style="display:none">
+                <img id="previewImg" src="">
+            </div>
+            <button class="btn" onclick="savePatientImage()" style="width:100%;margin-top:15px">حفظ الصورة</button>
+        </div>
+    </div>
+</div>
+</div>
+    <script src="js/app.js"></script>
 </body>
 </html>
+
