@@ -1396,37 +1396,50 @@ async function register() {
         clinicName: document.getElementById('regClinicName').value,
         address: document.getElementById('regAddress').value
     };
+    
     if (!data.fullName || !data.username || !data.password) {
-        showAlert('registerAlert', 'املأ جميع الحقول', 'error');
+        showAlert('registerAlert', 'املأ جميع الحقول المطلوبة', 'error');
         return;
     }
-    try {
-        var r = await fetch('/api/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        var res = await r.json();
-        if (r.ok && res.success) {
-            currentUser = res.user;
-            try {
-                localStorage.setItem('userId', currentUser.id);
-            } catch(e) { console.log('Save error:', e); }
-            await loadDashboard();
-            showAlert('dashboardAlert', 'تم إنشاء الحساب', 'success');
-        } else {
-            showAlert('registerAlert', res.message || 'فشل', 'error');
+    
+    if (navigator.onLine) {
+        try {
+            var response = await fetch('/api/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+            
+            var result = await response.json();
+            
+            if (response.ok && result.success) {
+                currentUser = result.user;
+                try {
+                    localStorage.setItem('userId', currentUser.id);
+                    saveOfflineAuth(currentUser, data.password);
+                } catch(e) { console.log('Save error:', e); }
+                
+                await loadDashboard();
+                showAlert('dashboardAlert', '✅ تم إنشاء الحساب بنجاح', 'success');
+            } else {
+                showAlert('registerAlert', result.message || 'فشل إنشاء الحساب', 'error');
+            }
+        } catch (e) {
+            console.log('Registration error:', e);
+            showAlert('registerAlert', 'خطأ في الاتصال بالخادم', 'error');
         }
-    } catch (e) {
-        showAlert('registerAlert', 'خطأ في الاتصال', 'error');
+    } else {
+        showAlert('registerAlert', 'لا يوجد اتصال بالإنترنت. يرجى الاتصال بالإنترنت للتسجيل', 'error');
     }
 }
 
 async function login() {
-    var u = document.getElementById('loginUsername').value;
-    var p = document.getElementById('loginPassword').value;
+    var username = document.getElementById('loginUsername').value;
+    var password = document.getElementById('loginPassword').value;
     
-    if (!u || !p) {
+    if (!username || !password) {
         showAlert('loginAlert', 'يرجى إدخال اسم المستخدم وكلمة المرور', 'error');
         return;
     }
@@ -1434,48 +1447,55 @@ async function login() {
     if (navigator.onLine) {
         try {
             // إرسال طلب تسجيل الدخول بشكل صحيح
-            var r = await fetchWithTimeout('/api/login', 10000);
-            
-            // ملاحظة: fetchWithTimeout الحالية لا ترسل POST بشكل صحيح
-            // نحتاج إلى استخدام fetch العادي مع POST
             var response = await fetch('/api/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    username: u,
-                    password: p
+                    username: username,
+                    password: password
                 })
             });
             
-            var res = await response.json();
+            var result = await response.json();
             
-            if (response.ok && res.success) {
-                currentUser = res.user;
+            if (response.ok && result.success) {
+                currentUser = result.user;
                 try {
                     localStorage.setItem('userId', currentUser.id);
-                    saveOfflineAuth(currentUser, p);
+                    saveOfflineAuth(currentUser, password);
                 } catch(storageError) {
                     console.log('⚠️ تعذر حفظ البيانات في localStorage');
                 }
                 
+                // جلب المرضى من السيرفر
+                try {
+                    var patientsRes = await fetch('/api/patients/' + currentUser.id);
+                    if (patientsRes.ok) {
+                        var patients = await patientsRes.json();
+                        allPatients = patients;
+                        saveCompleteOfflineData(currentUser, allPatients, []);
+                        localStorage.setItem('offline_patients_' + currentUser.id, JSON.stringify(allPatients));
+                    }
+                } catch(e) {
+                    console.log('Error loading patients:', e);
+                }
+                
                 await loadDashboard();
-                showAlert('dashboardAlert', 'تم تسجيل الدخول', 'success');
+                showAlert('dashboardAlert', '✅ تم تسجيل الدخول بنجاح', 'success');
             } else {
-                showAlert('loginAlert', res.message || 'فشل تسجيل الدخول', 'error');
+                showAlert('loginAlert', result.message || 'اسم المستخدم أو كلمة المرور غير صحيحة', 'error');
             }
         } catch (e) {
             console.log('خطأ في الاتصال:', e.message);
+            showAlert('loginAlert', 'لا يمكن الاتصال بالخادم. يرجى التحقق من الاتصال بالإنترنت', 'error');
             // محاولة تسجيل الدخول محلياً
-            var localSuccess = await tryLocalLogin(u, p);
-            if (!localSuccess) {
-                showAlert('loginAlert', 'لا يمكن الاتصال بالخادم. يرجى التحقق من الاتصال بالإنترنت', 'error');
-            }
+            await tryLocalLogin(username, password);
         }
     } else {
         // وضع عدم الاتصال
-        await tryLocalLogin(u, p);
+        await tryLocalLogin(username, password);
     }
 }
 
