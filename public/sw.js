@@ -1,95 +1,91 @@
-// إصدار ثابت يتم تحديثه تلقائياً
-const APP_VERSION = Date.now(); // هذا يجعل كل تحديث فريداً
-const CACHE_NAME = `clinicpro-v${APP_VERSION}`;
-const STATIC_CACHE = `clinicpro-static-${APP_VERSION}`;
-const DYNAMIC_CACHE = `clinicpro-dynamic-${APP_VERSION}`;
+// إصدار Service Worker آمن للمتصفحات المختلفة
+const CACHE_NAME = 'clinicpro-v1';
 
-// الملفات التي سيتم تخزينها مؤقتاً
-const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
-];
+// الكشف إذا كان المتصفح iOS
+const isIOS = () => {
+    return /iPhone|iPad|iPod/.test(navigator.userAgent);
+};
 
-// تثبيت Service Worker - مسح كل الكاش القديم فوراً
+// تثبيت Service Worker - فقط للمتصفحات غير iOS
 self.addEventListener('install', event => {
-  console.log('[SW] Installing new version...');
-  event.waitUntil(
-    caches.open(STATIC_CACHE).then(cache => {
-      console.log('[SW] Caching static assets');
-      return cache.addAll(STATIC_ASSETS);
-    }).then(() => {
-      // مسح جميع الكاشات القديمة فوراً
-      return caches.keys().then(keys => {
-        return Promise.all(
-          keys.map(key => {
-            if (key !== STATIC_CACHE && key !== DYNAMIC_CACHE) {
-              console.log(`[SW] Deleting old cache: ${key}`);
-              return caches.delete(key);
-            }
-          })
-        );
-      });
-    }).then(() => self.skipWaiting())
-  );
+    console.log('[SW] Installing...');
+    
+    if (isIOS()) {
+        console.log('[SW] iOS detected - skipping installation');
+        return;
+    }
+    
+    event.waitUntil(
+        caches.open(CACHE_NAME).then(cache => {
+            return cache.addAll([
+                '/index.html',
+                '/manifest.json'
+            ]).catch(err => console.log('Cache error:', err));
+        }).then(() => self.skipWaiting())
+    );
 });
 
-// تفعيل Service Worker - السيطرة على جميع الصفحات فوراً
+// تفعيل Service Worker
 self.addEventListener('activate', event => {
-  console.log('[SW] Activating...');
-  event.waitUntil(
-    caches.keys().then(keys => {
-      return Promise.all(
-        keys.map(key => {
-          if (key !== STATIC_CACHE && key !== DYNAMIC_CACHE) {
-            console.log(`[SW] Deleting old cache: ${key}`);
-            return caches.delete(key);
-          }
-        })
-      );
-    }).then(() => {
-      console.log('[SW] Now controlling all clients');
-      return self.clients.claim();
-    })
-  );
+    console.log('[SW] Activating...');
+    
+    if (isIOS()) {
+        console.log('[SW] iOS detected - skipping activation');
+        return;
+    }
+    
+    event.waitUntil(
+        caches.keys().then(keys => {
+            return Promise.all(
+                keys.map(key => {
+                    if (key !== CACHE_NAME) {
+                        console.log('[SW] Deleting old cache:', key);
+                        return caches.delete(key);
+                    }
+                })
+            );
+        }).then(() => self.clients.claim())
+    );
 });
 
-// استراتيجية Network First - دائماً نجلب أحدث إصدار
+// معالجة الطلبات - فقط للمتصفحات غير iOS
 self.addEventListener('fetch', event => {
-  const url = new URL(event.request.url);
-  
-  // تجاهل طلبات الـ API
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(fetch(event.request));
-    return;
-  }
-  
-  // استراتيجية Network First (نجلب من الشبكة أولاً)
-  event.respondWith(
-    fetch(event.request)
-      .then(networkResponse => {
-        // تخزين الملفات الجديدة في الكاش
-        if (networkResponse && networkResponse.status === 200) {
-          const responseToCache = networkResponse.clone();
-          caches.open(DYNAMIC_CACHE).then(cache => {
-            cache.put(event.request, responseToCache);
-          });
-        }
-        return networkResponse;
-      })
-      .catch(error => {
-        // إذا فشل الاتصال، استخدم الكاش
-        return caches.match(event.request).then(cachedResponse => {
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-          // إذا كان طلب HTML ولم يكن في الكاش
-          if (event.request.headers.get('accept')?.includes('text/html')) {
-            return caches.match('/index.html');
-          }
-          return new Response('غير متصل بالإنترنت', { status: 503 });
-        });
-      })
-  );
+    // لا تفعل شيء على iOS
+    if (isIOS()) {
+        return;
+    }
+    
+    const url = new URL(event.request.url);
+    
+    // تجاهل API
+    if (url.pathname.startsWith('/api/')) {
+        return;
+    }
+    
+    // تجاهل CDN
+    if (url.hostname.includes('cdnjs.cloudflare.com')) {
+        return;
+    }
+    
+    event.respondWith(
+        fetch(event.request)
+            .then(response => {
+                if (response && response.status === 200) {
+                    const responseClone = response.clone();
+                    caches.open(CACHE_NAME).then(cache => {
+                        cache.put(event.request, responseClone);
+                    });
+                }
+                return response;
+            })
+            .catch(() => {
+                return caches.match(event.request).then(cached => {
+                    if (cached) return cached;
+                    if (event.request.headers.get('accept')?.includes('text/html')) {
+                        return caches.match('/index.html');
+                    }
+                    return new Response('Offline', { status: 503 });
+                });
+            })
+    );
 });
