@@ -2496,6 +2496,10 @@ async function register(){
         else showAlert('registerAlert',res.message||'فشل','error');
     }catch(e){showAlert('registerAlert','خطأ في الاتصال','error');}
 }
+
+
+    
+
 async function login() {
     const u = document.getElementById('loginUsername').value;
     const p = document.getElementById('loginPassword').value;
@@ -2505,30 +2509,48 @@ async function login() {
         return;
     }
     
-    // إذا كان هناك إنترنت
+    // ============ محاولة الاتصال بالسيرفر ============
     if (navigator.onLine) {
         try {
+            // إضافة مهلة زمنية (timeout) لمنع انتظار طويل في Safari
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+            
             const r = await fetch('/api/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: u, password: p })
+                body: JSON.stringify({ username: u, password: p }),
+                signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
             const res = await r.json();
             
             if (r.ok && res.success) {
                 currentUser = res.user;
-                localStorage.setItem('userId', currentUser.id);
                 
-                // حفظ بيانات الدخول للتشغيل بدون إنترنت
-                saveOfflineAuth(currentUser, p);
+                // حفظ بيانات الدخول مع معالجة أخطاء Safari
+                try {
+                    localStorage.setItem('userId', currentUser.id);
+                    saveOfflineAuth(currentUser, p);
+                } catch (storageError) {
+                    console.log('⚠️ Safari: تعذر حفظ البيانات في localStorage');
+                    // في Safari الوضع الخاص، نواصل بدون حفظ
+                }
                 
                 // جلب المرضى من السيرفر
-                const patientsRes = await fetch(`/api/patients/${currentUser.id}`);
-                const patients = await patientsRes.json();
-                
-                // حفظ جميع البيانات محلياً
-                saveCompleteOfflineData(currentUser, patients, []);
-                localStorage.setItem(`offline_patients_${currentUser.id}`, JSON.stringify(patients));
+                try {
+                    const patientsRes = await fetch(`/api/patients/${currentUser.id}`);
+                    if (patientsRes.ok) {
+                        const patients = await patientsRes.json();
+                        try {
+                            saveCompleteOfflineData(currentUser, patients, []);
+                            localStorage.setItem(`offline_patients_${currentUser.id}`, JSON.stringify(patients));
+                        } catch(e) {}
+                    }
+                } catch (patientsError) {
+                    console.log('⚠️ Safari: تعذر جلب المرضى');
+                }
                 
                 await loadDashboard();
                 showAlert('dashboardAlert', 'تم تسجيل الدخول', 'success');
@@ -2536,21 +2558,32 @@ async function login() {
                 showAlert('loginAlert', res.message || 'فشل تسجيل الدخول', 'error');
             }
         } catch (e) {
-            showAlert('loginAlert', 'خطأ في الاتصال', 'error');
+            console.log('خطأ في الاتصال:', e.message);
+            // إذا فشل الاتصال، نحاول استخدام البيانات المخزنة محلياً
+            await tryLocalLogin(u, p);
         }
     } 
     // وضع عدم الاتصال
     else {
+        await tryLocalLogin(u, p);
+    }
+}
+
+// دالة مساعدة لتسجيل الدخول محلياً
+async function tryLocalLogin(username, password) {
+    try {
         const savedAuth = getOfflineAuth();
-        if (savedAuth && savedAuth.username === u && savedAuth.password === p) {
-            // استرجاع البيانات المخزنة
+        if (savedAuth && savedAuth.username === username && savedAuth.password === password) {
             const offlineData = getCompleteOfflineData(savedAuth.userId);
             if (offlineData) {
                 currentUser = offlineData.user;
                 allPatients = offlineData.patients || [];
-                localStorage.setItem('userId', currentUser.id);
                 
-                // عرض لوحة التحكم
+                try {
+                    localStorage.setItem('userId', currentUser.id);
+                } catch(e) {}
+                
+                // عرض لوحة التحكم مباشرة
                 document.getElementById('loginPage').style.display = 'none';
                 document.getElementById('registerPage').style.display = 'none';
                 document.getElementById('dashboard').style.display = 'block';
@@ -2578,30 +2611,58 @@ async function login() {
                 
                 showAlert('dashboardAlert', '📴 وضع عدم الاتصال - تعمل بنسخة محفوظة', 'warning');
                 document.body.classList.add('offline-mode');
-            } else {
-                showAlert('loginAlert', 'لا توجد بيانات محفوظة', 'error');
+                return true;
             }
-        } else {
-            showAlert('loginAlert', 'بيانات غير صحيحة أو غير محفوظة', 'error');
         }
+        
+        showAlert('loginAlert', 'لا توجد بيانات محفوظة أو فشل الاتصال بالخادم', 'error');
+        return false;
+    } catch (e) {
+        console.log('خطأ في تسجيل الدخول المحلي:', e);
+        showAlert('loginAlert', 'حدث خطأ في تسجيل الدخول', 'error');
+        return false;
     }
 }
 
-
-
-async function loadDashboard() {
-    const uid = localStorage.getItem('userId');
-    if (!uid) {
+    async function loadDashboard() {
+    // محاولة استرجاع userId من localStorage مع معالجة أخطاء Safari
+    let uid = null;
+    try {
+        uid = localStorage.getItem('userId');
+    } catch (e) {
+        console.log('⚠️ Safari: لا يمكن قراءة localStorage');
+        // محاولة استرجاع من المتغير المؤقت
+        if (window.tempUser) {
+            uid = window.tempUser.id;
+            currentUser = window.tempUser;
+            allPatients = window.tempPatients || [];
+        }
+    }
+    
+    if (!uid && !currentUser) {
         showLogin();
         return;
     }
     
-    // محاولة استرجاع البيانات المخزنة أولاً
-    const savedData = localStorage.getItem(`offline_data_${uid}`);
+    // إذا كان currentUser موجود بالفعل من المتغير المؤقت
+    if (currentUser && !uid) {
+        uid = currentUser.id;
+    }
+    
+    // محاولة استرجاع البيانات المخزنة أولاً مع معالجة أخطاء Safari
+    let savedData = null;
+    try {
+        const dataStr = localStorage.getItem(`offline_data_${uid}`);
+        if (dataStr) {
+            savedData = JSON.parse(dataStr);
+        }
+    } catch (e) {
+        console.log('⚠️ Safari: خطأ في قراءة البيانات المخزنة');
+    }
+    
     if (savedData) {
-        const data = JSON.parse(savedData);
-        currentUser = data.user;
-        allPatients = data.patients || [];
+        currentUser = savedData.user;
+        allPatients = savedData.patients || [];
         renderPatients(allPatients);
         document.getElementById('totalPatients').textContent = allPatients.length;
         document.getElementById('remainingSlots').textContent = currentUser.role === 'admin' ? 'غير محدود' : Math.max(0, 5 - allPatients.length);
@@ -2644,15 +2705,26 @@ async function loadDashboard() {
         // إذا كان هناك إنترنت، حاول التحديث من السيرفر
         if (navigator.onLine) {
             try {
-                const r = await fetch(`/api/user/${uid}`);
+                // إضافة مهلة زمنية للطلب
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8000);
+                
+                const r = await fetch(`/api/user/${uid}`, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                
                 if (r.ok) {
                     const userData = await r.json();
                     currentUser = userData.user;
-                    localStorage.setItem(`offline_data_${uid}`, JSON.stringify({
-                        user: currentUser,
-                        patients: allPatients,
-                        savedAt: new Date().toISOString()
-                    }));
+                    
+                    try {
+                        localStorage.setItem(`offline_data_${uid}`, JSON.stringify({
+                            user: currentUser,
+                            patients: allPatients,
+                            savedAt: new Date().toISOString()
+                        }));
+                    } catch(e) {
+                        console.log('⚠️ Safari: لا يمكن حفظ البيانات');
+                    }
                     
                     // تحديث الواجهة بعد تحديث بيانات المستخدم
                     document.getElementById('userNameDisplay').textContent = currentUser.fullName || currentUser.username;
@@ -2678,11 +2750,20 @@ async function loadDashboard() {
                 }
                 
                 // تحديث المرضى من السيرفر
-                const patientsRes = await fetch(`/api/patients/${uid}`);
+                const patientsController = new AbortController();
+                const patientsTimeout = setTimeout(() => patientsController.abort(), 8000);
+                
+                const patientsRes = await fetch(`/api/patients/${uid}`, { signal: patientsController.signal });
+                clearTimeout(patientsTimeout);
+                
                 if (patientsRes.ok) {
                     const serverPatients = await patientsRes.json();
                     // دمج مع المرضى المحليين (غير المزامنين)
-                    const offlinePatients = JSON.parse(localStorage.getItem(`offline_patients_${uid}`) || '[]');
+                    let offlinePatients = [];
+                    try {
+                        offlinePatients = JSON.parse(localStorage.getItem(`offline_patients_${uid}`) || '[]');
+                    } catch(e) {}
+                    
                     const pendingOffline = offlinePatients.filter(p => p.pendingSync === true);
                     allPatients = [...pendingOffline, ...serverPatients];
                     renderPatients(allPatients);
@@ -2696,7 +2777,8 @@ async function loadDashboard() {
                 }
                 
             } catch (e) {
-                console.log('Using cached data only');
+                console.log('⚠️ Safari: فشل الاتصال بالسيرفر - استخدام البيانات المخزنة');
+                // لا نقوم بإظهار أي تنبيه للمستخدم، نستمر بالبيانات المخزنة
             }
         }
         
@@ -2709,15 +2791,23 @@ async function loadDashboard() {
     // إذا لم تكن هناك بيانات مخزنة، جلب من السيرفر
     if (navigator.onLine) {
         try {
-            const r = await fetch(`/api/user/${uid}`);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+            
+            const r = await fetch(`/api/user/${uid}`, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            
             if (r.ok) {
                 const userData = await r.json();
                 currentUser = userData.user;
-                localStorage.setItem(`offline_data_${uid}`, JSON.stringify({
-                    user: currentUser,
-                    patients: [],
-                    savedAt: new Date().toISOString()
-                }));
+                
+                try {
+                    localStorage.setItem(`offline_data_${uid}`, JSON.stringify({
+                        user: currentUser,
+                        patients: [],
+                        savedAt: new Date().toISOString()
+                    }));
+                } catch(e) {}
                 
                 const patientsRes = await fetch(`/api/patients/${uid}`);
                 if (patientsRes.ok) {
@@ -2730,6 +2820,7 @@ async function loadDashboard() {
                 return;
             }
         } catch (e) {
+            console.log('⚠️ Safari: فشل الاتصال بالسيرفر');
             showLogin();
             return;
         }
@@ -2778,7 +2869,7 @@ async function loadDashboard() {
     if (navigator.onLine && typeof syncPatientImagesToServer === 'function') {
         await syncPatientImagesToServer();
     }
-    }
+                    }
     
     // مزامنة جميع البيانات المحلية مع السيرفر
 async function syncAllOfflineData() {
