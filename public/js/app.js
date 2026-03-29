@@ -163,46 +163,77 @@ function fetchWithTimeout(url, options, timeout) {
 //     readAt: string | null
 // }
 
-// حفظ الإشعارات
-function saveNotification(notification) {
-    let notifications = [];
-    try {
-        notifications = JSON.parse(localStorage.getItem('clinicpro_notifications') || '[]');
-    } catch(e) { console.log('Parse error:', e); }
+// ============ نظام الإشعارات (متكامل مع السيرفر) ============
+
+// جلب إشعارات المستخدم من السيرفر
+async function fetchUserNotifications() {
+    if (!currentUser) return [];
     
-    notifications.push(notification);
     try {
-        localStorage.setItem('clinicpro_notifications', JSON.stringify(notifications));
-    } catch(e) { console.log('Save error:', e); }
-    return notification;
+        var response = await fetch('/api/notifications/user/' + currentUser.id);
+        var data = await response.json();
+        
+        if (data.success) {
+            // حفظ في localStorage للتخزين المؤقت
+            try {
+                localStorage.setItem('cached_notifications_' + currentUser.id, JSON.stringify(data.notifications));
+                localStorage.setItem('cached_unread_count_' + currentUser.id, data.unreadCount);
+            } catch(e) {}
+            
+            return data.notifications;
+        }
+    } catch (e) {
+        console.log('⚠️ Cannot fetch notifications from server, using cache');
+        // استخدام البيانات المخزنة مؤقتاً
+        try {
+            var cached = localStorage.getItem('cached_notifications_' + currentUser.id);
+            return cached ? JSON.parse(cached) : [];
+        } catch(e) {
+            return [];
+        }
+    }
+    return [];
 }
 
 // الحصول على إشعارات المستخدم الحالي
-function getUserNotifications() {
+async function getUserNotifications() {
     if (!currentUser) return [];
-    let allNotifications = [];
-    try {
-        allNotifications = JSON.parse(localStorage.getItem('clinicpro_notifications') || '[]');
-    } catch(e) { return []; }
-    
-    return allNotifications.filter(n => n.userId === currentUser.id || n.userId === 'all');
+    return await fetchUserNotifications();
 }
 
 // الحصول على عدد الإشعارات غير المقروءة
-function getUnreadCount() {
-    const notifications = getUserNotifications();
-    let count = 0;
-    for (var i = 0; i < notifications.length; i++) {
-        if (!notifications[i].read) count++;
+async function getUnreadCount() {
+    if (!currentUser) return 0;
+    
+    if (navigator.onLine) {
+        try {
+            var response = await fetch('/api/notifications/unread-count/' + currentUser.id);
+            var data = await response.json();
+            if (data.success) {
+                try {
+                    localStorage.setItem('cached_unread_count_' + currentUser.id, data.count);
+                } catch(e) {}
+                return data.count;
+            }
+        } catch(e) {
+            console.log('⚠️ Cannot get unread count from server');
+        }
     }
-    return count;
+    
+    // استخدام القيمة المخزنة
+    try {
+        return parseInt(localStorage.getItem('cached_unread_count_' + currentUser.id)) || 0;
+    } catch(e) {
+        return 0;
+    }
 }
 
 // تحديث شارة الإشعارات
-function updateNotificationBadge() {
+async function updateNotificationBadge() {
     var badge = document.getElementById('notificationBadge');
     if (!badge) return;
-    var count = getUnreadCount();
+    
+    var count = await getUnreadCount();
     if (count > 0) {
         badge.textContent = count > 99 ? '99+' : count;
         badge.style.display = 'flex';
@@ -212,12 +243,12 @@ function updateNotificationBadge() {
 }
 
 // عرض صفحة الإشعارات
-function showNotificationsPage() {
+async function showNotificationsPage() {
     if (!currentUser) return;
     document.getElementById('dashboard').style.display = 'none';
     document.getElementById('notificationsPage').style.display = 'block';
     document.getElementById('notificationsUserName').textContent = currentUser.fullName || currentUser.username;
-    renderNotifications();
+    await renderNotifications();
     updateNotificationBadge();
 }
 
@@ -227,16 +258,13 @@ function closeNotificationsPage() {
 }
 
 // عرض الإشعارات
-function renderNotifications() {
+async function renderNotifications() {
     var container = document.getElementById('notificationsList');
     if (!container) return;
     
-    var notifications = getUserNotifications();
-    notifications.sort(function(a, b) {
-        return new Date(b.createdAt) - new Date(a.createdAt);
-    });
+    var notifications = await fetchUserNotifications();
     
-    if (notifications.length === 0) {
+    if (!notifications || notifications.length === 0) {
         container.innerHTML = '<div class="empty-notifications"><i class="fas fa-bell-slash"></i><p>لا توجد إشعارات</p></div>';
         return;
     }
@@ -265,6 +293,9 @@ function renderNotifications() {
         html += '<div class="notification-date">' + formattedDate + '</div>';
         html += '</div>';
         html += '<div class="notification-body">' + escapeHtml(n.body) + '</div>';
+        if (n.sentByName) {
+            html += '<div style="font-size:11px; color:#64748b; margin-top:8px;"><i class="fas fa-user"></i> من: ' + escapeHtml(n.sentByName) + '</div>';
+        }
         html += '</div>';
     }
     container.innerHTML = html;
@@ -281,62 +312,54 @@ function getNotificationTypeName(type) {
 }
 
 // تعيين إشعار كمقروء
-function markNotificationRead(notificationId) {
-    let notifications = [];
-    try {
-        notifications = JSON.parse(localStorage.getItem('clinicpro_notifications') || '[]');
-    } catch(e) { return; }
+async function markNotificationRead(notificationId) {
+    if (!currentUser) return;
     
-    for (var i = 0; i < notifications.length; i++) {
-        if (notifications[i].id === notificationId) {
-            notifications[i].read = true;
-            notifications[i].readAt = new Date().toISOString();
-            break;
+    if (navigator.onLine) {
+        try {
+            await fetch('/api/notifications/' + notificationId + '/read/' + currentUser.id, {
+                method: 'PUT'
+            });
+        } catch(e) {
+            console.log('Error marking as read:', e);
         }
     }
     
-    try {
-        localStorage.setItem('clinicpro_notifications', JSON.stringify(notifications));
-    } catch(e) { console.log('Save error:', e); }
-    
-    renderNotifications();
+    // تحديث الواجهة
+    await renderNotifications();
     updateNotificationBadge();
 }
 
 // تعيين كل الإشعارات كمقروءة
-function markAllNotificationsRead() {
-    let notifications = [];
-    try {
-        notifications = JSON.parse(localStorage.getItem('clinicpro_notifications') || '[]');
-    } catch(e) { return; }
+async function markAllNotificationsRead() {
+    if (!currentUser) return;
     
-    for (var i = 0; i < notifications.length; i++) {
-        if (notifications[i].userId === currentUser.id || notifications[i].userId === 'all') {
-            notifications[i].read = true;
-            notifications[i].readAt = new Date().toISOString();
+    if (navigator.onLine) {
+        try {
+            await fetch('/api/notifications/read-all/' + currentUser.id, {
+                method: 'PUT'
+            });
+        } catch(e) {
+            console.log('Error marking all as read:', e);
         }
     }
     
-    try {
-        localStorage.setItem('clinicpro_notifications', JSON.stringify(notifications));
-    } catch(e) { console.log('Save error:', e); }
-    
-    renderNotifications();
+    await renderNotifications();
     updateNotificationBadge();
     showAlert('dashboardAlert', '✅ تم تعيين جميع الإشعارات كمقروءة', 'success');
 }
 
-// ============ وظائف المدير ============
+// ============ وظائف المدير لإرسال الإشعارات ============
 
 // فتح نافذة إرسال الإشعار
-function openSendNotificationModal() {
-    if (currentUser.role !== 'admin') {
+async function openSendNotificationModal() {
+    if (!currentUser || currentUser.role !== 'admin') {
         showAlert('adminAlert', 'غير مصرح لك بهذه العملية', 'error');
         return;
     }
     
     // تحميل قائمة المستخدمين
-    loadUsersForNotification();
+    await loadUsersListForNotification();
     document.getElementById('notificationRecipient').value = 'all';
     document.getElementById('specificUserDiv').style.display = 'none';
     document.getElementById('notificationTitle').value = '';
@@ -346,48 +369,43 @@ function openSendNotificationModal() {
 }
 
 // تحميل المستخدمين للقائمة
-function loadUsersForNotification() {
+async function loadUsersListForNotification() {
     var select = document.getElementById('notificationUserId');
     if (!select) return;
     
     select.innerHTML = '<option value="">-- اختر مستخدم --</option>';
-    for (var i = 0; i < allAdminUsers.length; i++) {
-        var u = allAdminUsers[i];
-        select.innerHTML += '<option value="' + u._id + '">' + escapeHtml(u.fullName) + ' (@' + u.username + ')</option>';
+    
+    try {
+        var response = await fetch('/api/admin/users-list');
+        var users = await response.json();
+        
+        for (var i = 0; i < users.length; i++) {
+            var u = users[i];
+            select.innerHTML += '<option value="' + u._id + '">' + escapeHtml(u.fullName) + ' (@' + u.username + ')</option>';
+        }
+    } catch(e) {
+        console.log('Error loading users:', e);
+        select.innerHTML = '<option value="">-- خطأ في تحميل المستخدمين --</option>';
     }
 }
 
-// مستمع لتغيير المستلم
-document.addEventListener('DOMContentLoaded', function() {
-    var recipientSelect = document.getElementById('notificationRecipient');
-    if (recipientSelect) {
-        recipientSelect.addEventListener('change', function() {
-            var specificDiv = document.getElementById('specificUserDiv');
-            if (this.value === 'specific') {
-                specificDiv.style.display = 'block';
-                loadUsersForNotification();
-            } else {
-                specificDiv.style.display = 'none';
-            }
-        });
-    }
-});
-
 // إرسال الإشعار
 async function sendNotification() {
-    if (currentUser.role !== 'admin') {
+    if (!currentUser || currentUser.role !== 'admin') {
         showAlert('adminAlert', 'غير مصرح لك بهذه العملية', 'error');
         return;
     }
     
     var recipient = document.getElementById('notificationRecipient').value;
-    var userId = null;
+    var userIds = [];
+    
     if (recipient === 'specific') {
-        userId = document.getElementById('notificationUserId').value;
+        var userId = document.getElementById('notificationUserId').value;
         if (!userId) {
             showAlert('adminAlert', 'الرجاء اختيار مستخدم', 'error');
             return;
         }
+        userIds = [userId];
     }
     
     var title = document.getElementById('notificationTitle').value.trim();
@@ -399,75 +417,54 @@ async function sendNotification() {
         return;
     }
     
-    var notification = {
-        id: 'notif_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
-        userId: recipient === 'all' ? 'all' : userId,
-        title: title,
-        body: body,
-        type: type,
-        createdAt: new Date().toISOString(),
-        read: false,
-        readAt: null,
-        sender: currentUser.fullName || currentUser.username
-    };
-    
-    // حفظ الإشعار
-    saveNotification(notification);
-    
-    // إذا كان الإشعار لمستخدم محدد، نحتاج لتحديث شارة الإشعارات للمستخدم
-    // في النسخة المحلية، الإشعارات عامة
-    
-    showAlert('adminAlert', '✅ تم إرسال الإشعار بنجاح', 'success');
-    closeModal('sendNotificationModal');
-    
-    // تحديث الإشعارات إذا كان المستخدم الحالي هو المستلم
-    if (recipient === 'all' || (recipient === 'specific' && userId === currentUser.id)) {
-        updateNotificationBadge();
-        if (document.getElementById('notificationsPage').style.display === 'block') {
-            renderNotifications();
+    try {
+        var response = await fetch('/api/notifications', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                title: title,
+                body: body,
+                type: type,
+                targetUsers: recipient,
+                userIds: userIds,
+                senderId: currentUser.id
+            })
+        });
+        
+        var result = await response.json();
+        
+        if (response.ok && result.success) {
+            showAlert('adminAlert', '✅ تم إرسال الإشعار إلى ' + result.recipientCount + ' مستخدم', 'success');
+            closeModal('sendNotificationModal');
+            
+            // تحديث الإشعارات للمستخدم الحالي إذا كان من المستلمين
+            if (recipient === 'all') {
+                updateNotificationBadge();
+            }
+        } else {
+            showAlert('adminAlert', result.message || 'فشل إرسال الإشعار', 'error');
         }
+    } catch(e) {
+        console.error('Error sending notification:', e);
+        showAlert('adminAlert', 'خطأ في الاتصال بالخادم', 'error');
     }
 }
 
 // تحديث شارة الإشعارات بشكل دوري
-setInterval(function() {
+setInterval(async function() {
     if (currentUser && document.visibilityState === 'visible') {
-        updateNotificationBadge();
+        await updateNotificationBadge();
     }
 }, 30000);
 
-// إضافة زر الإشعارات في الـ Dashboard
-function addNotificationButtonToDashboard() {
-    var contactButtons = document.querySelector('.contact-buttons');
-    if (contactButtons && !document.getElementById('notificationNavBtn')) {
-        var btn = document.createElement('button');
-        btn.id = 'notificationNavBtn';
-        btn.className = 'contact-btn';
-        btn.style.cssText = 'background:#3b82f6; position:relative';
-        btn.onclick = showNotificationsPage;
-        btn.innerHTML = '<i class="fas fa-bell"></i><span id="notificationBadgeNav" style="position:absolute; top:-5px; right:-5px; background:#ef4444; color:white; border-radius:50%; width:18px; height:18px; font-size:10px; display:none; align-items:center; justify-content:center">0</span>';
-        contactButtons.insertBefore(btn, contactButtons.firstChild);
-    }
-}
+        
+        
 
-// تحديث شارة الإشعارات
-function updateNotificationBadgeGlobal() {
-    var badge = document.getElementById('notificationBadgeNav');
-    if (!badge) return;
-    var count = getUnreadCount();
-    if (count > 0) {
-        badge.textContent = count > 99 ? '99+' : count;
-        badge.style.display = 'flex';
-    } else {
-        badge.style.display = 'none';
-    }
-}
 
-// استدعاء عند تحميل الصفحة
-setTimeout(function() {
-    addNotificationButtonToDashboard();
-    updateNotificationBadgeGlobal();
-}, 1000);
+
+
 // ============ المتغيرات ============
 var currentUser = null;
 var allPatients = [];
@@ -1338,6 +1335,7 @@ function showAdminPage() {
     document.getElementById('adminUserName').textContent = currentUser.fullName;
     loadAdminUsers();
     loadUsersForNotification();
+    loadUsersListForNotification();
     loadAllPatients();
     showAdminTab('users');
 }
@@ -1601,7 +1599,8 @@ async function loadDashboard() {
         }
         checkConnectionStatus();
         checkPatientLimit();
-        updateNotificationBadgeGlobal();
+    
+        updateNotificationBadge();
 
         
         if (navigator.onLine) {
@@ -1712,7 +1711,7 @@ async function loadDashboard() {
     await loadStats();
     checkConnectionStatus();
     checkPatientLimit();
-    updateNotificationBadgeGlobal();
+    updateNotificationBadge();
     if (navigator.onLine && typeof syncPatientImagesToServer === 'function') await syncPatientImagesToServer();
 }
 
