@@ -1,4 +1,58 @@
 
+// ============ PWA: يعمل فقط على Android ============
+(function() {
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    
+    if (isIOS) {
+        console.log('🍎 iOS detected - PWA disabled');
+        // إلغاء أي Service Worker موجود
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+                registrations.forEach(reg => reg.unregister());
+            });
+            // منع تسجيل جديد
+            navigator.serviceWorker.register = () => Promise.reject('SW disabled on iOS');
+        }
+        // إزالة manifest
+        const manifest = document.querySelector('link[rel="manifest"]');
+        if (manifest) manifest.remove();
+    } 
+    else if (isAndroid) {
+        console.log('🤖 Android detected - PWA enabled');
+        // إضافة manifest ديناميكياً
+        if (!document.querySelector('link[rel="manifest"]')) {
+            const link = document.createElement('link');
+            link.rel = 'manifest';
+            link.href = '/manifest.json';
+            document.head.appendChild(link);
+        }
+        
+        // زر تثبيت التطبيق على Android
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            setTimeout(() => {
+                const installBtn = document.createElement('div');
+                installBtn.id = 'androidInstallBtn';
+                installBtn.innerHTML = '<button style="position:fixed;bottom:20px;left:20px;background:#10b981;color:white;border:none;padding:12px 20px;border-radius:50px;z-index:10000;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.2)"><i class="fas fa-download"></i> تثبيت التطبيق</button>';
+                installBtn.onclick = async () => {
+                    if (deferredPrompt) {
+                        deferredPrompt.prompt();
+                        const { outcome } = await deferredPrompt.userChoice;
+                        deferredPrompt = null;
+                        installBtn.remove();
+                    }
+                };
+                document.body.appendChild(installBtn);
+                setTimeout(() => installBtn.remove(), 30000);
+            }, 2000);
+        });
+    }
+})();
+
+    
             
     // ============ OFFLINE SYSTEM ============
 
