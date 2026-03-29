@@ -97,6 +97,10 @@ href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
                     <button class="contact-btn telegram-btn" onclick="contactTelegram()">
                         <i class="fab fa-telegram"></i> تيليجرام
                     </button>
+                    <button class="contact-btn" onclick="showNotificationsPage()" style="background:#3b82f6; position:relative">
+    <i class="fas fa-bell"></i>
+    <span id="notificationBadge" style="position:absolute; top:-5px; right:-5px; background:#ef4444; color:white; border-radius:50%; width:18px; height:18px; font-size:10px; display:none; align-items:center; justify-content:center">0</span>
+                    </button>
                     <button class="logout-btn" onclick="logout()">خروج</button>
                 </div>
             </div>
@@ -131,12 +135,86 @@ href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
             <div style="display:flex;gap:10px;margin-bottom:20px">
                 <button id="tabUsersBtn" class="btn" style="width:auto;background:#3b82f6" onclick="showAdminTab('users')">👥 المستخدمين</button>
                 <button id="tabPatientsBtn" class="btn" style="width:auto;background:#64748b" onclick="showAdminTab('patients')">🦷 جميع المرضى</button>
+                <button class="btn" style="width:auto; background:#3b82f6; margin-bottom:15px" onclick="openSendNotificationModal()">
+    <i class="fas fa-bell"></i> إرسال إشعار للمستخدمين
+                </button>
             </div>
             <div id="adminUsersSection"><div class="search-bar"><input type="text" id="adminUserSearch" placeholder="بحث..." onkeyup="searchAdminUsers()"><button class="btn" onclick="refreshAdminUsers()">تحديث</button></div><div id="adminUsersList" class="patients-grid"></div></div>
             <div id="adminPatientsSection" style="display:none"><div class="search-bar"><input type="text" id="adminPatientSearch" placeholder="بحث..." onkeyup="searchAdminPatients()"><button class="btn" onclick="refreshAdminPatients()">تحديث</button></div><div id="adminPatientsList" class="patients-grid"></div></div>
         </div>
     </div>
+<!-- Notifications Page for Users -->
+<div id="notificationsPage" class="dashboard" style="display:none">
+    <div class="navbar">
+        <div class="logo">
+            <i class="fas fa-bell"></i>
+            <h2>الإشعارات</h2>
+        </div>
+        <div class="user-info">
+            <div class="doctor-info">
+                <i class="fas fa-user-md"></i>
+                <span id="notificationsUserName"></span>
+            </div>
+            <button class="btn" style="width:auto" onclick="closeNotificationsPage()">
+                <i class="fas fa-arrow-right"></i> العودة
+            </button>
+        </div>
+    </div>
+    <div class="main-content">
+        <div class="notifications-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
+            <h3><i class="fas fa-bell"></i> الإشعارات</h3>
+            <button class="btn btn-secondary" onclick="markAllNotificationsRead()" style="width:auto; padding:8px 16px">
+                <i class="fas fa-check-double"></i> تعيين الكل كمقروء
+            </button>
+        </div>
+        <div id="notificationsList" class="notifications-list"></div>
+    </div>
+</div>
 
+<!-- Admin Send Notification Modal -->
+<div id="sendNotificationModal" class="modal">
+    <div class="modal-content" style="max-width:500px">
+        <div class="modal-header">
+            <h3><i class="fas fa-paper-plane"></i> إرسال إشعار</h3>
+            <button class="close-btn" onclick="closeModal('sendNotificationModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="input-group">
+                <label>إلى:</label>
+                <select id="notificationRecipient" class="form-control">
+                    <option value="all">جميع المستخدمين</option>
+                    <option value="specific">مستخدم محدد</option>
+                </select>
+            </div>
+            <div id="specificUserDiv" style="display:none" class="input-group">
+                <label>اختر المستخدم:</label>
+                <select id="notificationUserId" class="form-control">
+                    <option value="">-- اختر مستخدم --</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>عنوان الإشعار:</label>
+                <input type="text" id="notificationTitle" class="form-control" placeholder="مثال: تحديث جديد" maxlength="100">
+            </div>
+            <div class="input-group">
+                <label>محتوى الإشعار:</label>
+                <textarea id="notificationBody" rows="4" class="form-control" placeholder="اكتب محتوى الإشعار هنا..."></textarea>
+            </div>
+            <div class="input-group">
+                <label>نوع الإشعار:</label>
+                <select id="notificationType" class="form-control">
+                    <option value="info">📘 معلومات</option>
+                    <option value="success">✅ نجاح</option>
+                    <option value="warning">⚠️ تحذير</option>
+                    <option value="danger">🔴 مهم</option>
+                </select>
+            </div>
+            <button class="btn" onclick="sendNotification()" style="margin-top:15px">
+                <i class="fas fa-paper-plane"></i> إرسال الإشعار
+            </button>
+        </div>
+    </div>
+</div>
     <!-- Subscription Page -->
     <div id="subscriptionPage" class="dashboard" style="display: none;">
         <div class="navbar">
