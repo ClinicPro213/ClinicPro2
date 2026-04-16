@@ -80,7 +80,18 @@ href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
     </small>
             </div>
             <div class="input-group"><label>كلمة المرور</label><input type="password" id="regPassword" required style="width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:12px"></div>
-            <div class="input-group"><label>رقم الهاتف</label><input type="text" id="regPhone" style="width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:12px"></div>
+            <div class="input-group">
+    <label>رقم الهاتف *</label>
+    <input type="tel" id="regPhone" required 
+           pattern="7[0-9]{8}" 
+           maxlength="9"
+           title="رقم الهاتف يجب أن يكون 9 أرقام ويبدأ بالرقم 7 (مثال: 712345678)"
+           oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0,9)"
+           style="width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:12px">
+    <small style="color:#64748b; font-size:12px; margin-top:5px; display:block">
+        <i class="fas fa-info-circle"></i> رقم الهاتف: 9 أرقام ويبدأ بـ 7 (مثال: 712345678)
+    </small>
+            </div>
             <div class="input-group"><label>العمر</label><input type="number" id="regAge" required style="width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:12px"></div>
             <div class="input-group"><label>اسم العيادة</label><input type="text" id="regClinicName" required style="width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:12px"></div>
             <div class="input-group"><label>العنوان</label><input type="text" id="regAddress" required style="width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:12px"></div>
