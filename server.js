@@ -104,18 +104,27 @@ app.use((req, res, next) => {
 // أضف هذا التعبير المنتظم في بداية الملف (بعد الـ requires)
 const usernameRegex = /^[a-zA-Z0-9]+$/;
 
-// ثم قم بتعديل مسار التسجيل ليصبح كالتالي:
 app.post('/api/register', async (req, res) => {
     try {
         console.log('📝 Register request:', req.body);
         
         const { fullName, username, password, phone, age, clinicName, address } = req.body;
         
-        // التحقق من أن اسم المستخدم يحتوي على حروف إنجليزية وأرقام فقط
-        if (!usernameRegex.test(username)) {
-            return res.status(400).json({ 
-                message: 'اسم المستخدم يجب أن يحتوي على حروف إنجليزية وأرقام فقط (بدون مسافات أو فواصل أو رموز خاصة)' 
-            });
+        // ✅ التحقق من رقم الهاتف (9 أرقام ويبدأ بـ 7)
+        const phoneRegex = /^7[0-9]{8}$/; // 7 ثم 8 أرقام (مجموع 9 أرقام)
+        
+        if (!phone) {
+            return res.status(400).json({ message: 'رقم الهاتف مطلوب' });
+        }
+        
+        if (!phoneRegex.test(phone)) {
+            return res.status(400).json({ message: 'رقم الهاتف يجب أن يكون 9 أرقام ويبدأ بالرقم 7 (مثال: 712345678)' });
+        }
+        
+        // ✅ التحقق من عدم تكرار رقم الهاتف
+        const existingPhone = await User.findOne({ phone });
+        if (existingPhone) {
+            return res.status(400).json({ message: 'رقم الهاتف مسجل بالفعل' });
         }
         
         // Check if user exists
@@ -123,6 +132,8 @@ app.post('/api/register', async (req, res) => {
         if (existingUser) {
             return res.status(400).json({ message: 'اسم المستخدم موجود بالفعل' });
         }
+        
+        // باقي الكود كما هو...
         
         // Create user
         const user = new User({
