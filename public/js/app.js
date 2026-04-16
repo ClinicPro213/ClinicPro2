@@ -1400,6 +1400,13 @@ async function register() {
         return;
     }
     
+    // إضافة التحقق من اسم المستخدم (حروف إنجليزية وأرقام فقط)
+    var usernameRegex = /^[a-zA-Z0-9]+$/;
+    if (!usernameRegex.test(data.username)) {
+        showAlert('registerAlert', 'اسم المستخدم يجب أن يحتوي على حروف إنجليزية وأرقام فقط (بدون مسافات أو فواصل أو رموز خاصة)', 'error');
+        return;
+    }
+    
     if (navigator.onLine) {
         try {
             var response = await fetch('/api/register', {
