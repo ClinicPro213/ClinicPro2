@@ -1400,6 +1400,14 @@ async function register() {
         return;
     }
     
+    // ✅ التحقق من رقم الهاتف
+    const phoneRegex = /^7[0-9]{8}$/;
+    if (!data.phone || !phoneRegex.test(data.phone)) {
+        showAlert('registerAlert', 'رقم الهاتف يجب أن يكون 9 أرقام ويبدأ بالرقم 7 (مثال: 712345678)', 'error');
+        return;
+    }
+    
+    
     // إضافة التحقق من اسم المستخدم (حروف إنجليزية وأرقام فقط)
     var usernameRegex = /^[a-zA-Z0-9]+$/;
     if (!usernameRegex.test(data.username)) {
