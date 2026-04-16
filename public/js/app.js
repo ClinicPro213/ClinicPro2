@@ -1330,6 +1330,12 @@ function refreshAdminPatients() {
 }
 
 function showAdminPage() {
+    // ✅ التحقق من صلاحيات المدير - هذا هو الحل
+    if (!currentUser || currentUser.role !== 'admin') {
+        showAlert('dashboardAlert', '⚠️ غير مصرح لك بالدخول إلى لوحة المدير', 'error');
+        return;
+    }
+    
     document.getElementById('dashboard').style.display = 'none';
     document.getElementById('adminPage').style.display = 'block';
     document.getElementById('adminUserName').textContent = currentUser.fullName;
@@ -1728,6 +1734,8 @@ async function loadDashboard() {
     }
     await loadStats();
     checkConnectionStatus();
+    // في نهاية loadDashboard() تأكد من وجود
+checkAndShowAdminButton();
     checkPatientLimit();
     updateNotificationBadge();
     if (navigator.onLine && typeof syncPatientImagesToServer === 'function') await syncPatientImagesToServer();
