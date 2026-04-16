@@ -101,12 +101,22 @@ app.use((req, res, next) => {
     next();
 });
 
-// ============ AUTH ROUTES ============
+// أضف هذا التعبير المنتظم في بداية الملف (بعد الـ requires)
+const usernameRegex = /^[a-zA-Z0-9]+$/;
+
+// ثم قم بتعديل مسار التسجيل ليصبح كالتالي:
 app.post('/api/register', async (req, res) => {
     try {
         console.log('📝 Register request:', req.body);
         
         const { fullName, username, password, phone, age, clinicName, address } = req.body;
+        
+        // التحقق من أن اسم المستخدم يحتوي على حروف إنجليزية وأرقام فقط
+        if (!usernameRegex.test(username)) {
+            return res.status(400).json({ 
+                message: 'اسم المستخدم يجب أن يحتوي على حروف إنجليزية وأرقام فقط (بدون مسافات أو فواصل أو رموز خاصة)' 
+            });
+        }
         
         // Check if user exists
         const existingUser = await User.findOne({ username });
@@ -133,7 +143,7 @@ app.post('/api/register', async (req, res) => {
         res.json({
             success: true,
             user: {
-                id: user._id.toString(), // Ensure it's a string
+                id: user._id.toString(),
                 fullName: user.fullName,
                 username: user.username,
                 role: user.role,
