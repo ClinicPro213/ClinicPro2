@@ -79,7 +79,18 @@ href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
         <i class="fas fa-info-circle"></i> يسمح فقط بالحروف الإنجليزية والأرقام (مثال: Ahmed123)
     </small>
             </div>
-            <div class="input-group"><label>كلمة المرور</label><input type="password" id="regPassword" required style="width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:12px"></div>
+            <div class="input-group">
+    <label>كلمة المرور *</label>
+    <input type="password" id="regPassword" required 
+           pattern="[A-Za-z0-9]{6,}" 
+           minlength="6"
+           title="كلمة المرور: 6 خانات على الأقل، حروف إنجليزية وأرقام فقط"
+           oninput="this.value = this.value.replace(/[^A-Za-z0-9]/g, '')"
+           style="width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:12px">
+    <small style="color:#64748b; font-size:12px; margin-top:5px; display:block">
+        <i class="fas fa-info-circle"></i> كلمة المرور: 6 خانات على الأقل، حروف إنجليزية وأرقام فقط (مثال: Ahmed123)
+    </small>
+            </div>
             <div class="input-group">
     <label>رقم الهاتف *</label>
     <input type="tel" id="regPhone" required 
