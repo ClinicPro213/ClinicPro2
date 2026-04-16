@@ -1384,6 +1384,7 @@ async function syncAllDataWithServer() {
 }
 
 // ============ المصادقة ============
+
 async function register() {
     var data = {
         fullName: document.getElementById('regFullName').value,
@@ -1428,16 +1429,18 @@ async function register() {
             var result = await response.json();
             
             if (response.ok && result.success) {
-                currentUser = result.user;
-                try {
-                    localStorage.setItem('userId', currentUser.id);
-                    saveOfflineAuth(currentUser, data.password);
-                } catch(e) { console.log('Save error:', e); }
-                
-                await loadDashboard();
-                showAlert('dashboardAlert', '✅ تم إنشاء الحساب بنجاح', 'success');
-            } else {
-                showAlert('registerAlert', result.message || 'فشل إنشاء الحساب', 'error');
+    currentUser = result.user;
+    try {
+        localStorage.setItem('userId', currentUser.id);
+        saveOfflineAuth(currentUser, data.password);
+    } catch(e) { console.log('Save error:', e); }
+    
+    // ✅ أضف هذين السطرين لإخفاء صفحات التسجيل والدخول
+    document.getElementById('registerPage').style.display = 'none';
+    document.getElementById('loginPage').style.display = 'none';
+    
+    await loadDashboard();
+    showAlert('dashboardAlert', '✅ تم إنشاء الحساب وتسجيل الدخول بنجاح', 'success');
             }
         } catch (e) {
             console.log('Registration error:', e);
