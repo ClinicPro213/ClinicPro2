@@ -110,15 +110,39 @@ app.post('/api/register', async (req, res) => {
         
         const { fullName, username, password, phone, age, clinicName, address } = req.body;
         
-        // ✅ التحقق من رقم الهاتف (9 أرقام ويبدأ بـ 7)
-        const phoneRegex = /^7[0-9]{8}$/; // 7 ثم 8 أرقام (مجموع 9 أرقام)
-        
-        if (!phone) {
-            return res.status(400).json({ message: 'رقم الهاتف مطلوب' });
+        // ✅ التحقق من كلمة المرور (إنجليزي، أرقام، 6 خانات على الأقل)
+        const passwordRegex = /^[a-zA-Z0-9]{6,}$/;
+        if (!password || !passwordRegex.test(password)) {
+            return res.status(400).json({ 
+                message: 'كلمة المرور يجب أن تحتوي على حروف إنجليزية وأرقام فقط، وأن تكون 6 خانات على الأقل' 
+            });
         }
         
-        if (!phoneRegex.test(phone)) {
-            return res.status(400).json({ message: 'رقم الهاتف يجب أن يكون 9 أرقام ويبدأ بالرقم 7 (مثال: 712345678)' });
+        // ✅ التحقق من اسم المستخدم (حروف إنجليزية وأرقام فقط)
+        const usernameRegex = /^[a-zA-Z0-9]+$/;
+        if (!username || !usernameRegex.test(username)) {
+            return res.status(400).json({ message: 'اسم المستخدم يجب أن يحتوي على حروف إنجليزية وأرقام فقط' });
+        }
+        
+        // ✅ التحقق من رقم الهاتف (9 أرقام ويبدأ بـ 7)
+        const phoneRegex = /^7[0-9]{8}$/;
+        if (!phone || !phoneRegex.test(phone)) {
+            return res.status(400).json({ message: 'رقم الهاتف يجب أن يكون 9 أرقام ويبدأ بالرقم 7' });
+        }
+        
+        // ✅ التحقق من الاسم الكامل (3 أحرف على الأقل)
+        if (!fullName || fullName.trim().length < 3) {
+            return res.status(400).json({ message: 'الاسم الكامل يجب أن يكون 3 أحرف على الأقل' });
+        }
+        
+        // ✅ التحقق من العمر
+        if (!age || age < 18 || age > 100) {
+            return res.status(400).json({ message: 'العمر يجب أن يكون بين 18 و 100 سنة' });
+        }
+        
+        // ✅ التحقق من اسم العيادة
+        if (!clinicName || clinicName.trim().length < 2) {
+            return res.status(400).json({ message: 'اسم العيادة مطلوب' });
         }
         
         // ✅ التحقق من عدم تكرار رقم الهاتف
@@ -133,17 +157,15 @@ app.post('/api/register', async (req, res) => {
             return res.status(400).json({ message: 'اسم المستخدم موجود بالفعل' });
         }
         
-        // باقي الكود كما هو...
-        
         // Create user
         const user = new User({
-            fullName,
-            username,
-            password,
-            phone: phone || '',
+            fullName: fullName.trim(),
+            username: username.trim(),
+            password: password, // سيتم تخزينها كما هي
+            phone: phone,
             age: parseInt(age),
-            clinicName,
-            address,
+            clinicName: clinicName.trim(),
+            address: address ? address.trim() : '',
             role: username === 'admin' ? 'admin' : 'user'
         });
         
@@ -163,6 +185,12 @@ app.post('/api/register', async (req, res) => {
         });
     } catch (error) {
         console.error('Registration error:', error);
+        
+        // رسالة خاصة لتكرار المفتاح
+        if (error.code === 11000) {
+            return res.status(400).json({ message: 'اسم المستخدم أو رقم الهاتف موجود بالفعل' });
+        }
+        
         res.status(500).json({ message: 'خطأ في التسجيل: ' + error.message });
     }
 });
