@@ -1393,17 +1393,30 @@ async function syncAllDataWithServer() {
 
 async function register() {
     var data = {
-        fullName: document.getElementById('regFullName').value,
-        username: document.getElementById('regUsername').value,
+        fullName: document.getElementById('regFullName').value.trim(),
+        username: document.getElementById('regUsername').value.trim(),
         password: document.getElementById('regPassword').value,
         phone: document.getElementById('regPhone').value,
         age: parseInt(document.getElementById('regAge').value),
-        clinicName: document.getElementById('regClinicName').value,
-        address: document.getElementById('regAddress').value
+        clinicName: document.getElementById('regClinicName').value.trim(),
+        address: document.getElementById('regAddress').value.trim()
     };
     
-    if (!data.fullName || !data.username || !data.password) {
-        showAlert('registerAlert', 'املأ جميع الحقول المطلوبة', 'error');
+    // ✅ التحقق من الحقول المطلوبة
+    if (!data.fullName || data.fullName.length < 3) {
+        showAlert('registerAlert', 'الاسم الكامل يجب أن يكون 3 أحرف على الأقل', 'error');
+        return;
+    }
+    
+    if (!data.username || data.username.length < 3) {
+        showAlert('registerAlert', 'اسم المستخدم يجب أن يكون 3 أحرف على الأقل', 'error');
+        return;
+    }
+    
+    // ✅ التحقق من كلمة المرور
+    const passwordRegex = /^[A-Za-z0-9]{6,}$/;
+    if (!data.password || !passwordRegex.test(data.password)) {
+        showAlert('registerAlert', 'كلمة المرور يجب أن تكون 6 خانات على الأقل وتحتوي على حروف إنجليزية وأرقام فقط', 'error');
         return;
     }
     
@@ -1414,13 +1427,25 @@ async function register() {
         return;
     }
     
-    
-    // إضافة التحقق من اسم المستخدم (حروف إنجليزية وأرقام فقط)
-    var usernameRegex = /^[a-zA-Z0-9]+$/;
+    // ✅ التحقق من اسم المستخدم
+    const usernameRegex = /^[a-zA-Z0-9]+$/;
     if (!usernameRegex.test(data.username)) {
-        showAlert('registerAlert', 'اسم المستخدم يجب أن يحتوي على حروف إنجليزية وأرقام فقط (بدون مسافات أو فواصل أو رموز خاصة)', 'error');
+        showAlert('registerAlert', 'اسم المستخدم يجب أن يحتوي على حروف إنجليزية وأرقام فقط', 'error');
         return;
     }
+    
+    // ✅ التحقق من العمر
+    if (!data.age || data.age < 18 || data.age > 100) {
+        showAlert('registerAlert', 'العمر يجب أن يكون بين 18 و 100 سنة', 'error');
+        return;
+    }
+    
+    // ✅ التحقق من اسم العيادة
+    if (!data.clinicName || data.clinicName.length < 2) {
+        showAlert('registerAlert', 'اسم العيادة مطلوب', 'error');
+        return;
+    }
+    
     
     if (navigator.onLine) {
         try {
