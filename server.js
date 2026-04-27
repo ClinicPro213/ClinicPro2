@@ -38,11 +38,12 @@ mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://ClinicPro:admin8899@clu
 const userSchema = new mongoose.Schema({
     fullName: { type: String, required: true },
     username: { type: String, unique: true, required: true },
+    originalUsername: { type: String, default: '' }, // ✅ حفظ الاسم الأصلي
     password: { type: String, required: true },
-    phone: { type: String, default: '' },           // لا يوجد unique
-    age: { type: Number, default: 0 },              // لا يوجد قيود
+    phone: { type: String, default: '' },
+    age: { type: Number, default: 0 },
     clinicName: { type: String, required: true },
-    address: { type: String, default: '' },         // لا يوجد unique
+    address: { type: String, default: '' },
     role: { type: String, default: 'user' },
     isSubscribed: { type: Boolean, default: false },
     subscriptionExpiry: Date,
@@ -122,8 +123,11 @@ app.post('/api/register', async (req, res) => {
         
         const { fullName, username, password, phone, age, clinicName, address } = req.body;
         
-        // ✅ التحقق من كلمة المرور (إنجليزي، أرقام، 6 خانات على الأقل)
-        const passwordRegex = /^[a-zA-Z0-9]{6,}$/;
+        // ✅ تحويل اسم المستخدم إلى أحرف صغيرة (لتجنب التكرار بحالة الأحرف)
+        const normalizedUsername = username.toLowerCase();
+        
+        // ✅ التحقق من كلمة المرور
+        const passwordRegex = /^[A-Za-z0-9]{6,}$/;
         if (!password || !passwordRegex.test(password)) {
             return res.status(400).json({ 
                 message: 'كلمة المرور يجب أن تحتوي على حروف إنجليزية وأرقام فقط، وأن تكون 6 خانات على الأقل' 
@@ -136,13 +140,13 @@ app.post('/api/register', async (req, res) => {
             return res.status(400).json({ message: 'اسم المستخدم يجب أن يحتوي على حروف إنجليزية وأرقام فقط' });
         }
         
-        // ✅ التحقق من رقم الهاتف (9 أرقام ويبدأ بـ 7)
+        // ✅ التحقق من رقم الهاتف
         const phoneRegex = /^7[0-9]{8}$/;
         if (!phone || !phoneRegex.test(phone)) {
             return res.status(400).json({ message: 'رقم الهاتف يجب أن يكون 9 أرقام ويبدأ بالرقم 7' });
         }
         
-        // ✅ التحقق من الاسم الكامل (3 أحرف على الأقل)
+        // ✅ التحقق من الاسم الكامل
         if (!fullName || fullName.trim().length < 3) {
             return res.status(400).json({ message: 'الاسم الكامل يجب أن يكون 3 أحرف على الأقل' });
         }
@@ -157,23 +161,26 @@ app.post('/api/register', async (req, res) => {
             return res.status(400).json({ message: 'اسم العيادة مطلوب' });
         }
         
+        // ✅ التحقق من عدم تكرار اسم المستخدم (بغض النظر عن حالة الأحرف)
+        const existingUser = await User.findOne({ 
+            username: { $regex: new RegExp(`^${normalizedUsername}$`, 'i') } 
+        });
+        if (existingUser) {
+            return res.status(400).json({ message: 'اسم المستخدم موجود بالفعل' });
+        }
+        
         // ✅ التحقق من عدم تكرار رقم الهاتف
         const existingPhone = await User.findOne({ phone });
         if (existingPhone) {
             return res.status(400).json({ message: 'رقم الهاتف مسجل بالفعل' });
         }
         
-        // Check if user exists
-        const existingUser = await User.findOne({ username });
-        if (existingUser) {
-            return res.status(400).json({ message: 'اسم المستخدم موجود بالفعل' });
-        }
-        
-        // Create user
+        // إنشاء مستخدم جديد (تخزين اسم المستخدم بالأحرف الصغيرة)
         const user = new User({
             fullName: fullName.trim(),
-            username: username.trim(),
-            password: password, // سيتم تخزينها كما هي
+            username: normalizedUsername,
+            originalUsername: username, // حفظ الاسم الأصلي للعرض
+            password: password,
             phone: phone,
             age: parseInt(age),
             clinicName: clinicName.trim(),
@@ -183,7 +190,7 @@ app.post('/api/register', async (req, res) => {
         
         await user.save();
         
-        console.log('✅ User created:', username, 'with ID:', user._id);
+        console.log('✅ User created:', normalizedUsername, 'with ID:', user._id);
         
         res.json({
             success: true,
@@ -198,7 +205,6 @@ app.post('/api/register', async (req, res) => {
     } catch (error) {
         console.error('Registration error:', error);
         
-        // رسالة خاصة لتكرار المفتاح
         if (error.code === 11000) {
             return res.status(400).json({ message: 'اسم المستخدم أو رقم الهاتف موجود بالفعل' });
         }
@@ -213,7 +219,14 @@ app.post('/api/login', async (req, res) => {
         
         const { username, password } = req.body;
         
-        const user = await User.findOne({ username });
+        // ✅ تحويل اسم المستخدم إلى أحرف صغيرة (للمقارنة)
+        const normalizedUsername = username.toLowerCase();
+        
+        // ✅ البحث عن المستخدم (بغض النظر عن حالة الأحرف)
+        const user = await User.findOne({ 
+            username: { $regex: new RegExp(`^${normalizedUsername}$`, 'i') } 
+        });
+        
         if (!user) {
             return res.status(401).json({ message: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
         }
@@ -222,12 +235,12 @@ app.post('/api/login', async (req, res) => {
             return res.status(401).json({ message: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
         }
         
-        console.log('✅ Login successful:', username, 'ID:', user._id);
+        console.log('✅ Login successful:', user.username, 'ID:', user._id);
         
         res.json({
             success: true,
             user: {
-                id: user._id.toString(), // Ensure it's a string
+                id: user._id.toString(),
                 fullName: user.fullName,
                 username: user.username,
                 role: user.role,
