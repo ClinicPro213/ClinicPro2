@@ -380,13 +380,32 @@ app.post('/api/patient-images', async (req, res) => {
         const { patientId, userId, imageData, caption } = req.body;
         
         console.log('📸 محاولة حفظ صورة للمريض:', patientId);
+        console.log('📸 نوع imageData:', typeof imageData);
+        console.log('📸 طول imageData:', imageData ? imageData.length : 0);
         
-        // التحقق من صحة الـ IDs
-        if (!mongoose.Types.ObjectId.isValid(patientId) || !mongoose.Types.ObjectId.isValid(userId)) {
-            return res.status(400).json({ error: 'معرف غير صالح' });
+        // ✅ التحقق من صحة البيانات
+        if (!patientId || !userId) {
+            console.log('❌ معرف المريض أو المستخدم مفقود');
+            return res.status(400).json({ error: 'معرف المريض أو المستخدم مفقود' });
         }
         
-        // التحقق من وجود المريض وصلاحية المستخدم
+        if (!imageData) {
+            console.log('❌ بيانات الصورة مفقودة');
+            return res.status(400).json({ error: 'بيانات الصورة مفقودة' });
+        }
+        
+        // التحقق من أن imageData هو string base64 صالح
+        if (typeof imageData !== 'string') {
+            console.log('❌ imageData ليس string، نوعه:', typeof imageData);
+            return res.status(400).json({ error: 'بيانات الصورة غير صالحة' });
+        }
+        
+        if (!imageData.startsWith('data:image')) {
+            console.log('❌ imageData ليس بتنسيق base64 صالح');
+            return res.status(400).json({ error: 'تنسيق الصورة غير صالح' });
+        }
+        
+        // التحقق من صلاحية المستخدم
         const patient = await Patient.findOne({ _id: patientId, userId: userId });
         
         if (!patient) {
@@ -407,22 +426,13 @@ app.post('/api/patient-images', async (req, res) => {
         await newImage.save();
         
         console.log('✅ تم حفظ الصورة بنجاح، ID:', newImage._id);
+        res.json({ success: true, image: newImage });
         
-        res.json({ 
-            success: true, 
-            image: {
-                _id: newImage._id,
-                patientId: newImage.patientId,
-                caption: newImage.caption,
-                createdAt: newImage.createdAt
-            }
-        });
     } catch (error) {
         console.error('❌ Error saving image:', error);
         res.status(500).json({ error: error.message });
     }
 });
-
 // جلب صور المريض
 app.get('/api/patient-images/:patientId/:userId', async (req, res) => {
     try {
