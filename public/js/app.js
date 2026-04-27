@@ -2259,6 +2259,8 @@ document.addEventListener('DOMContentLoaded', function() {
 // ============ حفظ الصورة على السيرفر (معدلة) ============
 // ============ حفظ الصورة مع الضغط ============
 
+// ============ حفظ الصورة (نسخة مبسطة) ============
+
 async function savePatientImage() {
     const fileInput = document.getElementById('imageFileInput');
     const caption = document.getElementById('imageCaption').value;
@@ -2275,25 +2277,16 @@ async function savePatientImage() {
         return;
     }
     
-    showAlert('dashboardAlert', '🔄 جاري ضغط ورفع الصورة...', 'info');
+    showAlert('dashboardAlert', '🔄 جاري رفع الصورة...', 'info');
     
     try {
-        // ضغط الصورة
-        const compressedData = await compressImage(file, 50, 0.7);
-        
-        // التحقق من صحة البيانات
-        if (!compressedData || typeof compressedData !== 'string') {
-            throw new Error('فشل ضغط الصورة - بيانات غير صالحة');
-        }
-        
-        if (!compressedData.startsWith('data:image')) {
-            throw new Error('فشل ضغط الصورة - تنسيق غير صالح');
-        }
+        // قراءة الصورة بدون ضغط (للتجربة)
+        const imageData = await compressImage(file);
         
         console.log('📤 إرسال إلى السيرفر...');
-        console.log('📤 حجم البيانات المرسلة:', (compressedData.length / 1024).toFixed(1), 'KB');
+        console.log('📤 نوع البيانات:', typeof imageData);
+        console.log('📤 بداية البيانات:', imageData.substring(0, 50));
         
-        // إرسال إلى السيرفر
         const response = await fetch('/api/patient-images', {
             method: 'POST',
             headers: {
@@ -2302,7 +2295,7 @@ async function savePatientImage() {
             body: JSON.stringify({
                 patientId: currentImagePatientId,
                 userId: currentUser.id,
-                imageData: compressedData,
+                imageData: imageData,
                 caption: caption || ''
             })
         });
@@ -2320,7 +2313,6 @@ async function savePatientImage() {
             closeModal('addImageModal');
             await renderPatientImages(currentImagePatientId);
             
-            // إفراغ الحقول
             document.getElementById('imageFileInput').value = '';
             document.getElementById('imageCaption').value = '';
             document.getElementById('imagePreview').style.display = 'none';
@@ -2496,83 +2488,28 @@ async function sharePatientWithImages(patientId) {
 
                 // ============ ضغط الصور (نسخة مضمونة 100%) ============
 
-async function compressImage(file, maxSizeKB, quality) {
-    maxSizeKB = maxSizeKB || 50;
-    quality = quality || 0.7;
-    
+// ============ ضغط الصورة (نسخة مبسطة ونظيفة) ============
+
+async function compressImage(file) {
     return new Promise((resolve, reject) => {
-        // 1. التحقق من وجود ملف
         if (!file || !file.type.startsWith('image/')) {
             reject(new Error('الرجاء اختيار صورة صالحة'));
             return;
         }
         
-        console.log('📸 بدء ضغط:', file.name);
-        console.log('📸 الحجم الأصلي:', (file.size / 1024).toFixed(1), 'KB');
+        console.log('📸 قراءة الصورة:', file.name);
         
-        // 2. قراءة الملف
         const reader = new FileReader();
         reader.readAsDataURL(file);
         
-        reader.onload = (event) => {
-            const img = new Image();
-            img.src = event.target.result;
-            
-            img.onload = () => {
-                // 3. حساب الأبعاد الجديدة (تصغير الصورة)
-                let width = img.width;
-                let height = img.height;
-                const MAX_SIZE = 800; // أقصى عرض أو ارتفاع
-                
-                if (width > MAX_SIZE || height > MAX_SIZE) {
-                    if (width > height) {
-                        height = Math.round((height * MAX_SIZE) / width);
-                        width = MAX_SIZE;
-                    } else {
-                        width = Math.round((width * MAX_SIZE) / height);
-                        height = MAX_SIZE;
-                    }
-                }
-                
-                // 4. رسم الصورة على Canvas
-                const canvas = document.createElement('canvas');
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-                
-                // 5. تصدير الصورة مضغوطة
-                let qualityLevel = quality;
-                let result = canvas.toDataURL('image/jpeg', qualityLevel);
-                
-                // 6. إذا كان الحجم لا يزال كبيراً، قلل الجودة تدريجياً
-                while (result.length > maxSizeKB * 1024 && qualityLevel > 0.1) {
-                    qualityLevel -= 0.1;
-                    result = canvas.toDataURL('image/jpeg', qualityLevel);
-                    console.log('📸 محاولة بجودة:', qualityLevel, 'الحجم:', (result.length / 1024).toFixed(1), 'KB');
-                }
-                
-                // 7. التحقق من النتيجة
-                if (!result || result.length < 500) {
-                    reject(new Error('فشل ضغط الصورة'));
-                    return;
-                }
-                
-                console.log('✅ تم الضغط بنجاح!');
-                console.log('   الحجم بعد الضغط:', (result.length / 1024).toFixed(1), 'KB');
-                console.log('   الأبعاد:', width + 'x' + height);
-                console.log('   الجودة النهائية:', qualityLevel);
-                console.log('   نوع البيانات:', typeof result);
-                
-                resolve(result);
-            };
-            
-            img.onerror = () => {
-                reject(new Error('فشل تحميل الصورة'));
-            };
+        reader.onload = function(e) {
+            const result = e.target.result;
+            console.log('📸 تمت القراءة بنجاح، نوع البيانات:', typeof result);
+            console.log('📸 حجم البيانات:', (result.length / 1024).toFixed(1), 'KB');
+            resolve(result);
         };
         
-        reader.onerror = () => {
+        reader.onerror = function() {
             reject(new Error('فشل قراءة الملف'));
         };
     });
