@@ -1678,11 +1678,12 @@ async function showPatientFullDetails(pid) {
         } catch(e) { console.log('Parse error:', e); }
         
         var treatments = [];
-        for (var i = 0; i < localTreatments.length; i++) {
-            if (localTreatments[i].patientId === pid) {
-                treatments.push(localTreatments[i]);
-            }
-        }
+for (var i = 0; i < localTreatments.length; i++) {
+    // ✅ البحث بـ patientId أو باسم المريض
+    if (localTreatments[i].patientId === pid || localTreatments[i].patientName === patient.name) {
+        treatments.push(localTreatments[i]);
+    }
+}
         
         var serverTreatments = [];
         if (navigator.onLine) {
