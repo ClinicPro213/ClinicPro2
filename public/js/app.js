@@ -1972,23 +1972,7 @@ window.onload = function() {
     checkConnectionStatus();
 };
 
-// ============ المزامنة التلقائية ============
-window.addEventListener('online', async function() {
-    console.log('🔄 استعادة الاتصال بالإنترنت - بدء المزامنة التلقائية');
-    showAlert('dashboardAlert', '🔄 تم استعادة الاتصال. جاري المزامنة التلقائية...', 'success');
-    await new Promise(function(resolve) { setTimeout(resolve, 2000); });
-    await syncAllDataWithServer();
-    var offlineDiv = document.getElementById('offlineNotification');
-    if (offlineDiv) offlineDiv.remove();
-});
 
-window.addEventListener('offline', function() {
-    console.log('📴 فقدان الاتصال بالإنترنت');
-    document.body.classList.add('offline-mode');
-    showAlert('dashboardAlert', '📴 فقدان الاتصال. سيتم حفظ البيانات محلياً والمزامنة تلقائياً عند عودة الإنترنت.', 'warning');
-});
-
-checkConnectionStatus();
 
 // ============ إدارة صور المرضى ============
 function savePatientImageLocally(patientId, imageData, caption) {
@@ -2349,3 +2333,301 @@ document.addEventListener('visibilitychange', function() {
         if (typeof syncAllDataWithServer === 'function') syncAllDataWithServer();
     }
 });
+// ============ إصلاح المزامنة التلقائية ============
+
+// استبدال دالة syncAllDataWithServer بالنسخة المعدلة
+window.syncAllDataWithServer = async function() {
+    if (!navigator.onLine) {
+        console.log('📴 لا يوجد اتصال بالإنترنت');
+        showAlert('dashboardAlert', '📴 لا يوجد اتصال بالإنترنت. سيتم المزامنة عند استعادة الاتصال.', 'warning');
+        return false;
+    }
+    
+    if (!currentUser) {
+        console.log('⚠️ لا يوجد مستخدم مسجل الدخول');
+        return false;
+    }
+    
+    showAlert('dashboardAlert', '🔄 جاري المزامنة مع الخادم...', 'success');
+    console.log('🔄 بدء المزامنة التلقائية...');
+    
+    let syncedAnything = false;
+    
+    // 1. مزامنة المرضى المعلقين
+    const patientsSynced = await syncPendingPatients();
+    if (patientsSynced) syncedAnything = true;
+    
+    // 2. مزامنة المعالجات المعلقة
+    const treatmentsSynced = await syncPendingTreatments();
+    if (treatmentsSynced) syncedAnything = true;
+    
+    // 3. مزامنة الصور المعلقة
+    const imagesSynced = await syncPatientImagesToServer();
+    if (imagesSynced) syncedAnything = true;
+    
+    // 4. تحديث قائمة المرضى من السيرفر
+    try {
+        const response = await fetch('/api/patients/' + currentUser.id);
+        if (response.ok) {
+            const serverPatients = await response.json();
+            
+            // دمج مع البيانات المحلية
+            const localPatients = getOfflinePatients();
+            const pendingLocal = localPatients.filter(p => p.pendingSync === true);
+            
+            allPatients = [...pendingLocal, ...serverPatients];
+            
+            // إزالة المكررات
+            const uniqueMap = new Map();
+            for (const p of allPatients) {
+                if (!uniqueMap.has(p.name)) {
+                    uniqueMap.set(p.name, p);
+                }
+            }
+            allPatients = Array.from(uniqueMap.values());
+            
+            renderPatients(allPatients);
+            document.getElementById('totalPatients').textContent = allPatients.length;
+            saveAllDataToLocal();
+        }
+    } catch (e) {
+        console.log('⚠️ خطأ في تحديث المرضى:', e);
+    }
+    
+    checkPatientLimit();
+    
+    if (syncedAnything) {
+        showAlert('dashboardAlert', '✅ تمت المزامنة بنجاح', 'success');
+    } else {
+        showAlert('dashboardAlert', '✅ لا توجد بيانات جديدة للمزامنة', 'success');
+    }
+    
+    return true;
+};
+
+// دالة مزامنة المرضى المعلقين
+async function syncPendingPatients() {
+    if (!navigator.onLine || !currentUser) return false;
+    
+    const offlinePatients = getOfflinePatients();
+    const pendingPatients = offlinePatients.filter(p => p.pendingSync === true);
+    
+    if (pendingPatients.length === 0) return false;
+    
+    console.log(`📋 جاري مزامنة ${pendingPatients.length} مريض معلق...`);
+    let syncedCount = 0;
+    
+    for (const patient of pendingPatients) {
+        try {
+            const response = await fetch('/api/patients', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: patient.name,
+                    phone: patient.phone,
+                    age: patient.age,
+                    address: patient.address,
+                    notes: patient.notes,
+                    userId: currentUser.id
+                })
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log(`✅ تمت مزامنة المريض: ${patient.name}`);
+                
+                // تحديث البيانات المحلية
+                const updatedPatients = getOfflinePatients();
+                const index = updatedPatients.findIndex(p => p._id === patient._id);
+                if (index !== -1) {
+                    updatedPatients[index].pendingSync = false;
+                    updatedPatients[index].offline = false;
+                    updatedPatients[index]._id = result.patient._id;
+                    localStorage.setItem('offline_patients_' + currentUser.id, JSON.stringify(updatedPatients));
+                }
+                syncedCount++;
+            } else {
+                console.log(`❌ فشلت مزامنة المريض: ${patient.name}`);
+            }
+        } catch (e) {
+            console.log(`❌ خطأ في مزامنة المريض ${patient.name}:`, e);
+        }
+    }
+    
+    return syncedCount > 0;
+}
+
+// دالة مزامنة المعالجات المعلقة
+async function syncPendingTreatments() {
+    if (!navigator.onLine || !currentUser) return false;
+    
+    let offlineTreatments = [];
+    try {
+        offlineTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+    } catch(e) { return false; }
+    
+    const pendingTreatments = offlineTreatments.filter(t => t.pendingSync === true);
+    
+    if (pendingTreatments.length === 0) return false;
+    
+    console.log(`📋 جاري مزامنة ${pendingTreatments.length} معالجة معلقة...`);
+    let syncedCount = 0;
+    
+    for (const treatment of pendingTreatments) {
+        try {
+            // البحث عن المريض الحقيقي إذا كان ID مؤقت
+            let patientId = treatment.patientId;
+            if (patientId && patientId.toString().startsWith('offline_')) {
+                // محاولة العثور على المريض بعد المزامنة
+                const allPatientsList = allPatients;
+                const matchedPatient = allPatientsList.find(p => 
+                    p.name === treatment.patientName || 
+                    p._id === patientId
+                );
+                if (matchedPatient && !matchedPatient._id.toString().startsWith('offline_')) {
+                    patientId = matchedPatient._id;
+                } else {
+                    console.log(`⚠️ لم يتم العثور على المريض للمعالجة، تأجيل المزامنة`);
+                    continue;
+                }
+            }
+            
+            const response = await fetch('/api/treatments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    patientId: patientId,
+                    userId: currentUser.id,
+                    toothNumber: treatment.toothNumber,
+                    treatmentType: treatment.treatmentType,
+                    cost: treatment.cost || 0,
+                    paid: treatment.paid || 0,
+                    notes: treatment.notes || '',
+                    treatmentDate: treatment.treatmentDate || new Date().toISOString()
+                })
+            });
+            
+            if (response.ok) {
+                console.log(`✅ تمت مزامنة المعالجة للسن ${treatment.toothNumber}`);
+                syncedCount++;
+            } else {
+                console.log(`❌ فشلت مزامنة المعالجة للسن ${treatment.toothNumber}`);
+            }
+        } catch (e) {
+            console.log(`❌ خطأ في مزامنة المعالجة:`, e);
+        }
+    }
+    
+    // حذف المعالجات التي تمت مزامنتها
+    if (syncedCount > 0) {
+        const remainingTreatments = offlineTreatments.filter(t => t.pendingSync !== true);
+        localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(remainingTreatments));
+    }
+    
+    return syncedCount > 0;
+}
+
+// تحسين دالة syncPatientImagesToServer
+const originalSyncImages = window.syncPatientImagesToServer;
+window.syncPatientImagesToServer = async function() {
+    if (!navigator.onLine || !currentUser) return false;
+    
+    let allImages = {};
+    try {
+        allImages = JSON.parse(localStorage.getItem('patient_images_' + currentUser.id) || '{}');
+    } catch(e) { return false; }
+    
+    let syncedCount = 0;
+    
+    for (const patientId in allImages) {
+        const pendingImages = allImages[patientId].filter(img => img.pendingSync === true);
+        
+        for (const img of pendingImages) {
+            try {
+                const response = await fetch('/api/patient-images', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        patientId: patientId,
+                        userId: currentUser.id,
+                        imageData: img.data,
+                        caption: img.caption,
+                        imageId: img.id
+                    })
+                });
+                
+                if (response.ok) {
+                    img.pendingSync = false;
+                    syncedCount++;
+                    console.log(`✅ تمت مزامنة الصورة للمريض ${patientId}`);
+                }
+            } catch (e) {
+                console.log(`❌ خطأ في مزامنة الصورة:`, e);
+            }
+        }
+    }
+    
+    if (syncedCount > 0) {
+        localStorage.setItem('patient_images_' + currentUser.id, JSON.stringify(allImages));
+        console.log(`✅ تمت مزامنة ${syncedCount} صورة`);
+    }
+    
+    return syncedCount > 0;
+};
+
+// تحسين حدث الاتصال بالإنترنت
+const originalOnlineHandler = window.online;
+window.addEventListener('online', async function() {
+    console.log('🟢 تم استعادة الاتصال بالإنترنت - بدء المزامنة التلقائية');
+    
+    // إزالة إشعار وضع عدم الاتصال
+    const offlineDiv = document.getElementById('offlineNotification');
+    if (offlineDiv) offlineDiv.remove();
+    document.body.classList.remove('offline-mode');
+    
+    // عرض رسالة للمستخدم
+    showAlert('dashboardAlert', '🟢 تم استعادة الاتصال. جاري المزامنة التلقائية...', 'success');
+    
+    // انتظار ثانيتين للتأكد من استقرار الاتصال
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // المزامنة التلقائية
+    await syncAllDataWithServer();
+    
+    // تحديث واجهة المريض الحالية إذا كانت مفتوحة
+    if (currentPatientId) {
+        await showPatientFullDetails(currentPatientId);
+    }
+});
+
+// تحسين حدث فقدان الاتصال
+window.addEventListener('offline', function() {
+    console.log('🔴 فقدان الاتصال بالإنترنت');
+    document.body.classList.add('offline-mode');
+    showAlert('dashboardAlert', '🔴 فقدان الاتصال بالإنترنت. سيتم حفظ البيانات محلياً والمزامنة تلقائياً عند عودة الاتصال.', 'warning');
+    showOfflineNotification();
+});
+
+// مزامنة دورية كل 5 دقائق (حتى لو كان التطبيق مفتوحاً)
+setInterval(async function() {
+    if (navigator.onLine && currentUser && document.visibilityState === 'visible') {
+        console.log('⏰ مزامنة دورية تلقائية...');
+        await syncPendingPatients();
+        await syncPendingTreatments();
+        await syncPatientImagesToServer();
+    }
+}, 5 * 60 * 1000); // كل 5 دقائق
+
+// عند فتح التطبيق، تحقق من وجود بيانات معلقة
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(async function() {
+        if (navigator.onLine && currentUser) {
+            console.log('🔄 فحص البيانات المعلقة بعد تحميل الصفحة');
+            await syncPendingPatients();
+            await syncPendingTreatments();
+            await syncPatientImagesToServer();
+        }
+    }, 3000);
+});
+
+console.log('✅ نظام المزامنة التلقائية جاهز');
