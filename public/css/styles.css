@@ -376,6 +376,36 @@ body::before {
     color: white;
     border-color: transparent;
 }
+/* صفحة الدخل */
+.income-btn {
+    background: #10b981 !important;
+}
+
+.income-btn:hover {
+    background: #059669 !important;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th {
+    background: #f1f5f9;
+    padding: 12px;
+    text-align: right;
+    font-weight: 600;
+    color: #1e40af;
+}
+
+td {
+    padding: 12px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+tr:hover {
+    background: #f8fafc;
+}
 
 /* ============ أزرار المشاركة الاحترافية ============ */
 .share-buttons {
