@@ -230,7 +230,184 @@ body::before {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
+/* ============ مخطط الأسنان الاحترافي ============ */
 
+#teethContainer {
+    background: linear-gradient(135deg, #f0f9ff, #e6f7f2);
+    border-radius: 24px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+/* وسيلة الإيضاح */
+.teeth-legend {
+    background: white;
+    border-radius: 16px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.legend-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f766e;
+}
+
+.legend-items {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #475569;
+}
+
+.legend-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+}
+
+.legend-color.upper {
+    background: linear-gradient(135deg, #0f766e, #14b8a6);
+}
+
+.legend-color.lower {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+.legend-color.selected {
+    background: #f59e0b;
+    box-shadow: 0 0 0 2px #fef3c7;
+}
+
+/* الفكين */
+.jaw-container {
+    background: white;
+    border-radius: 20px;
+    padding: 16px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.jaw-container:last-child {
+    margin-bottom: 0;
+}
+
+.jaw-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.upper-jaw .jaw-title {
+    color: #0f766e;
+}
+
+.lower-jaw .jaw-title {
+    color: #3b82f6;
+}
+
+/* شبكة الأسنان */
+.teeth-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 10px;
+}
+
+/* بطاقة السن */
+.tooth-card {
+    background: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 10px 6px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tooth-card:hover {
+    transform: translateY(-4px);
+    border-color: #14b8a6;
+    box-shadow: 0 4px 12px rgba(15,118,110,0.15);
+}
+
+/* السن المحدد */
+.tooth-card.selected {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    border-color: #f59e0b;
+    transform: scale(1.05);
+}
+
+.tooth-card.selected .tooth-num,
+.tooth-card.selected .tooth-name,
+.tooth-card.selected .tooth-pos {
+    color: white;
+}
+
+.tooth-num {
+    font-size: 18px;
+    font-weight: 800;
+    color: #0f766e;
+}
+
+.tooth-name {
+    font-size: 10px;
+    color: #475569;
+    margin-top: 4px;
+}
+
+.tooth-pos {
+    font-size: 9px;
+    color: #94a3b8;
+    margin-top: 2px;
+}
+
+/* استجابة للشاشات */
+@media (max-width: 700px) {
+    .teeth-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+    }
+    
+    .tooth-num {
+        font-size: 14px;
+    }
+    
+    .tooth-name {
+        font-size: 9px;
+    }
+}
+
+@media (max-width: 500px) {
+    .teeth-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .legend-items {
+        justify-content: center;
+    }
+    
+    .teeth-legend {
+        flex-direction: column;
+    }
+}
 /* ألوان الأزرار الخاصة */
 .admin-btn {
     background: linear-gradient(135deg, #8b5cf6, #7c3aed);
