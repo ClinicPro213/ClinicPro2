@@ -699,32 +699,8 @@
     </div>
 
     <div id="patientDetailsModal" class="modal" style="display:none"></div>
-    <!-- Add Image Modal -->
-<div id="addImageModal" class="modal">
-    <div class="modal-content add-image-modal">
-        <div class="modal-header">
-            <h3>إضافة صورة للمريض</h3>
-            <button class="close-btn" onclick="closeModal('addImageModal')">&times;</button>
-        </div>
-        <div class="modal-body">
-            <div class="input-group">
-                <label>اختر صورة</label>
-                
-                <input type="file" id="imageFileInput" accept="image/jpeg,image/png,image/gif,image/webp" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px">
-            </div>
-            <div class="input-group">
-                <label>وصف الصورة (اختياري)</label>
-                <input type="text" id="imageCaption" placeholder="مثلاً: صورة قبل العلاج" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px">
-            </div>
-            <div id="imagePreview" class="image-preview" style="display:none">
-                <img id="previewImg" src="">
-            </div>
-            <button class="btn" onclick="savePatientImage()" style="width:100%;margin-top:15px">حفظ الصورة</button>
-        </div>
-    </div>
-</div>
+
 </div>
     <script src="js/app.js"></script>
 </body>
 </html>
-
