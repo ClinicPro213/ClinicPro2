@@ -1723,7 +1723,20 @@ function refreshAdminUsers() {
 function refreshAdminPatients() {
     loadAllPatients();
 }
+// دالة إرسال إشعار إلى تطبيق Android
+function sendNotificationToApp(title, body) {
+    if (window.AndroidBridge) {
+        window.AndroidBridge.showNotification(title, body);
+        console.log("✅ تم إرسال الإشعار إلى تطبيق ClinicPro");
+    } else {
+        console.log("⚠️ التطبيق ليس في وضع WebView");
+    }
+}
 
+// مثال: استدعاء عند الحاجة
+// sendNotificationToApp("تنبيه", "لديك موعد جديد");
+
+// إذا كان لديك نظام إشعارات موجود، قم بتعديله ليستخدم هذه الدالة
 function showAdminPage() {
     // ✅ التحقق من صلاحيات المدير - هذا هو الحل
     if (!currentUser || currentUser.role !== 'admin') {
@@ -1873,16 +1886,72 @@ async function syncAllDataWithServer() {
                 
                 showAlert('dashboardAlert', '✅ تم إنشاء الحساب وتسجيل الدخول بنجاح', 'success');
             } else {
-                showAlert('registerAlert', result.message || 'فشل إنشاء الحساب', 'error');
+                // ✅ إذا فشل التسجيل بسبب عدم إرجاع user، حاول تسجيل الدخول مباشرة
+                console.log('محاولة تسجيل الدخول التلقائي...');
+                await autoLoginAfterRegister(data.username, data.password);
             }
         } catch (e) {
             console.log('Registration error:', e);
-            showAlert('registerAlert', 'خطأ في الاتصال بالخادم', 'error');
+            // ✅ محاولة تسجيل الدخول حتى مع وجود خطأ
+            await autoLoginAfterRegister(data.username, data.password);
         }
     } else {
         showAlert('registerAlert', 'لا يوجد اتصال بالإنترنت. يرجى الاتصال بالإنترنت للتسجيل', 'error');
     }
+}
+
+// ✅ دالة تسجيل الدخول التلقائي بعد التسجيل
+async function autoLoginAfterRegister(username, password) {
+    try {
+        console.log('🔄 محاولة تسجيل الدخول التلقائي لـ:', username);
+        
+        var response = await fetch('/api/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                username: username,
+                password: password
+            })
+        });
+        
+        var result = await response.json();
+        
+        if (response.ok && result.success) {
+            currentUser = result.user;
+            
+            try {
+                localStorage.setItem('userId', currentUser.id);
+                saveOfflineAuth(currentUser, password);
+            } catch(e) { console.log('Save error:', e); }
+            
+            document.getElementById('registerPage').style.display = 'none';
+            document.getElementById('loginPage').style.display = 'none';
+            
+            // جلب المرضى
+            try {
+                var patientsRes = await fetch('/api/patients/' + currentUser.id);
+                if (patientsRes.ok) {
+                    var patients = await patientsRes.json();
+                    allPatients = patients;
+                    localStorage.setItem('offline_patients_' + currentUser.id, JSON.stringify(allPatients));
+                }
+            } catch(e) { console.log('Error loading patients:', e); }
+            
+            await loadDashboard();
+            showAlert('dashboardAlert', '✅ تم إنشاء الحساب وتسجيل الدخول بنجاح', 'success');
+        } else {
+            console.log('❌ فشل تسجيل الدخول التلقائي');
+            showAlert('registerAlert', 'تم إنشاء الحساب. يرجى تسجيل الدخول يدوياً', 'warning');
+            showLogin();
+        }
+    } catch (e) {
+        console.log('Auto login error:', e);
+        showAlert('registerAlert', 'تم إنشاء الحساب. يرجى تسجيل الدخول يدوياً', 'warning');
+        showLogin();
     }
+}
 
 async function login() {
     var username = document.getElementById('loginUsername').value;
