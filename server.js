@@ -810,6 +810,17 @@ app.get('/sw.js', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'sw.js'));
 });
 
+// جلب جميع معالجات المستخدم (لصفحة الدخل)
+app.get('/api/treatments/user/:userId', async (req, res) => {
+    try {
+        const treatments = await Treatment.find({ userId: req.params.userId }).sort({ treatmentDate: -1 });
+        res.json(treatments);
+    } catch (error) {
+        console.error('Error fetching user treatments:', error);
+        res.status(500).json({ message: 'خطأ في جلب المعالجات' });
+    }
+});
+
 // ============ TREATMENT ROUTES ============
 app.get('/api/treatments/patient/:patientId', async (req, res) => {
     try {
