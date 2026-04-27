@@ -1203,54 +1203,7 @@ function showTreatmentModal(pid) {
 }
 
 // ============ حفظ المعالجة على السيرفر مباشرة ============
-async function saveTreatmentToServer(treatmentData) {
-    if (!navigator.onLine) {
-        console.log("📴 لا يوجد اتصال بالإنترنت، سيتم الحفظ محلياً");
-        return false;
-    }
-    
-    try {
-        // البحث عن patientId الحقيقي إذا كان مؤقتاً
-        let patientId = treatmentData.patientId;
-        if (patientId && patientId.toString().startsWith('offline_')) {
-            const matchedPatient = allPatients.find(p => 
-                p.name === treatmentData.patientName && !p._id.toString().startsWith('offline_')
-            );
-            if (matchedPatient) {
-                patientId = matchedPatient._id;
-            } else {
-                console.log("⚠️ لم يتم العثور على المريض، تأجيل الرفع إلى السيرفر");
-                return false;
-            }
-        }
-        
-        const response = await fetch('/api/treatments', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                patientId: patientId,
-                userId: currentUser.id,
-                toothNumber: treatmentData.toothNumber,
-                treatmentType: treatmentData.treatmentType,
-                cost: treatmentData.cost || 0,
-                paid: treatmentData.paid || 0,
-                notes: treatmentData.notes || '',
-                treatmentDate: treatmentData.treatmentDate || new Date().toISOString()
-            })
-        });
-        
-        if (response.ok) {
-            console.log("✅ تم حفظ المعالجة على السيرفر بنجاح");
-            return true;
-        } else {
-            console.log("❌ فشل حفظ المعالجة على السيرفر");
-            return false;
-        }
-    } catch (error) {
-        console.error("❌ خطأ في الاتصال بالسيرفر:", error);
-        return false;
-    }
-}
+
 
 // منع التكرار
 let isSaving = false;
@@ -1292,72 +1245,91 @@ async function saveTreatmentNow() {
         }
     }
     
-    var treatmentData = {
-        patientId: currentPatientId,
-        userId: currentUser.id,
-        toothNumber: parseInt(tooth),
-        treatmentType: type,
-        cost: cost,
-        paid: paid,
-        notes: 'التكلفة: ' + cost + ' | المدفوع: ' + paid + ' | المتبقي: ' + (cost-paid) + '\n' + notes,
-        treatmentDate: new Date().toISOString(),
-        patientName: patient ? patient.name : 'غير معروف',
-        offline: true,
-        pendingSync: true,
-        _id: 'offline_tx_' + Date.now() + '_' + Math.random()
-    };
-    
     isSaving = true;
     
     try {
-        // حفظ محلياً أولاً
-        var offlineTx = [];
-        try {
-            offlineTx = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
-        } catch(e) { console.log('Parse error:', e); }
-        
-        // التحقق من عدم وجود معالجة مكررة
-        var isDuplicate = false;
-        for (var i = 0; i < offlineTx.length; i++) {
-            if (offlineTx[i].toothNumber === treatmentData.toothNumber && 
-                offlineTx[i].treatmentType === treatmentData.treatmentType) {
-                isDuplicate = true;
-                break;
-            }
-        }
-        
-        if (!isDuplicate) {
-            offlineTx.push(treatmentData);
-            localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(offlineTx));
-        } else {
-            showAlert('dashboardAlert', '⚠️ هذه المعالجة موجودة بالفعل', 'warning');
-            return;
-        }
-        
-        // ✅ محاولة الحفظ على السيرفر مباشرة
         var serverSaved = false;
+        
+        // ✅ محاولة الحفظ على السيرفر أولاً
         if (navigator.onLine) {
-            serverSaved = await saveTreatmentToServer(treatmentData);
-            if (serverSaved) {
-                // إذا تم الحفظ على السيرفر، قم بإزالة علامة pendingSync
-                treatmentData.pendingSync = false;
-                treatmentData.offline = false;
-                // تحديث localStorage
-                var updatedTx = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
-                for (var i = 0; i < updatedTx.length; i++) {
-                    if (updatedTx[i]._id === treatmentData._id) {
-                        updatedTx[i].pendingSync = false;
-                        updatedTx[i].offline = false;
-                        break;
+            try {
+                let patientId = currentPatientId;
+                if (patientId && patientId.toString().startsWith('offline_')) {
+                    const matchedPatient = allPatients.find(p => 
+                        p.name === (patient ? patient.name : '') && !p._id.toString().startsWith('offline_')
+                    );
+                    if (matchedPatient) {
+                        patientId = matchedPatient._id;
                     }
                 }
-                localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(updatedTx));
-                showAlert('dashboardAlert', '✅ تم حفظ المعالجة على السيرفر', 'success');
-            } else {
-                showAlert('dashboardAlert', '📴 تم حفظ المعالجة محلياً - ستتم المزامنة لاحقاً', 'warning');
+                
+                const response = await fetch('/api/treatments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        patientId: patientId,
+                        userId: currentUser.id,
+                        toothNumber: parseInt(tooth),
+                        treatmentType: type,
+                        cost: cost,
+                        paid: paid,
+                        notes: 'التكلفة: ' + cost + ' | المدفوع: ' + paid + ' | المتبقي: ' + (cost-paid) + '\n' + notes,
+                        treatmentDate: new Date().toISOString()
+                    })
+                });
+                
+                if (response.ok) {
+                    serverSaved = true;
+                    showAlert('dashboardAlert', '✅ تم حفظ المعالجة على السيرفر', 'success');
+                } else {
+                    showAlert('dashboardAlert', '📴 فشل الحفظ على السيرفر، سيتم الحفظ محلياً', 'warning');
+                }
+            } catch(e) {
+                console.log('خطأ في الاتصال بالسيرفر:', e);
+                showAlert('dashboardAlert', '📴 سيتم الحفظ محلياً', 'warning');
             }
-        } else {
-            showAlert('dashboardAlert', '📴 تم حفظ المعالجة محلياً - ستتم المزامنة عند الاتصال', 'warning');
+        }
+        
+        // ✅ حفظ محلياً فقط إذا فشل الحفظ على السيرفر
+        if (!serverSaved) {
+            var offlineTx = [];
+            try {
+                offlineTx = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+            } catch(e) { offlineTx = []; }
+            
+            // التحقق من عدم وجود معالجة مكررة
+            var isDuplicate = false;
+            for (var i = 0; i < offlineTx.length; i++) {
+                if (offlineTx[i].toothNumber === parseInt(tooth) && 
+                    offlineTx[i].treatmentType === type) {
+                    isDuplicate = true;
+                    break;
+                }
+            }
+            
+            if (!isDuplicate) {
+                var treatmentData = {
+                    patientId: currentPatientId,
+                    userId: currentUser.id,
+                    toothNumber: parseInt(tooth),
+                    treatmentType: type,
+                    cost: cost,
+                    paid: paid,
+                    notes: 'التكلفة: ' + cost + ' | المدفوع: ' + paid + ' | المتبقي: ' + (cost-paid) + '\n' + notes,
+                    treatmentDate: new Date().toISOString(),
+                    patientName: patient ? patient.name : 'غير معروف',
+                    offline: true,
+                    pendingSync: true,
+                    _id: 'offline_tx_' + Date.now() + '_' + Math.random()
+                };
+                
+                offlineTx.push(treatmentData);
+                localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(offlineTx));
+                showAlert('dashboardAlert', '📴 تم حفظ المعالجة محلياً', 'warning');
+            } else {
+                showAlert('dashboardAlert', '⚠️ هذه المعالجة موجودة بالفعل', 'warning');
+                return;
+            }
         }
         
         closeModal('treatmentModal');
@@ -1386,7 +1358,8 @@ async function saveTreatmentNow() {
         }, 1000);
     }
 }
-
+        
+        
 async function saveAndShareNow() {
     if (isSaving) {
         showAlert('dashboardAlert', '⚠️ جاري الحفظ، يرجى الانتظار...', 'warning');
