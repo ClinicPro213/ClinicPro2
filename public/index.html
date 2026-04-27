@@ -112,32 +112,59 @@
     <!-- Dashboard -->
     <div id="dashboard" class="dashboard">
         <div class="navbar">
-            <div class="logo"><i class="fas fa-tooth"></i><h2>ClinicPro</h2></div>
-            <div class="user-info">
-                <div class="doctor-info"><i class="fas fa-user-md"></i><span id="userNameDisplay"></span></div>
-                <div id="subscriptionBadge" class="subscription-badge subscription-inactive">📊 مجاني</div>
-                <button id="adminBtn" class="btn" style="width:auto;padding:8px 16px;background:#8b5cf6;display:none" onclick="showAdminPage()">👑 لوحة المدير</button>
-                <div class="contact-buttons">
-    <button id="incomeBtn" class="contact-btn income-btn" onclick="showIncomePage()" style="background:#10b981;">
-        <i class="fas fa-chart-line"></i> 💰 الدخل
-    </button>
-    <button id="subscriptionBtn" class="contact-btn subscription-btn" onclick="showSubscriptionPage()" style="display: none;">
-        <i class="fas fa-crown"></i> بيانات الاشتراك
-    </button>
-                    <button class="contact-btn whatsapp-btn" onclick="contactWhatsApp()">
-                        <i class="fab fa-whatsapp"></i> واتساب
-                    </button>
-                    <button class="contact-btn telegram-btn" onclick="contactTelegram()">
-                        <i class="fab fa-telegram"></i> تيليجرام
-                    </button>
-                    <button class="contact-btn" onclick="showNotificationsPage()" style="background:#3b82f6; position:relative">
-    <i class="fas fa-bell"></i>
-    <span id="notificationBadge" style="position:absolute; top:-5px; right:-5px; background:#ef4444; color:white; border-radius:50%; width:18px; height:18px; font-size:10px; display:none; align-items:center; justify-content:center">0</span>
-                    </button>
-                    <button class="logout-btn" onclick="logout()">خروج</button>
-                </div>
+    <!-- الصف الأول: الشعار واسم التطبيق في المنتصف -->
+    <div class="logo-center">
+        <div class="logo-icon">
+            <i class="fas fa-tooth"></i>
+        </div>
+        <h1 class="app-title">ClinicPro</h1>
+    </div>
+    
+    <!-- الصف الثاني: الاسم في اليمين ونوع الاشتراك في اليسار -->
+    <div class="user-row">
+        <div class="subscription-info">
+            <div id="subscriptionBadge" class="subscription-badge subscription-inactive">
+                <i class="fas fa-chart-line"></i> <span id="subscriptionStatus">مجاني</span>
             </div>
         </div>
+        <div class="doctor-name">
+            <i class="fas fa-user-md"></i>
+            <span id="userNameDisplay">الطبيب</span>
+        </div>
+    </div>
+    
+    <!-- الصف الثالث: الأزرار في المنتصف وزر الخروج في اليسار -->
+    <div class="actions-row">
+        <div class="center-buttons">
+            <button id="adminBtn" class="nav-btn admin-btn" onclick="showAdminPage()" style="display:none">
+                <i class="fas fa-crown"></i> لوحة المدير
+            </button>
+            <button id="incomeBtn" class="nav-btn income-btn" onclick="showIncomePage()">
+                <i class="fas fa-chart-simple"></i> الدخل
+            </button>
+            <button id="subscriptionBtn" class="nav-btn subscription-nav-btn" onclick="showSubscriptionPage()">
+                <i class="fas fa-crown"></i> الاشتراك
+            </button>
+            <button class="nav-btn whatsapp-btn" onclick="contactWhatsApp()">
+                <i class="fab fa-whatsapp"></i> واتساب
+            </button>
+            <button class="nav-btn telegram-btn" onclick="contactTelegram()">
+                <i class="fab fa-telegram"></i> تيليجرام
+            </button>
+            <button class="nav-btn notifications-btn" onclick="showNotificationsPage()" style="position:relative">
+                <i class="fas fa-bell"></i> الإشعارات
+                <span id="notificationBadge" class="notification-badge-count">0</span>
+            </button>
+        </div>
+        <div class="logout-button">
+            <button class="nav-btn logout-btn" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i> خروج
+            </button>
+        </div>
+    </div>
+        </div>
+
+        
         <div class="main-content">
             <div id="dashboardAlert" class="alert"></div>
             <div class="stats-grid">
