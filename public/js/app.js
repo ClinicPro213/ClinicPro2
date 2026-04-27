@@ -1,139 +1,4 @@
-// ============ تعطيل خاصية الصور بالكامل ============
-// إلغاء جميع دوال الصور
 
-// تعطيل دالة إضافة الصورة
-window.openAddImageModal = function() {
-    showAlert('dashboardAlert', '❌ خاصية الصور معطلة حالياً', 'error');
-    return false;
-};
-
-// تعطيل دالة حفظ الصورة
-window.savePatientImage = function() {
-    showAlert('dashboardAlert', '❌ خاصية الصور معطلة حالياً', 'error');
-    return false;
-};
-
-// تعطيل دالة عرض الصور
-window.renderPatientImages = function() {
-    return false;
-};
-
-// تعطيل دوال الصور الأخرى
-window.savePatientImageLocally = function() { return false; };
-window.getPatientImages = function() { return []; };
-window.deletePatientImage = function() { return false; };
-window.syncPatientImagesToServer = function() { return false; };
-window.sharePatientWithImages = function(patientId) {
-    // استبدال مشاركة الصور بمشاركة البيانات فقط
-    sharePatientWithoutImages(patientId);
-};
-
-// دالة مشاركة بدون صور
-async function sharePatientWithoutImages(patientId) {
-    var patient = null;
-    for (var i = 0; i < allPatients.length; i++) {
-        if (allPatients[i]._id === patientId) {
-            patient = allPatients[i];
-            break;
-        }
-    }
-    if (!patient) return;
-    
-    // جلب سجل المعالجات
-    var treatments = [];
-    try {
-        var localTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
-        for (var i = 0; i < localTreatments.length; i++) {
-            if (localTreatments[i].patientId === patientId) {
-                treatments.push(localTreatments[i]);
-            }
-        }
-    } catch(e) {}
-    
-    if (navigator.onLine) {
-        try {
-            var response = await fetch('/api/treatments/patient/' + patientId);
-            if (response.ok) {
-                var serverTreatments = await response.json();
-                for (var i = 0; i < serverTreatments.length; i++) {
-                    var exists = false;
-                    for (var j = 0; j < treatments.length; j++) {
-                        if (treatments[j]._id === serverTreatments[i]._id) {
-                            exists = true;
-                            break;
-                        }
-                    }
-                    if (!exists) {
-                        treatments.push(serverTreatments[i]);
-                    }
-                }
-            }
-        } catch(e) {}
-    }
-    
-    // حساب الإجماليات
-    var totalCost = 0;
-    var totalPaid = 0;
-    var treatmentsText = '';
-    
-    if (treatments.length > 0) {
-        treatmentsText = '\n\n🦷 *سجل المعالجات:*\n━━━━━━━━━━━━━━━━━━━━\n';
-        for (var i = 0; i < treatments.length; i++) {
-            var t = treatments[i];
-            var cost = t.cost || 0;
-            var paid = t.paid || 0;
-            
-            if (!paid && t.notes) {
-                var match = t.notes.match(/المدفوع:\s*([\d.]+)/);
-                if (match) paid = parseFloat(match[1]);
-            }
-            
-            totalCost += cost;
-            totalPaid += paid;
-            
-            var date = t.treatmentDate ? new Date(t.treatmentDate).toLocaleDateString('ar-EG') : 'تاريخ غير محدد';
-            var remaining = cost - paid;
-            var remainingText = remaining > 0 ? '⚠️ متبقي: ' + remaining + ' ريال' : '✅ مدفوع بالكامل';
-            
-            treatmentsText += `\n📌 *المعالجة ${i+1}:*\n`;
-            treatmentsText += `   🦷 السن: ${t.toothNumber || 'غير محدد'}\n`;
-            treatmentsText += `   💊 النوع: ${t.treatmentType || 'غير محدد'}\n`;
-            treatmentsText += `   💰 التكلفة: ${cost} ريال\n`;
-            treatmentsText += `   💵 المدفوع: ${paid} ريال\n`;
-            treatmentsText += `   ${remainingText}\n`;
-            treatmentsText += `   📅 التاريخ: ${date}\n`;
-        }
-        
-        var remainingTotal = totalCost - totalPaid;
-        treatmentsText += `\n📊 *الإجمالي:*\n`;
-        treatmentsText += `   💰 إجمالي التكلفة: ${totalCost} ريال\n`;
-        treatmentsText += `   💵 إجمالي المدفوع: ${totalPaid} ريال\n`;
-        treatmentsText += `   ⚠️ المتبقي: ${remainingTotal} ريال\n`;
-    } else {
-        treatmentsText = '\n\n🦷 *سجل المعالجات:*\n━━━━━━━━━━━━━━━━━━━━\nلا توجد معالجات مسجلة\n';
-    }
-    
-    // بناء الرسالة
-    var message = '*🦷 تقرير المريض - ' + patient.name + '*\n';
-    message += '━━━━━━━━━━━━━━━━━━━━\n\n';
-    message += '👤 *الاسم:* ' + patient.name + '\n';
-    message += '📞 *الهاتف:* ' + (patient.phone || 'غير مسجل') + '\n';
-    message += '📅 *العمر:* ' + patient.age + ' سنة\n';
-    message += '📍 *العنوان:* ' + (patient.address || 'غير مسجل') + '\n';
-    message += treatmentsText;
-    message += '\n━━━━━━━━━━━━━━━━━━━━\n';
-    message += '\n🦷 *ClinicPro - نظام إدارة عيادات الأسنان*';
-    
-    // إرسال الرسالة عبر واتساب
-    var phoneNumber = patient.phone || '967773041464';
-    phoneNumber = phoneNumber.replace(/[^0-9]/g, '');
-    if (phoneNumber.startsWith('7') && phoneNumber.length === 9) {
-        phoneNumber = '967' + phoneNumber;
-    }
-    
-    window.open('https://wa.me/' + phoneNumber + '?text=' + encodeURIComponent(message), '_blank');
-    showAlert('dashboardAlert', '✅ تم فتح واتساب لمشاركة تقرير ' + patient.name, 'success');
-}
 
 // ============ كشف الأخطاء (مبسط لـ iOS) ============
 window.onerror = function(message, source, lineno, colno, error) {
@@ -1462,6 +1327,7 @@ function renderPatients(pts) {
         html += '<div class="patient-actions" onclick="event.stopPropagation()">';
         html += '<button onclick="editPatient(\'' + p._id + '\')"><i class="fas fa-edit"></i></button>';
         html += '<button onclick="showTreatmentModal(\'' + p._id + '\')"><i class="fas fa-stethoscope"></i></button>';
+        html += '<button onclick="sharePatientWithoutImages(\'' + p._id + '\')" style="background:#25d366;"><i class="fab fa-whatsapp"></i></button>';
         html += '<button onclick="deletePatient(\'' + p._id + '\')"><i class="fas fa-trash"></i></button>';
         html += '</div></div>';
         html += '<div class="patient-body">';
@@ -1724,7 +1590,6 @@ async function showPatientFullDetails(pid) {
         modalHtml += '<p><strong>📅 العمر:</strong> ' + patient.age + ' سنة</p>';
         modalHtml += '<p><strong>📍 العنوان:</strong> ' + escapeHtml(patient.address || 'غير محدد') + '</p>';
         modalHtml += '</div>';
-        modalHtml += '<div class="patient-images-section"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;"><h4>📸 صور المريض</h4><button class="btn" style="width:auto; padding:6px 12px; font-size:12px;" onclick="openAddImageModal(\'' + patient._id + '\')"><i class="fas fa-plus"></i> إضافة صورة</button></div><div id="imagesContainer_' + patient._id + '"></div></div>';
         modalHtml += '<h4>🦷 سجل المعالجات (' + allTreatments.length + ')</h4>';
         modalHtml += '<div style="max-height:300px; overflow-y:auto; margin-bottom:20px;">' + (treatmentsHtml || '<p style="text-align:center;padding:20px;">لا توجد معالجات مسجلة</p>') + '</div>';
         modalHtml += '<div style="background:#e0f2fe; padding:15px; border-radius:15px; margin-bottom:20px;">';
@@ -2511,630 +2376,6 @@ window.onload = function() {
 
 
 
-// ============ إدارة صور المرضى ============
-function savePatientImageLocally(patientId, imageData, caption) {
-    var patientImages = {};
-    try {
-        patientImages = JSON.parse(localStorage.getItem('patient_images_' + currentUser.id) || '{}');
-    } catch(e) { console.log('Parse error:', e); }
-    if (!patientImages[patientId]) patientImages[patientId] = [];
-    var newImage = {
-        id: 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-        data: imageData,
-        caption: caption || '',
-        createdAt: new Date().toISOString(),
-        pendingSync: true
-    };
-    patientImages[patientId].push(newImage);
-    localStorage.setItem('patient_images_' + currentUser.id, JSON.stringify(patientImages));
-    return newImage;
-}
-
-function getPatientImages(patientId) {
-    var allImages = {};
-    try {
-        allImages = JSON.parse(localStorage.getItem('patient_images_' + currentUser.id) || '{}');
-    } catch(e) { return []; }
-    return allImages[patientId] || [];
-}
-
-function deletePatientImage(patientId, imageId) {
-    var patientImages = {};
-    try {
-        patientImages = JSON.parse(localStorage.getItem('patient_images_' + currentUser.id) || '{}');
-    } catch(e) { return []; }
-    if (patientImages[patientId]) {
-        var newImages = [];
-        for (var i = 0; i < patientImages[patientId].length; i++) {
-            if (patientImages[patientId][i].id !== imageId) {
-                newImages.push(patientImages[patientId][i]);
-            }
-        }
-        patientImages[patientId] = newImages;
-        localStorage.setItem('patient_images_' + currentUser.id, JSON.stringify(patientImages));
-    }
-    return patientImages[patientId] || [];
-}
-
-// ============ عرض صور المريض (مصغرة مع زر حفظ) ============
-
-
-              // ============ عرض الصور من السيرفر ============
-
-async function renderPatientImages(patientId) {
-    console.log('🎯 جاري تحميل صور المريض من السيرفر:', patientId);
-    
-    var container = document.getElementById('imagesContainer_' + patientId);
-    if (!container) {
-        console.log('❌ الحاوية غير موجودة للمريض:', patientId);
-        return;
-    }
-    
-    // عرض رسالة تحميل
-    container.innerHTML = '<div style="text-align:center;padding:20px;">🔄 جاري تحميل الصور من السيرفر...</div>';
-    
-    var images = [];
-    
-    // ✅ جلب الصور من السيرفر فقط
-    if (navigator.onLine) {
-        try {
-            var response = await fetch('/api/patient-images/' + patientId + '/' + currentUser.id);
-            
-            if (response.ok) {
-                var serverImages = await response.json();
-                console.log('📸 تم جلب الصور من السيرفر:', serverImages.length);
-                images = serverImages;
-            } else {
-                console.log('❌ فشل جلب الصور من السيرفر، الحالة:', response.status);
-                container.innerHTML = `
-                    <div style="text-align:center;padding:30px;color:#ef4444;background:#fef2f2;border-radius:12px;">
-                        ❌ فشل تحميل الصور من السيرفر<br>
-                        <small>الرمز: ${response.status}</small>
-                    </div>
-                `;
-                return;
-            }
-        } catch(e) { 
-            console.log('❌ خطأ في الاتصال بالسيرفر:', e);
-            container.innerHTML = `
-                <div style="text-align:center;padding:30px;color:#ef4444;background:#fef2f2;border-radius:12px;">
-                    ❌ لا يمكن الاتصال بالسيرفر<br>
-                    <small>${e.message}</small>
-                </div>
-            `;
-            return;
-        }
-    } else {
-        container.innerHTML = `
-            <div style="text-align:center;padding:30px;color:#f59e0b;background:#fef3c7;border-radius:12px;">
-                📴 لا يوجد اتصال بالإنترنت<br>
-                <small>سيتم عرض الصور عند استعادة الاتصال</small>
-            </div>
-        `;
-        return;
-    }
-    
-    if (!images || images.length === 0) {
-        container.innerHTML = `
-            <div style="text-align:center;padding:30px;color:#64748b;background:#f8fafc;border-radius:12px;">
-                📷 لا توجد صور لهذا المريض<br>
-                <small>اضغط على "إضافة صورة" لإضافة صور جديدة</small>
-            </div>
-        `;
-        return;
-    }
-    
-    // عرض الصور
-    var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:12px;">';
-    
-    for (var i = 0; i < images.length; i++) {
-        var img = images[i];
-        var imageSrc = img.data || img.imageData || img.url;
-        var imageCaption = img.caption || 'صورة ' + (i + 1);
-        
-        if (!imageSrc) {
-            console.log('⚠️ صورة بدون بيانات:', img);
-            continue;
-        }
-        
-        html += `
-            <div style="position:relative;background:#f8fafc;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">
-                <div style="cursor:pointer;" onclick="viewFullImage('${patientId}', '${img._id || img.id}', '${imageSrc.replace(/'/g, "\\'")}', '${imageCaption.replace(/'/g, "\\'")}')">
-                    <img src="${imageSrc}" style="width:100%;height:100px;object-fit:cover;display:block;">
-                </div>
-                <div style="padding:8px;display:flex;justify-content:space-between;align-items:center;background:white;">
-                    <span style="font-size:10px;color:#64748b;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                        ${escapeHtml(imageCaption.length > 15 ? imageCaption.substring(0,15)+'...' : imageCaption)}
-                    </span>
-                    <button onclick="saveImageToDevice('${imageSrc.replace(/'/g, "\\'")}')" 
-                            style="background:#10b981;color:white;border:none;border-radius:8px;padding:4px 8px;cursor:pointer;font-size:11px;">
-                        <i class="fas fa-download"></i> حفظ
-                    </button>
-                </div>
-            </div>
-        `;
-    }
-    
-    html += '</div>';
-    container.innerHTML = html;
-    console.log('✅ تم عرض', images.length, 'صور بنجاح');
-}  
-
-
-// ============ دالة حفظ الصورة على الجهاز ============
-
-async function saveImageToDevice(imageDataUrl) {
-    try {
-        // إظهار رسالة جاري الحفظ
-        showAlert('dashboardAlert', '🔄 جاري حفظ الصورة...', 'info');
-        
-        // تحويل data URL إلى Blob
-        var response = await fetch(imageDataUrl);
-        var blob = await response.blob();
-        
-        // إنشاء رابط مؤقت للتحميل
-        var url = URL.createObjectURL(blob);
-        var link = document.createElement('a');
-        link.href = url;
-        
-        // إنشاء اسم ملف فريد
-        var timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        link.download = 'clinicpro_image_' + timestamp + '.jpg';
-        
-        // تنفيذ التحميل
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        // تنظيف الرابط المؤقت
-        URL.revokeObjectURL(url);
-        
-        showAlert('dashboardAlert', '✅ تم حفظ الصورة بنجاح في جهازك', 'success');
-    } catch (error) {
-        console.error('Error saving image:', error);
-        showAlert('dashboardAlert', '❌ فشل حفظ الصورة', 'error');
-        
-        // طريقة بديلة للمتصفحات التي لا تدعم الطريقة الأولى
-        try {
-            var link = document.createElement('a');
-            link.href = imageDataUrl;
-            link.download = 'clinicpro_image.jpg';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            showAlert('dashboardAlert', '✅ تم حفظ الصورة بنجاح', 'success');
-        } catch(e) {
-            showAlert('dashboardAlert', '❌ اضغط مع الاستمرار على الصورة واختر "حفظ الصورة"', 'warning');
-        }
-    }
-}
-
-// ============ دالة حذف الصورة ============
-
-async function deletePatientImage(patientId, imageId) {
-    if (!confirm('هل أنت متأكد من حذف هذه الصورة؟')) return;
-    
-    showAlert('dashboardAlert', '🔄 جاري حذف الصورة...', 'info');
-    
-    // حذف من localStorage
-    try {
-        var allImages = JSON.parse(localStorage.getItem('patient_images_' + currentUser.id) || '{}');
-        if (allImages[patientId]) {
-            allImages[patientId] = allImages[patientId].filter(img => img.id !== imageId && img._id !== imageId);
-            localStorage.setItem('patient_images_' + currentUser.id, JSON.stringify(allImages));
-        }
-    } catch(e) { console.log('Error deleting from localStorage:', e); }
-    
-    // حذف من السيرفر إذا كان متصلاً
-    if (navigator.onLine) {
-        try {
-            await fetch('/api/patient-images/' + imageId, {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: currentUser.id, patientId: patientId })
-            });
-        } catch(e) { console.log('Error deleting from server:', e); }
-    }
-    
-    // تحديث العرض
-    await renderPatientImages(patientId);
-    showAlert('dashboardAlert', '✅ تم حذف الصورة بنجاح', 'success');
-}
-
-function viewFullImage(imageData) {
-    var viewer = document.createElement('div');
-    viewer.className = 'image-viewer';
-    viewer.onclick = function() { viewer.remove(); };
-    viewer.innerHTML = '<button class="image-viewer-close" onclick="this.parentElement.remove()">&times;</button><img src="' + imageData + '" alt="صورة مكبرة">';
-    document.body.appendChild(viewer);
-}
-
-function deleteImageConfirm(patientId, imageId) {
-    if (confirm('هل أنت متأكد من حذف هذه الصورة؟')) {
-        deletePatientImage(patientId, imageId);
-        renderPatientImages(patientId);
-        showAlert('dashboardAlert', '✅ تم حذف الصورة', 'success');
-    }
-}
-
-var currentImagePatientId = null;
-
-function openAddImageModal(patientId) {
-    currentImagePatientId = patientId;
-    document.getElementById('imageFileInput').value = '';
-    document.getElementById('imageCaption').value = '';
-    document.getElementById('imagePreview').style.display = 'none';
-    document.getElementById('addImageModal').style.display = 'flex';
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    var fileInput = document.getElementById('imageFileInput');
-    if (fileInput) {
-        fileInput.addEventListener('change', function(e) {
-            var file = e.target.files[0];
-            if (file) {
-                var reader = new FileReader();
-                reader.onload = function(e) {
-                    var preview = document.getElementById('previewImg');
-                    preview.src = e.target.result;
-                    document.getElementById('imagePreview').style.display = 'block';
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-    }
-});
-
-
-// ============ حفظ الصورة على السيرفر (معدلة) ============
-// ============ حفظ الصورة مع الضغط ============
-
-// ============ حفظ الصورة (نسخة مبسطة) ============
-
-// ============ حفظ الصورة (نسخة مباشرة بدون ضغط) ============
-
-
-                    // ============ ضغط الصورة وحفظها ============
-
-async function compressImage(file, maxWidth, quality) {
-    maxWidth = maxWidth || 800;
-    quality = quality || 0.7;
-    
-    return new Promise((resolve, reject) => {
-        if (!file || !file.type.startsWith('image/')) {
-            reject(new Error('الرجاء اختيار صورة صالحة'));
-            return;
-        }
-        
-        console.log('📸 بدء ضغط الصورة:', file.name);
-        console.log('📸 الحجم الأصلي:', (file.size / 1024).toFixed(1), 'KB');
-        
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        
-        reader.onload = function(event) {
-            const img = new Image();
-            img.src = event.target.result;
-            
-            img.onload = function() {
-                // حساب الأبعاد الجديدة
-                let width = img.width;
-                let height = img.height;
-                
-                if (width > maxWidth) {
-                    height = Math.round((height * maxWidth) / width);
-                    width = maxWidth;
-                }
-                
-                // إنشاء Canvas للضغط
-                const canvas = document.createElement('canvas');
-                canvas.width = width;
-                canvas.height = height;
-                
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-                
-                // ضغط الصورة
-                let compressedData = canvas.toDataURL('image/jpeg', quality);
-                
-                // إذا كان الحجم لا يزال كبيراً، قلل الجودة أكثر
-                let currentQuality = quality;
-                while (compressedData.length > 500 * 1024 && currentQuality > 0.3) {
-                    currentQuality -= 0.1;
-                    compressedData = canvas.toDataURL('image/jpeg', currentQuality);
-                }
-                
-                console.log('📸 الحجم بعد الضغط:', (compressedData.length / 1024).toFixed(1), 'KB');
-                console.log('📸 الأبعاد الجديدة:', width + 'x' + height);
-                console.log('📸 الجودة:', currentQuality);
-                console.log('📸 نوع البيانات:', typeof compressedData);
-                
-                resolve(compressedData);
-            };
-            
-            img.onerror = function() {
-                reject(new Error('فشل تحميل الصورة'));
-            };
-        };
-        
-        reader.onerror = function() {
-            reject(new Error('فشل قراءة الملف'));
-        };
-    });
-}
-
-// ============ حفظ الصورة مع الضغط ============
-
-async function savePatientImage() {
-    const fileInput = document.getElementById('imageFileInput');
-    const caption = document.getElementById('imageCaption').value;
-    
-    if (!fileInput.files || fileInput.files.length === 0) {
-        showAlert('dashboardAlert', '❌ الرجاء اختيار صورة', 'error');
-        return;
-    }
-    
-    const file = fileInput.files[0];
-    
-    if (!file.type.startsWith('image/')) {
-        showAlert('dashboardAlert', '❌ الرجاء اختيار ملف صورة صالح', 'error');
-        return;
-    }
-    
-    // التحقق من حجم الملف الأصلي
-    if (file.size > 10 * 1024 * 1024) {
-        showAlert('dashboardAlert', '❌ الصورة كبيرة جداً (الحد الأقصى 10MB)', 'error');
-        return;
-    }
-    
-    showAlert('dashboardAlert', '🔄 جاري ضغط ورفع الصورة...', 'info');
-    
-    try {
-        // 1. ضغط الصورة
-        const compressedData = await compressImage(file, 800, 0.7);
-        
-        // 2. التحقق من صحة البيانات
-        if (!compressedData || typeof compressedData !== 'string') {
-            throw new Error('فشل ضغط الصورة');
-        }
-        
-        if (!compressedData.startsWith('data:image')) {
-            throw new Error('تنسيق الصورة غير صالح');
-        }
-        
-        console.log('📤 إرسال إلى السيرفر...');
-        console.log('📤 حجم البيانات المرسلة:', (compressedData.length / 1024).toFixed(1), 'KB');
-        
-        // 3. إرسال إلى السيرفر
-        const response = await fetch('/api/patient-images', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                patientId: currentImagePatientId,
-                userId: currentUser.id,
-                imageData: compressedData,
-                caption: caption || ''
-            })
-        });
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('❌ خطأ من السيرفر:', errorText);
-            throw new Error('فشل رفع الصورة: ' + response.status);
-        }
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            showAlert('dashboardAlert', '✅ تم حفظ الصورة بنجاح', 'success');
-            closeModal('addImageModal');
-            
-            // تحديث عرض الصور
-            await renderPatientImages(currentImagePatientId);
-            
-            // إفراغ الحقول
-            document.getElementById('imageFileInput').value = '';
-            document.getElementById('imageCaption').value = '';
-            document.getElementById('imagePreview').style.display = 'none';
-        } else {
-            throw new Error(result.error || 'فشل حفظ الصورة');
-        }
-        
-    } catch (error) {
-        console.error('❌ خطأ:', error);
-        showAlert('dashboardAlert', '❌ فشل حفظ الصورة: ' + error.message, 'error');
-    }
-}
-
-        
-// ============ إنشاء رابط عام لمشاركة الصور (بدون تسجيل دخول) ============
-
-async function generatePublicShareLink(patientId) {
-    var patient = null;
-    for (var i = 0; i < allPatients.length; i++) {
-        if (allPatients[i]._id === patientId) {
-            patient = allPatients[i];
-            break;
-        }
-    }
-    if (!patient) return null;
-    
-    // إنشاء توكن فريد للمشاركة
-    var token = btoa(patientId + '_' + Date.now() + '_' + Math.random());
-    
-    // حفظ التوكن مع بيانات المريض في localStorage (مؤقت)
-    var shareData = {
-        patientId: patientId,
-        patientName: patient.name,
-        patientPhone: patient.phone,
-        patientAge: patient.age,
-        patientAddress: patient.address,
-        createdAt: new Date().toISOString(),
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // صلاحية 7 أيام
-    };
-    localStorage.setItem('share_token_' + token, JSON.stringify(shareData));
-    
-    // إنشاء الرابط الكامل
-    var baseUrl = window.location.origin;
-    var shareUrl = baseUrl + '/view-images.html?id=' + patientId + '&token=' + encodeURIComponent(token);
-    
-    return {
-        url: shareUrl,
-        token: token,
-        expiresAt: shareData.expiresAt
-    };
-}
-
-// ============ دالة المشاركة المعدلة (مع رابط عام) ============
-
-async function sharePatientWithImages(patientId) {
-    var patient = null;
-    for (var i = 0; i < allPatients.length; i++) {
-        if (allPatients[i]._id === patientId) {
-            patient = allPatients[i];
-            break;
-        }
-    }
-    if (!patient) return;
-    
-    showAlert('dashboardAlert', '🔄 جاري تجهيز رابط المشاركة...', 'info');
-    
-    // جلب سجل المعالجات
-    var treatments = [];
-    try {
-        var localTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
-        for (var i = 0; i < localTreatments.length; i++) {
-            if (localTreatments[i].patientId === patientId) {
-                treatments.push(localTreatments[i]);
-            }
-        }
-    } catch(e) {}
-    
-    if (navigator.onLine) {
-        try {
-            var response = await fetch('/api/treatments/patient/' + patientId);
-            if (response.ok) {
-                var serverTreatments = await response.json();
-                for (var i = 0; i < serverTreatments.length; i++) {
-                    var exists = false;
-                    for (var j = 0; j < treatments.length; j++) {
-                        if (treatments[j]._id === serverTreatments[i]._id) {
-                            exists = true;
-                            break;
-                        }
-                    }
-                    if (!exists) {
-                        treatments.push(serverTreatments[i]);
-                    }
-                }
-            }
-        } catch(e) {}
-    }
-    
-    // حساب الإجماليات
-    var totalCost = 0;
-    var totalPaid = 0;
-    var treatmentsText = '';
-    
-    if (treatments.length > 0) {
-        treatmentsText = '\n\n🦷 *سجل المعالجات:*\n━━━━━━━━━━━━━━━━━━━━\n';
-        for (var i = 0; i < treatments.length; i++) {
-            var t = treatments[i];
-            var cost = t.cost || 0;
-            var paid = t.paid || 0;
-            
-            if (!paid && t.notes) {
-                var match = t.notes.match(/المدفوع:\s*([\d.]+)/);
-                if (match) paid = parseFloat(match[1]);
-            }
-            
-            totalCost += cost;
-            totalPaid += paid;
-            
-            var date = t.treatmentDate ? new Date(t.treatmentDate).toLocaleDateString('ar-EG') : 'تاريخ غير محدد';
-            var remaining = cost - paid;
-            var remainingText = remaining > 0 ? '⚠️ متبقي: ' + remaining + ' ريال' : '✅ مدفوع بالكامل';
-            
-            treatmentsText += `\n📌 *المعالجة ${i+1}:*\n`;
-            treatmentsText += `   🦷 السن: ${t.toothNumber || 'غير محدد'}\n`;
-            treatmentsText += `   💊 النوع: ${t.treatmentType || 'غير محدد'}\n`;
-            treatmentsText += `   💰 التكلفة: ${cost} ريال\n`;
-            treatmentsText += `   💵 المدفوع: ${paid} ريال\n`;
-            treatmentsText += `   ${remainingText}\n`;
-            treatmentsText += `   📅 التاريخ: ${date}\n`;
-        }
-        
-        var remainingTotal = totalCost - totalPaid;
-        treatmentsText += `\n📊 *الإجمالي:*\n`;
-        treatmentsText += `   💰 إجمالي التكلفة: ${totalCost} ريال\n`;
-        treatmentsText += `   💵 إجمالي المدفوع: ${totalPaid} ريال\n`;
-        treatmentsText += `   ⚠️ المتبقي: ${remainingTotal} ريال\n`;
-    } else {
-        treatmentsText = '\n\n🦷 *سجل المعالجات:*\n━━━━━━━━━━━━━━━━━━━━\nلا توجد معالجات مسجلة\n';
-    }
-    
-    // ✅ إنشاء رابط عام للمشاركة
-    var shareLink = await generatePublicShareLink(patientId);
-    
-    // بناء الرسالة
-    var message = '*🦷 تقرير المريض - ' + patient.name + '*\n';
-    message += '━━━━━━━━━━━━━━━━━━━━\n\n';
-    message += '👤 *الاسم:* ' + patient.name + '\n';
-    message += '📞 *الهاتف:* ' + (patient.phone || 'غير مسجل') + '\n';
-    message += '📅 *العمر:* ' + patient.age + ' سنة\n';
-    message += '📍 *العنوان:* ' + (patient.address || 'غير مسجل') + '\n';
-    message += treatmentsText;
-    message += '\n━━━━━━━━━━━━━━━━━━━━\n';
-    message += '📸 *رابط مشاهدة جميع صور المريض:*\n';
-    message += shareLink.url + '\n';
-    message += '\n💡 *ملاحظة:* الرابط صالح لمدة 7 أيام\n';
-    message += '🔒 يمكن لأي شخص لديه الرابط مشاهدة الصور بدون حاجة لتسجيل دخول\n';
-    message += '\n🦷 *ClinicPro - نظام إدارة عيادات الأسنان*';
-    
-    // إرسال الرسالة عبر واتساب
-    var phoneNumber = patient.phone || '967773041464';
-    phoneNumber = phoneNumber.replace(/[^0-9]/g, '');
-    if (phoneNumber.startsWith('7') && phoneNumber.length === 9) {
-        phoneNumber = '967' + phoneNumber;
-    }
-    
-    window.open('https://wa.me/' + phoneNumber + '?text=' + encodeURIComponent(message), '_blank');
-    
-    showAlert('dashboardAlert', '✅ تم إنشاء رابط مشاركة لصور ' + patient.name + ' وفتح واتساب', 'success');
-}
-   
-
-
-                // ============ ضغط الصور (نسخة مضمونة 100%) ============
-
-// ============ ضغط الصورة (نسخة مبسطة ونظيفة) ============
-
-async function compressImage(file) {
-    return new Promise((resolve, reject) => {
-        if (!file || !file.type.startsWith('image/')) {
-            reject(new Error('الرجاء اختيار صورة صالحة'));
-            return;
-        }
-        
-        console.log('📸 قراءة الصورة:', file.name);
-        
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        
-        reader.onload = function(e) {
-            const result = e.target.result;
-            console.log('📸 تمت القراءة بنجاح، نوع البيانات:', typeof result);
-            console.log('📸 حجم البيانات:', (result.length / 1024).toFixed(1), 'KB');
-            resolve(result);
-        };
-        
-        reader.onerror = function() {
-            reject(new Error('فشل قراءة الملف'));
-        };
-    });
-}
 
 // ============ Service Worker معطل نهائياً ============
 console.log('Service Worker disabled for compatibility');
@@ -3371,6 +2612,114 @@ async function syncPendingPatients() {
     }
     
     return syncedCount > 0;
+}
+// ============ مشاركة التقرير بدون صور ============
+async function sharePatientWithoutImages(patientId) {
+    var patient = null;
+    for (var i = 0; i < allPatients.length; i++) {
+        if (allPatients[i]._id === patientId) {
+            patient = allPatients[i];
+            break;
+        }
+    }
+    if (!patient) return;
+    
+    showAlert('dashboardAlert', '🔄 جاري تجهيز التقرير...', 'info');
+    
+    // جلب سجل المعالجات
+    var treatments = [];
+    try {
+        var localTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+        for (var i = 0; i < localTreatments.length; i++) {
+            if (localTreatments[i].patientId === patientId) {
+                treatments.push(localTreatments[i]);
+            }
+        }
+    } catch(e) {}
+    
+    if (navigator.onLine) {
+        try {
+            var response = await fetch('/api/treatments/patient/' + patientId);
+            if (response.ok) {
+                var serverTreatments = await response.json();
+                for (var i = 0; i < serverTreatments.length; i++) {
+                    var exists = false;
+                    for (var j = 0; j < treatments.length; j++) {
+                        if (treatments[j]._id === serverTreatments[i]._id) {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    if (!exists) {
+                        treatments.push(serverTreatments[i]);
+                    }
+                }
+            }
+        } catch(e) {}
+    }
+    
+    // حساب الإجماليات
+    var totalCost = 0;
+    var totalPaid = 0;
+    var treatmentsText = '';
+    
+    if (treatments.length > 0) {
+        treatmentsText = '\n\n🦷 *سجل المعالجات:*\n━━━━━━━━━━━━━━━━━━━━\n';
+        for (var i = 0; i < treatments.length; i++) {
+            var t = treatments[i];
+            var cost = t.cost || 0;
+            var paid = t.paid || 0;
+            
+            if (!paid && t.notes) {
+                var match = t.notes.match(/المدفوع:\s*([\d.]+)/);
+                if (match) paid = parseFloat(match[1]);
+            }
+            
+            totalCost += cost;
+            totalPaid += paid;
+            
+            var date = t.treatmentDate ? new Date(t.treatmentDate).toLocaleDateString('ar-EG') : 'تاريخ غير محدد';
+            var remaining = cost - paid;
+            var remainingText = remaining > 0 ? '⚠️ متبقي: ' + remaining + ' ريال' : '✅ مدفوع بالكامل';
+            
+            treatmentsText += `\n📌 *المعالجة ${i+1}:*\n`;
+            treatmentsText += `   🦷 السن: ${t.toothNumber || 'غير محدد'}\n`;
+            treatmentsText += `   💊 النوع: ${t.treatmentType || 'غير محدد'}\n`;
+            treatmentsText += `   💰 التكلفة: ${cost} ريال\n`;
+            treatmentsText += `   💵 المدفوع: ${paid} ريال\n`;
+            treatmentsText += `   ${remainingText}\n`;
+            treatmentsText += `   📅 التاريخ: ${date}\n`;
+        }
+        
+        var remainingTotal = totalCost - totalPaid;
+        treatmentsText += `\n📊 *الإجمالي:*\n`;
+        treatmentsText += `   💰 إجمالي التكلفة: ${totalCost} ريال\n`;
+        treatmentsText += `   💵 إجمالي المدفوع: ${totalPaid} ريال\n`;
+        treatmentsText += `   ⚠️ المتبقي: ${remainingTotal} ريال\n`;
+    } else {
+        treatmentsText = '\n\n🦷 *سجل المعالجات:*\n━━━━━━━━━━━━━━━━━━━━\nلا توجد معالجات مسجلة\n';
+    }
+    
+    // بناء الرسالة
+    var message = '*🦷 تقرير المريض - ' + patient.name + '*\n';
+    message += '━━━━━━━━━━━━━━━━━━━━\n\n';
+    message += '👤 *الاسم:* ' + patient.name + '\n';
+    message += '📞 *الهاتف:* ' + (patient.phone || 'غير مسجل') + '\n';
+    message += '📅 *العمر:* ' + patient.age + ' سنة\n';
+    message += '📍 *العنوان:* ' + (patient.address || 'غير مسجل') + '\n';
+    message += treatmentsText;
+    message += '\n━━━━━━━━━━━━━━━━━━━━\n';
+    message += '\n🦷 *ClinicPro - نظام إدارة عيادات الأسنان*';
+    
+    // إرسال الرسالة عبر واتساب
+    var phoneNumber = patient.phone || '967773041464';
+    phoneNumber = phoneNumber.replace(/[^0-9]/g, '');
+    if (phoneNumber.startsWith('7') && phoneNumber.length === 9) {
+        phoneNumber = '967' + phoneNumber;
+    }
+    
+    window.open('https://wa.me/' + phoneNumber + '?text=' + encodeURIComponent(message), '_blank');
+    showAlert('dashboardAlert', '✅ تم فتح واتساب لمشاركة تقرير ' + patient.name, 'success');
 }
 
 // دالة مزامنة المعالجات المعلقة
