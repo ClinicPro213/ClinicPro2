@@ -1217,7 +1217,8 @@ function showTreatmentModal(pid) {
 let isSavingTreatment = false;
 let lastSaveTime = 0;
 
-async function saveTreatmentNow() {
+
+            async function saveTreatmentNow() {
     // منع التكرار
     if (isSavingTreatment) {
         showAlert('dashboardAlert', '⚠️ جاري الحفظ، يرجى الانتظار...', 'warning');
@@ -1230,8 +1231,6 @@ async function saveTreatmentNow() {
         showAlert('dashboardAlert', '⚠️ يرجى الانتظار قبل إضافة معالجة أخرى', 'warning');
         return;
     }
-    
-
     
     if (!currentPatientId) {
         showAlert('dashboardAlert', 'خطأ: لم يتم تحديد المريض', 'error');
@@ -1274,7 +1273,6 @@ async function saveTreatmentNow() {
         _id: 'offline_tx_' + Date.now()
     };
     
-    // ✅ منع إضافة معالجة مكررة
     isSavingTreatment = true;
     
     try {
@@ -1283,7 +1281,7 @@ async function saveTreatmentNow() {
             offlineTx = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
         } catch(e) { console.log('Parse error:', e); }
         
-        // ✅ التحقق من عدم وجود معالجة مكررة (بنفس السن ونفس التاريخ)
+        // التحقق من عدم وجود معالجة مكررة
         var isDuplicate = false;
         for (var i = 0; i < offlineTx.length; i++) {
             if (offlineTx[i].toothNumber === treatmentData.toothNumber && 
@@ -1318,19 +1316,16 @@ async function saveTreatmentNow() {
             }, 500);
         }
         saveAllDataToLocal();
-            // ... باقي الكود ...
-    
-    // في نهاية الدالة، قبل finally
-    lastSaveTime = Date.now();
-    
+        
+        // ✅ تحديث وقت آخر حفظ في المكان الصحيح
+        lastSaveTime = Date.now();
         
     } finally {
-        // ✅ إعادة التعيين بعد الانتهاء
         setTimeout(() => {
             isSavingTreatment = false;
         }, 1000);
     }
-}
+            }
 
 
 let isSharing = false;
