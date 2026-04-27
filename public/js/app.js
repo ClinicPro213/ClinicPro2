@@ -2026,28 +2026,288 @@ function deletePatientImage(patientId, imageId) {
     return patientImages[patientId] || [];
 }
 
-function renderPatientImages(patientId) {
-    var images = getPatientImages(patientId);
+// ============ عرض صور المريض (مصغرة مع زر حفظ) ============
+
+async function renderPatientImages(patientId) {
     var container = document.getElementById('imagesContainer_' + patientId);
     if (!container) return;
-    if (images.length === 0) {
-        container.innerHTML = '<div style="text-align:center;padding:20px;color:#64748b;">📷 لا توجد صور لهذا المريض</div>';
+    
+    // جلب الصور من localStorage أولاً
+    var images = [];
+    try {
+        var allImages = JSON.parse(localStorage.getItem('patient_images_' + currentUser.id) || '{}');
+        images = allImages[patientId] || [];
+    } catch(e) { console.log('Error loading images:', e); }
+    
+    // جلب من السيرفر إذا كان متصلاً
+    if (navigator.onLine) {
+        try {
+            var response = await fetch('/api/patient-images/' + patientId + '/' + currentUser.id);
+            if (response.ok) {
+                var serverImages = await response.json();
+                // دمج الصور وتجنب التكرار
+                for (var i = 0; i < serverImages.length; i++) {
+                    var exists = false;
+                    for (var j = 0; j < images.length; j++) {
+                        if (images[j].id === serverImages[i].id || images[j]._id === serverImages[i]._id) {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    if (!exists) {
+                        images.push(serverImages[i]);
+                    }
+                }
+            }
+        } catch(e) { console.log('Error fetching images:', e); }
+    }
+    
+    if (!images || images.length === 0) {
+        container.innerHTML = '<div style="text-align:center;padding:30px;color:#64748b;background:#f8fafc;border-radius:12px;">📷 لا توجد صور لهذا المريض<br><small>اضغط على "إضافة صورة" لإضافة صور جديدة</small></div>';
         return;
     }
-    var html = '<div class="images-grid">';
+    
+    var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:12px;">';
+    
     for (var i = 0; i < images.length; i++) {
         var img = images[i];
-        html += '<div class="image-card" onclick="viewFullImage(\'' + img.data + '\')">';
-        html += '<img src="' + img.data + '" alt="' + escapeHtml(img.caption || 'صورة المريض') + '">';
-        html += '<div class="image-actions" onclick="event.stopPropagation()">';
-        html += '<button class="image-delete" onclick="deleteImageConfirm(\'' + patientId + '\', \'' + img.id + '\')"><i class="fas fa-trash"></i></button>';
-        html += '</div>';
-        if (img.caption) html += '<div class="image-badge">' + escapeHtml(img.caption) + '</div>';
-        if (img.pendingSync) html += '<div class="image-badge" style="background:#f59e0b;">📴</div>';
-        html += '</div>';
+        var imageSrc = img.data || img.imageData;
+        var imageCaption = img.caption || 'صورة ' + (i + 1);
+        var isPending = img.pendingSync === true;
+        
+        html += `
+            <div style="position:relative;background:#f8fafc;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;transition:all 0.2s;">
+                <!-- الصورة المصغرة -->
+                <div style="position:relative;cursor:pointer;" onclick="viewFullImage('${patientId}', '${img.id || img._id}', '${imageSrc.replace(/'/g, "\\'")}', '${imageCaption.replace(/'/g, "\\'")}')">
+                    <img src="${imageSrc}" 
+                         style="width:100%;height:100px;object-fit:cover;display:block;"
+                         alt="${escapeHtml(imageCaption)}">
+                    
+                    <!-- علامة انتظار المزامنة -->
+                    ${isPending ? '<div style="position:absolute;top:5px;left:5px;background:#f59e0b;color:white;font-size:10px;padding:2px 6px;border-radius:10px;">📴</div>' : ''}
+                    
+                    <!-- طبقة تعتيم عند المرور -->
+                    <div style="position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.2s;">
+                        <i class="fas fa-search-plus" style="color:white;font-size:20px;"></i>
+                    </div>
+                </div>
+                
+                <!-- زر حفظ الصورة -->
+                <div style="padding:8px;display:flex;justify-content:space-between;align-items:center;background:white;">
+                    <span style="font-size:10px;color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">
+                        ${escapeHtml(imageCaption.length > 15 ? imageCaption.substring(0,15)+'...' : imageCaption)}
+                    </span>
+                    <button onclick="saveImageToDevice('${imageSrc}')" 
+                            style="background:#10b981;color:white;border:none;border-radius:8px;padding:4px 8px;cursor:pointer;font-size:11px;display:flex;align-items:center;gap:4px;">
+                        <i class="fas fa-download" style="font-size:10px;"></i> حفظ
+                    </button>
+                </div>
+            </div>
+        `;
     }
+    
     html += '</div>';
     container.innerHTML = html;
+}
+
+// ============ عرض الصورة بشكل مكبر (نافذة منبثقة) ============
+
+function viewFullImage(patientId, imageId, imageSrc, caption) {
+    // إنشاء نافذة عرض الصورة
+    var modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.95);
+        z-index: 100000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        animation: fadeIn 0.2s ease;
+    `;
+    
+    // إضافة زر الإغلاق
+    var closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '✕';
+    closeBtn.style.cssText = `
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: rgba(255,255,255,0.2);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        font-size: 24px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    `;
+    closeBtn.onmouseover = function() { this.style.background = 'rgba(255,255,255,0.4)'; };
+    closeBtn.onmouseout = function() { this.style.background = 'rgba(255,255,255,0.2)'; };
+    closeBtn.onclick = function(e) {
+        e.stopPropagation();
+        modal.remove();
+    };
+    
+    // إضافة زر حفظ الصورة في النافذة المكبرة
+    var saveBtn = document.createElement('button');
+    saveBtn.innerHTML = '<i class="fas fa-download"></i> حفظ الصورة';
+    saveBtn.style.cssText = `
+        position: absolute;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #10b981;
+        color: white;
+        border: none;
+        border-radius: 50px;
+        padding: 12px 24px;
+        font-size: 16px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        z-index: 100001;
+        font-family: inherit;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        transition: all 0.2s;
+    `;
+    saveBtn.onmouseover = function() { this.style.background = '#059669'; };
+    saveBtn.onmouseout = function() { this.style.background = '#10b981'; };
+    saveBtn.onclick = function(e) {
+        e.stopPropagation();
+        saveImageToDevice(imageSrc);
+    };
+    
+    // إضافة شرح الصورة
+    var captionDiv = document.createElement('div');
+    captionDiv.innerHTML = '<i class="fas fa-info-circle"></i> ' + escapeHtml(caption);
+    captionDiv.style.cssText = `
+        position: absolute;
+        bottom: 100px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,0,0,0.7);
+        color: white;
+        border-radius: 30px;
+        padding: 8px 16px;
+        font-size: 14px;
+        white-space: nowrap;
+        z-index: 100001;
+    `;
+    
+    // الصورة المكبرة
+    var img = document.createElement('img');
+    img.src = imageSrc;
+    img.style.cssText = `
+        max-width: 90%;
+        max-height: 90%;
+        object-fit: contain;
+        border-radius: 8px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    `;
+    
+    modal.appendChild(img);
+    modal.appendChild(closeBtn);
+    modal.appendChild(saveBtn);
+    modal.appendChild(captionDiv);
+    
+    // إغلاق النافذة عند النقر على الخلفية
+    modal.onclick = function(e) {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    };
+    
+    document.body.appendChild(modal);
+}
+
+// ============ دالة حفظ الصورة على الجهاز ============
+
+async function saveImageToDevice(imageDataUrl) {
+    try {
+        // إظهار رسالة جاري الحفظ
+        showAlert('dashboardAlert', '🔄 جاري حفظ الصورة...', 'info');
+        
+        // تحويل data URL إلى Blob
+        var response = await fetch(imageDataUrl);
+        var blob = await response.blob();
+        
+        // إنشاء رابط مؤقت للتحميل
+        var url = URL.createObjectURL(blob);
+        var link = document.createElement('a');
+        link.href = url;
+        
+        // إنشاء اسم ملف فريد
+        var timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        link.download = 'clinicpro_image_' + timestamp + '.jpg';
+        
+        // تنفيذ التحميل
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // تنظيف الرابط المؤقت
+        URL.revokeObjectURL(url);
+        
+        showAlert('dashboardAlert', '✅ تم حفظ الصورة بنجاح في جهازك', 'success');
+    } catch (error) {
+        console.error('Error saving image:', error);
+        showAlert('dashboardAlert', '❌ فشل حفظ الصورة', 'error');
+        
+        // طريقة بديلة للمتصفحات التي لا تدعم الطريقة الأولى
+        try {
+            var link = document.createElement('a');
+            link.href = imageDataUrl;
+            link.download = 'clinicpro_image.jpg';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showAlert('dashboardAlert', '✅ تم حفظ الصورة بنجاح', 'success');
+        } catch(e) {
+            showAlert('dashboardAlert', '❌ اضغط مع الاستمرار على الصورة واختر "حفظ الصورة"', 'warning');
+        }
+    }
+}
+
+// ============ دالة حذف الصورة ============
+
+async function deletePatientImage(patientId, imageId) {
+    if (!confirm('هل أنت متأكد من حذف هذه الصورة؟')) return;
+    
+    showAlert('dashboardAlert', '🔄 جاري حذف الصورة...', 'info');
+    
+    // حذف من localStorage
+    try {
+        var allImages = JSON.parse(localStorage.getItem('patient_images_' + currentUser.id) || '{}');
+        if (allImages[patientId]) {
+            allImages[patientId] = allImages[patientId].filter(img => img.id !== imageId && img._id !== imageId);
+            localStorage.setItem('patient_images_' + currentUser.id, JSON.stringify(allImages));
+        }
+    } catch(e) { console.log('Error deleting from localStorage:', e); }
+    
+    // حذف من السيرفر إذا كان متصلاً
+    if (navigator.onLine) {
+        try {
+            await fetch('/api/patient-images/' + imageId, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: currentUser.id, patientId: patientId })
+            });
+        } catch(e) { console.log('Error deleting from server:', e); }
+    }
+    
+    // تحديث العرض
+    await renderPatientImages(patientId);
+    showAlert('dashboardAlert', '✅ تم حذف الصورة بنجاح', 'success');
 }
 
 function viewFullImage(imageData) {
