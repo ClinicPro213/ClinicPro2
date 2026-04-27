@@ -2254,72 +2254,53 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
-async function savePatientImageToServer(patientId, file, caption) {
-    if (!navigator.onLine) {
-        showAlert('dashboardAlert', '📴 لا يوجد اتصال بالإنترنت', 'warning');
-        return null;
-    }
-    
-    try {
-        // ضغط الصورة
-        var compressedImage = await compressImage(file, 50, 0.6);
-        
-        // إرسال إلى السيرفر
-        var response = await fetch('/api/patient-images', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                patientId: patientId,
-                userId: currentUser.id,
-                imageData: compressedImage,
-                caption: caption || ''
-            })
-        });
-        
-        if (response.ok) {
-            var result = await response.json();
-            return result.image;
-        } else {
-            throw new Error('Server error: ' + response.status);
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        throw error;
-    }
-}
+
 
 // ============ حفظ الصورة على السيرفر (معدلة) ============
 
+
+// ============ حفظ الصورة (النسخة النهائية) ============
+
 async function savePatientImage() {
-    var fileInput = document.getElementById('imageFileInput');
-    var caption = document.getElementById('imageCaption').value;
+    const fileInput = document.getElementById('imageFileInput');
+    const caption = document.getElementById('imageCaption').value;
     
-    if (!fileInput.files || !fileInput.files[0]) {
-        showAlert('dashboardAlert', 'الرجاء اختيار صورة', 'error');
+    // التحقق من وجود ملف
+    if (!fileInput.files || fileInput.files.length === 0) {
+        showAlert('dashboardAlert', '❌ الرجاء اختيار صورة', 'error');
         return;
     }
     
-    var file = fileInput.files[0];
+    const file = fileInput.files[0];
     
-    // عرض حجم الملف الأصلي
-    var originalSize = (file.size / 1024).toFixed(1);
-    showAlert('dashboardAlert', `🔄 جاري ضغط الصورة (${originalSize}KB → ~50KB)...`, 'info');
+    // التحقق من نوع الملف
+    if (!file.type.startsWith('image/')) {
+        showAlert('dashboardAlert', '❌ الرجاء اختيار ملف صورة صالح (jpg, png, gif)', 'error');
+        return;
+    }
+    
+    // التحقق من حجم الملف (حد أقصى 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+        showAlert('dashboardAlert', '❌ حجم الصورة كبير جداً (الحد الأقصى 10MB)', 'error');
+        return;
+    }
+    
+    showAlert('dashboardAlert', '🔄 جاري ضغط ورفع الصورة...', 'info');
+    console.log('📸 بدء معالجة الصورة:', file.name, 'الحجم:', (file.size / 1024).toFixed(1), 'KB');
     
     try {
-        // ✅ ضغط الصورة بشكل صحيح
-        var compressedImageData = await compressImage(file, 50, 0.6);
+        // ضغط الصورة
+        const compressedImageData = await compressImage(file, 50, 0.7);
         
-        // ✅ التحقق من أن البيانات مضغوطة بشكل صحيح
-        if (!compressedImageData || compressedImageData === '{}') {
-            throw new Error('فشل ضغط الصورة');
+        // التحقق من صحة البيانات المضغوطة
+        if (!compressedImageData || compressedImageData === '{}' || compressedImageData.length < 100) {
+            throw new Error('فشل ضغط الصورة - البيانات غير صالحة');
         }
         
-        console.log('📸 حجم البيانات المضغوطة:', (compressedImageData.length / 1024).toFixed(1), 'KB');
+        console.log('📤 إرسال إلى السيرفر، الحجم:', (compressedImageData.length / 1024).toFixed(1), 'KB');
         
-        // ✅ إرسال إلى السيرفر
-        var response = await fetch('/api/patient-images', {
+        // إرسال إلى السيرفر
+        const response = await fetch('/api/patient-images', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -2327,74 +2308,41 @@ async function savePatientImage() {
             body: JSON.stringify({
                 patientId: currentImagePatientId,
                 userId: currentUser.id,
-                imageData: compressedImageData,  // ✅ تأكد من إرسال البيانات الصحيحة
+                imageData: compressedImageData,
                 caption: caption || '',
-                timestamp: new Date().toISOString()
+                createdAt: new Date().toISOString()
             })
         });
         
-        if (response.ok) {
-            var result = await response.json();
-            console.log('✅ تم حفظ الصورة على السيرفر بنجاح');
-            showAlert('dashboardAlert', '✅ تم حفظ الصورة على السيرفر بنجاح', 'success');
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ خطأ من السيرفر:', errorText);
+            throw new Error('فشل رفع الصورة: ' + response.status);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            console.log('✅ تم حفظ الصورة بنجاح');
+            showAlert('dashboardAlert', '✅ تم حفظ الصورة بنجاح', 'success');
             closeModal('addImageModal');
             
             // تحديث عرض الصور
             await renderPatientImages(currentImagePatientId);
+            
+            // إفراغ الحقول
+            document.getElementById('imageFileInput').value = '';
+            document.getElementById('imageCaption').value = '';
+            document.getElementById('imagePreview').style.display = 'none';
         } else {
-            var errorText = await response.text();
-            console.error('❌ Server error:', errorText);
-            throw new Error('فشل رفع الصورة: ' + response.status);
+            throw new Error(result.error || 'فشل حفظ الصورة');
         }
+        
     } catch (error) {
-        console.error('❌ Error saving image:', error);
+        console.error('❌ خطأ:', error);
         showAlert('dashboardAlert', '❌ فشل حفظ الصورة: ' + error.message, 'error');
     }
 }
-
-async function syncPatientImagesToServer() {
-    if (!navigator.onLine || !currentUser) return;
-    var allImages = {};
-    try {
-        allImages = JSON.parse(localStorage.getItem('patient_images_' + currentUser.id) || '{}');
-    } catch(e) { return; }
-    var synced = 0;
-    for (var patientId in allImages) {
-        var pendingImages = [];
-        for (var i = 0; i < allImages[patientId].length; i++) {
-            if (allImages[patientId][i].pendingSync === true) {
-                pendingImages.push(allImages[patientId][i]);
-            }
-        }
-        for (var i = 0; i < pendingImages.length; i++) {
-            var img = pendingImages[i];
-            try {
-                var response = await fetch('/api/patient-images', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        patientId: patientId,
-                        userId: currentUser.id,
-                        imageData: img.data,
-                        caption: img.caption,
-                        imageId: img.id
-                    })
-                });
-                if (response.ok) {
-                    img.pendingSync = false;
-                    synced++;
-                }
-            } catch (e) {
-                console.error('Error syncing image:', e);
-            }
-        }
-    }
-    if (synced > 0) {
-        localStorage.setItem('patient_images_' + currentUser.id, JSON.stringify(allImages));
-        showAlert('dashboardAlert', '✅ تمت مزامنة ' + synced + ' صورة مع الخادم', 'success');
-    }
-}
-
 
                 // ============ إنشاء صفحة لعرض الصور ============
 
@@ -2563,59 +2511,79 @@ async function sharePatientWithImages(patientId) {
 
 async function compressImage(file, maxSizeKB, quality) {
     maxSizeKB = maxSizeKB || 50;
-    quality = quality || 0.6;
+    quality = quality || 0.7;
     
-    return new Promise(function(resolve, reject) {
-        var reader = new FileReader();
+    return new Promise((resolve, reject) => {
+        // التحقق من وجود ملف
+        if (!file) {
+            reject(new Error('لا يوجد ملف'));
+            return;
+        }
+        
+        console.log('📸 بدء ضغط الصورة:', file.name, 'الحجم:', (file.size / 1024).toFixed(1), 'KB');
+        
+        const reader = new FileReader();
         reader.readAsDataURL(file);
-        reader.onload = function(event) {
-            var img = new Image();
+        
+        reader.onload = (event) => {
+            const img = new Image();
             img.src = event.target.result;
-            img.onload = function() {
-                var canvas = document.createElement('canvas');
-                var width = img.width;
-                var height = img.height;
+            
+            img.onload = () => {
+                // حساب الأبعاد الجديدة
+                let width = img.width;
+                let height = img.height;
+                const maxDimension = 800;
                 
-                // تصغير الأبعاد
-                var maxDimension = 800;
                 if (width > maxDimension || height > maxDimension) {
                     if (width > height) {
-                        height = Math.floor((height * maxDimension) / width);
+                        height = Math.round((height * maxDimension) / width);
                         width = maxDimension;
                     } else {
-                        width = Math.floor((width * maxDimension) / height);
+                        width = Math.round((width * maxDimension) / height);
                         height = maxDimension;
                     }
                 }
                 
+                // إنشاء canvas للضغط
+                const canvas = document.createElement('canvas');
                 canvas.width = width;
                 canvas.height = height;
-                var ctx = canvas.getContext('2d');
+                
+                const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
                 
-                // تحويل إلى base64
-                var result = canvas.toDataURL('image/jpeg', quality);
+                // ضغط الصورة
+                let result = canvas.toDataURL('image/jpeg', quality);
                 
-                // التحقق من أن النتيجة صالحة
-                if (!result || result === 'data:,' || result.length < 100) {
-                    reject(new Error('فشل ضغط الصورة'));
-                    return;
+                // إذا كان الحجم لا يزال كبيراً، قلل الجودة
+                while (result.length > maxSizeKB * 1024 && quality > 0.2) {
+                    quality -= 0.1;
+                    result = canvas.toDataURL('image/jpeg', quality);
                 }
                 
                 console.log('✅ تم ضغط الصورة:', {
                     original: (file.size / 1024).toFixed(1) + 'KB',
                     compressed: (result.length / 1024).toFixed(1) + 'KB',
-                    width: width,
-                    height: height
+                    dimensions: width + 'x' + height,
+                    quality: quality
                 });
+                
+                // التحقق من صحة النتيجة
+                if (!result || result === 'data:,' || result.length < 100) {
+                    reject(new Error('فشل ضغط الصورة - النتيجة فارغة'));
+                    return;
+                }
                 
                 resolve(result);
             };
-            img.onerror = function() {
+            
+            img.onerror = () => {
                 reject(new Error('فشل تحميل الصورة'));
             };
         };
-        reader.onerror = function() {
+        
+        reader.onerror = () => {
             reject(new Error('فشل قراءة الملف'));
         };
     });
