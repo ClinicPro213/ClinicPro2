@@ -2646,57 +2646,85 @@ window.syncAllDataWithServer = async function() {
     return true;
 };
 
-// دالة مزامنة المرضى المعلقين
-async function syncPendingPatients() {
+
+    // ============ مزامنة المعالجات المعلقة ============
+async function syncPendingTreatments() {
     if (!navigator.onLine || !currentUser) return false;
     
-    const offlinePatients = getOfflinePatients();
-    const pendingPatients = offlinePatients.filter(p => p.pendingSync === true);
+    let offlineTreatments = [];
+    try {
+        offlineTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+    } catch(e) { return false; }
     
-    if (pendingPatients.length === 0) return false;
+    const pendingTreatments = offlineTreatments.filter(t => t.pendingSync === true);
     
-    console.log(`📋 جاري مزامنة ${pendingPatients.length} مريض معلق...`);
+    if (pendingTreatments.length === 0) return false;
+    
+    console.log(`📋 جاري مزامنة ${pendingTreatments.length} معالجة معلقة...`);
     let syncedCount = 0;
+    let successIds = [];
     
-    for (const patient of pendingPatients) {
+    for (const treatment of pendingTreatments) {
         try {
-            const response = await fetch('/api/patients', {
+            let patientId = treatment.patientId;
+            
+            // إذا كان ID المريض لا يزال مؤقتاً
+            if (patientId && patientId.toString().startsWith('offline_')) {
+                const matchedPatient = allPatients.find(p => 
+                    p.name === treatment.patientName && !p._id.toString().startsWith('offline_')
+                );
+                if (matchedPatient) {
+                    patientId = matchedPatient._id;
+                    console.log(`✅ تم العثور على المريض: ${treatment.patientName} -> ${patientId}`);
+                } else {
+                    console.log(`⚠️ لم يتم العثور على المريض "${treatment.patientName}"، تأجيل المزامنة`);
+                    continue;
+                }
+            }
+            
+            const response = await fetch('/api/treatments', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    name: patient.name,
-                    phone: patient.phone,
-                    age: patient.age,
-                    address: patient.address,
-                    notes: patient.notes,
-                    userId: currentUser.id
+                    patientId: patientId,
+                    userId: currentUser.id,
+                    toothNumber: treatment.toothNumber,
+                    treatmentType: treatment.treatmentType,
+                    cost: treatment.cost || 0,
+                    paid: treatment.paid || 0,
+                    notes: treatment.notes || '',
+                    treatmentDate: treatment.treatmentDate || new Date().toISOString()
                 })
             });
             
             if (response.ok) {
-                const result = await response.json();
-                console.log(`✅ تمت مزامنة المريض: ${patient.name}`);
-                
-                // تحديث البيانات المحلية
-                const updatedPatients = getOfflinePatients();
-                const index = updatedPatients.findIndex(p => p._id === patient._id);
-                if (index !== -1) {
-                    updatedPatients[index].pendingSync = false;
-                    updatedPatients[index].offline = false;
-                    updatedPatients[index]._id = result.patient._id;
-                    localStorage.setItem('offline_patients_' + currentUser.id, JSON.stringify(updatedPatients));
-                }
+                console.log(`✅ تمت مزامنة المعالجة للسن ${treatment.toothNumber}`);
                 syncedCount++;
+                successIds.push(treatment._id);
             } else {
-                console.log(`❌ فشلت مزامنة المريض: ${patient.name}`);
+                console.log(`❌ فشلت مزامنة المعالجة للسن ${treatment.toothNumber}`);
             }
         } catch (e) {
-            console.log(`❌ خطأ في مزامنة المريض ${patient.name}:`, e);
+            console.log(`❌ خطأ في مزامنة المعالجة:`, e);
         }
+    }
+    
+    // حذف المعالجات التي تمت مزامنتها
+    if (syncedCount > 0) {
+        const remainingTreatments = offlineTreatments.filter(t => !successIds.includes(t._id));
+        localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(remainingTreatments));
+        console.log(`✅ تم حذف ${syncedCount} معالجة من التخزين المحلي`);
     }
     
     return syncedCount > 0;
 }
+
+// ============ مزامنة الصور (معطلة) ============
+async function syncPatientImagesToServer() {
+    // تم تعطيل خاصية الصور
+    return false;
+}
+
 // ============ مشاركة التقرير بدون صور ============
 async function sharePatientWithoutImages(patientId) {
     var patient = null;
@@ -2806,123 +2834,87 @@ async function sharePatientWithoutImages(patientId) {
     showAlert('dashboardAlert', '✅ تم فتح واتساب لمشاركة تقرير ' + patient.name, 'success');
 }
 
-// دالة مزامنة المعالجات المعلقة
-async function syncPendingTreatments() {
+// دالة مزامنة المرضى المعلقين (مع تحديث المعالجات)
+async function syncPendingPatients() {
     if (!navigator.onLine || !currentUser) return false;
     
-    let offlineTreatments = [];
-    try {
-        offlineTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
-    } catch(e) { return false; }
+    const offlinePatients = getOfflinePatients();
+    const pendingPatients = offlinePatients.filter(p => p.pendingSync === true);
     
-    const pendingTreatments = offlineTreatments.filter(t => t.pendingSync === true);
+    if (pendingPatients.length === 0) return false;
     
-    if (pendingTreatments.length === 0) return false;
-    
-    console.log(`📋 جاري مزامنة ${pendingTreatments.length} معالجة معلقة...`);
+    console.log(`📋 جاري مزامنة ${pendingPatients.length} مريض معلق...`);
     let syncedCount = 0;
+    let syncedPatientsMap = {};
     
-    for (const treatment of pendingTreatments) {
+    for (const patient of pendingPatients) {
         try {
-            // البحث عن المريض الحقيقي إذا كان ID مؤقت
-            let patientId = treatment.patientId;
-            if (patientId && patientId.toString().startsWith('offline_')) {
-                // محاولة العثور على المريض بعد المزامنة
-                const allPatientsList = allPatients;
-                const matchedPatient = allPatientsList.find(p => 
-                    p.name === treatment.patientName || 
-                    p._id === patientId
-                );
-                if (matchedPatient && !matchedPatient._id.toString().startsWith('offline_')) {
-                    patientId = matchedPatient._id;
-                } else {
-                    console.log(`⚠️ لم يتم العثور على المريض للمعالجة، تأجيل المزامنة`);
-                    continue;
-                }
-            }
-            
-            const response = await fetch('/api/treatments', {
+            const response = await fetch('/api/patients', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    patientId: patientId,
-                    userId: currentUser.id,
-                    toothNumber: treatment.toothNumber,
-                    treatmentType: treatment.treatmentType,
-                    cost: treatment.cost || 0,
-                    paid: treatment.paid || 0,
-                    notes: treatment.notes || '',
-                    treatmentDate: treatment.treatmentDate || new Date().toISOString()
+                    name: patient.name,
+                    phone: patient.phone,
+                    age: patient.age,
+                    address: patient.address,
+                    notes: patient.notes,
+                    userId: currentUser.id
                 })
             });
             
             if (response.ok) {
-                console.log(`✅ تمت مزامنة المعالجة للسن ${treatment.toothNumber}`);
+                const result = await response.json();
+                console.log(`✅ تمت مزامنة المريض: ${patient.name} -> ID: ${result.patient._id}`);
+                
+                // حفظ العلاقة بين ID القديم والجديد
+                syncedPatientsMap[patient._id] = result.patient._id;
+                
+                // تحديث البيانات المحلية
+                const updatedPatients = getOfflinePatients();
+                const index = updatedPatients.findIndex(p => p._id === patient._id);
+                if (index !== -1) {
+                    updatedPatients[index]._id = result.patient._id;
+                    updatedPatients[index].pendingSync = false;
+                    updatedPatients[index].offline = false;
+                    localStorage.setItem('offline_patients_' + currentUser.id, JSON.stringify(updatedPatients));
+                }
                 syncedCount++;
-            } else {
-                console.log(`❌ فشلت مزامنة المعالجة للسن ${treatment.toothNumber}`);
             }
         } catch (e) {
-            console.log(`❌ خطأ في مزامنة المعالجة:`, e);
+            console.log(`❌ خطأ في مزامنة المريض ${patient.name}:`, e);
         }
     }
     
-    // حذف المعالجات التي تمت مزامنتها
-    if (syncedCount > 0) {
-        const remainingTreatments = offlineTreatments.filter(t => t.pendingSync !== true);
-        localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(remainingTreatments));
+    // ✅ تحديث patientId في المعالجات المعلقة
+    if (Object.keys(syncedPatientsMap).length > 0) {
+        let offlineTreatments = [];
+        try {
+            offlineTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+        } catch(e) {}
+        
+        let updated = false;
+        for (let i = 0; i < offlineTreatments.length; i++) {
+            const oldId = offlineTreatments[i].patientId;
+            if (syncedPatientsMap[oldId]) {
+                offlineTreatments[i].patientId = syncedPatientsMap[oldId];
+                updated = true;
+                console.log(`✅ تحديث patientId في المعالجة من ${oldId} إلى ${syncedPatientsMap[oldId]}`);
+            }
+        }
+        
+        if (updated) {
+            localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(offlineTreatments));
+        }
     }
+    
+    // تحديث allPatients
+    await loadPatients();
     
     return syncedCount > 0;
 }
+    
+    
 
-// تحسين دالة syncPatientImagesToServer
-const originalSyncImages = window.syncPatientImagesToServer;
-window.syncPatientImagesToServer = async function() {
-    if (!navigator.onLine || !currentUser) return false;
-    
-    let allImages = {};
-    try {
-        allImages = JSON.parse(localStorage.getItem('patient_images_' + currentUser.id) || '{}');
-    } catch(e) { return false; }
-    
-    let syncedCount = 0;
-    
-    for (const patientId in allImages) {
-        const pendingImages = allImages[patientId].filter(img => img.pendingSync === true);
-        
-        for (const img of pendingImages) {
-            try {
-                const response = await fetch('/api/patient-images', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        patientId: patientId,
-                        userId: currentUser.id,
-                        imageData: img.data,
-                        caption: img.caption,
-                        imageId: img.id
-                    })
-                });
-                
-                if (response.ok) {
-                    img.pendingSync = false;
-                    syncedCount++;
-                    console.log(`✅ تمت مزامنة الصورة للمريض ${patientId}`);
-                }
-            } catch (e) {
-                console.log(`❌ خطأ في مزامنة الصورة:`, e);
-            }
-        }
-    }
-    
-    if (syncedCount > 0) {
-        localStorage.setItem('patient_images_' + currentUser.id, JSON.stringify(allImages));
-        console.log(`✅ تمت مزامنة ${syncedCount} صورة`);
-    }
-    
-    return syncedCount > 0;
-};
 
 // تحسين حدث الاتصال بالإنترنت
 const originalOnlineHandler = window.online;
