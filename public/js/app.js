@@ -1,3 +1,140 @@
+// ============ تعطيل خاصية الصور بالكامل ============
+// إلغاء جميع دوال الصور
+
+// تعطيل دالة إضافة الصورة
+window.openAddImageModal = function() {
+    showAlert('dashboardAlert', '❌ خاصية الصور معطلة حالياً', 'error');
+    return false;
+};
+
+// تعطيل دالة حفظ الصورة
+window.savePatientImage = function() {
+    showAlert('dashboardAlert', '❌ خاصية الصور معطلة حالياً', 'error');
+    return false;
+};
+
+// تعطيل دالة عرض الصور
+window.renderPatientImages = function() {
+    return false;
+};
+
+// تعطيل دوال الصور الأخرى
+window.savePatientImageLocally = function() { return false; };
+window.getPatientImages = function() { return []; };
+window.deletePatientImage = function() { return false; };
+window.syncPatientImagesToServer = function() { return false; };
+window.sharePatientWithImages = function(patientId) {
+    // استبدال مشاركة الصور بمشاركة البيانات فقط
+    sharePatientWithoutImages(patientId);
+};
+
+// دالة مشاركة بدون صور
+async function sharePatientWithoutImages(patientId) {
+    var patient = null;
+    for (var i = 0; i < allPatients.length; i++) {
+        if (allPatients[i]._id === patientId) {
+            patient = allPatients[i];
+            break;
+        }
+    }
+    if (!patient) return;
+    
+    // جلب سجل المعالجات
+    var treatments = [];
+    try {
+        var localTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+        for (var i = 0; i < localTreatments.length; i++) {
+            if (localTreatments[i].patientId === patientId) {
+                treatments.push(localTreatments[i]);
+            }
+        }
+    } catch(e) {}
+    
+    if (navigator.onLine) {
+        try {
+            var response = await fetch('/api/treatments/patient/' + patientId);
+            if (response.ok) {
+                var serverTreatments = await response.json();
+                for (var i = 0; i < serverTreatments.length; i++) {
+                    var exists = false;
+                    for (var j = 0; j < treatments.length; j++) {
+                        if (treatments[j]._id === serverTreatments[i]._id) {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    if (!exists) {
+                        treatments.push(serverTreatments[i]);
+                    }
+                }
+            }
+        } catch(e) {}
+    }
+    
+    // حساب الإجماليات
+    var totalCost = 0;
+    var totalPaid = 0;
+    var treatmentsText = '';
+    
+    if (treatments.length > 0) {
+        treatmentsText = '\n\n🦷 *سجل المعالجات:*\n━━━━━━━━━━━━━━━━━━━━\n';
+        for (var i = 0; i < treatments.length; i++) {
+            var t = treatments[i];
+            var cost = t.cost || 0;
+            var paid = t.paid || 0;
+            
+            if (!paid && t.notes) {
+                var match = t.notes.match(/المدفوع:\s*([\d.]+)/);
+                if (match) paid = parseFloat(match[1]);
+            }
+            
+            totalCost += cost;
+            totalPaid += paid;
+            
+            var date = t.treatmentDate ? new Date(t.treatmentDate).toLocaleDateString('ar-EG') : 'تاريخ غير محدد';
+            var remaining = cost - paid;
+            var remainingText = remaining > 0 ? '⚠️ متبقي: ' + remaining + ' ريال' : '✅ مدفوع بالكامل';
+            
+            treatmentsText += `\n📌 *المعالجة ${i+1}:*\n`;
+            treatmentsText += `   🦷 السن: ${t.toothNumber || 'غير محدد'}\n`;
+            treatmentsText += `   💊 النوع: ${t.treatmentType || 'غير محدد'}\n`;
+            treatmentsText += `   💰 التكلفة: ${cost} ريال\n`;
+            treatmentsText += `   💵 المدفوع: ${paid} ريال\n`;
+            treatmentsText += `   ${remainingText}\n`;
+            treatmentsText += `   📅 التاريخ: ${date}\n`;
+        }
+        
+        var remainingTotal = totalCost - totalPaid;
+        treatmentsText += `\n📊 *الإجمالي:*\n`;
+        treatmentsText += `   💰 إجمالي التكلفة: ${totalCost} ريال\n`;
+        treatmentsText += `   💵 إجمالي المدفوع: ${totalPaid} ريال\n`;
+        treatmentsText += `   ⚠️ المتبقي: ${remainingTotal} ريال\n`;
+    } else {
+        treatmentsText = '\n\n🦷 *سجل المعالجات:*\n━━━━━━━━━━━━━━━━━━━━\nلا توجد معالجات مسجلة\n';
+    }
+    
+    // بناء الرسالة
+    var message = '*🦷 تقرير المريض - ' + patient.name + '*\n';
+    message += '━━━━━━━━━━━━━━━━━━━━\n\n';
+    message += '👤 *الاسم:* ' + patient.name + '\n';
+    message += '📞 *الهاتف:* ' + (patient.phone || 'غير مسجل') + '\n';
+    message += '📅 *العمر:* ' + patient.age + ' سنة\n';
+    message += '📍 *العنوان:* ' + (patient.address || 'غير مسجل') + '\n';
+    message += treatmentsText;
+    message += '\n━━━━━━━━━━━━━━━━━━━━\n';
+    message += '\n🦷 *ClinicPro - نظام إدارة عيادات الأسنان*';
+    
+    // إرسال الرسالة عبر واتساب
+    var phoneNumber = patient.phone || '967773041464';
+    phoneNumber = phoneNumber.replace(/[^0-9]/g, '');
+    if (phoneNumber.startsWith('7') && phoneNumber.length === 9) {
+        phoneNumber = '967' + phoneNumber;
+    }
+    
+    window.open('https://wa.me/' + phoneNumber + '?text=' + encodeURIComponent(message), '_blank');
+    showAlert('dashboardAlert', '✅ تم فتح واتساب لمشاركة تقرير ' + patient.name, 'success');
+}
+
 // ============ كشف الأخطاء (مبسط لـ iOS) ============
 window.onerror = function(message, source, lineno, colno, error) {
     console.error('Error:', message, source, lineno, colno, error);
