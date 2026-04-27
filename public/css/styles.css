@@ -77,6 +77,255 @@ body::before {
     width: 100%;
     padding: 20px;
 }
+/* ============ القائمة العلوية حسب الطلب ============ */
+
+.navbar {
+    background: rgba(255,255,255,0.98);
+    backdrop-filter: blur(10px);
+    padding: 16px 24px;
+    border-bottom: 1px solid rgba(20,184,166,0.15);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* ===== الصف الأول: الشعار في المنتصف ===== */
+.logo-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    text-align: center;
+}
+
+.logo-icon {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, #0f766e, #14b8a6);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(15,118,110,0.3);
+}
+
+.logo-icon i {
+    font-size: 26px;
+    color: white;
+}
+
+.app-title {
+    font-size: 28px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #0f766e, #14b8a6);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin: 0;
+    letter-spacing: -0.5px;
+}
+
+/* ===== الصف الثاني: الاسم في اليمين ونوع الاشتراك في اليسار ===== */
+.user-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8fafc;
+    padding: 10px 20px;
+    border-radius: 60px;
+    margin: 0 10px;
+}
+
+.subscription-info {
+    order: 1;
+}
+
+.doctor-name {
+    order: 2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #1e293b;
+    background: white;
+    padding: 6px 16px;
+    border-radius: 40px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.doctor-name i {
+    color: #0f766e;
+    font-size: 14px;
+}
+
+.subscription-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 16px;
+    border-radius: 40px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.subscription-active {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+}
+
+.subscription-inactive {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+}
+
+/* ===== الصف الثالث: الأزرار في المنتصف وزر الخروج في اليسار ===== */
+.actions-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.center-buttons {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.logout-button {
+    position: absolute;
+    left: 0;
+}
+
+/* تنسيق الأزرار */
+.nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 18px;
+    border: none;
+    border-radius: 40px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: #f1f5f9;
+    color: #334155;
+}
+
+.nav-btn i {
+    font-size: 14px;
+}
+
+.nav-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* ألوان الأزرار الخاصة */
+.admin-btn {
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+    color: white;
+}
+
+.income-btn {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+}
+
+.subscription-nav-btn {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+}
+
+.whatsapp-btn {
+    background: linear-gradient(135deg, #25d366, #128c7e);
+    color: white;
+}
+
+.telegram-btn {
+    background: linear-gradient(135deg, #0088cc, #006699);
+    color: white;
+}
+
+.notifications-btn {
+    background: #3b82f6;
+    color: white;
+    position: relative;
+}
+
+.logout-btn {
+    background: #ef4444;
+    color: white;
+}
+
+.notification-badge-count {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #ef4444;
+    color: white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+/* استجابة للشاشات الصغيرة */
+@media (max-width: 800px) {
+    .actions-row {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .logout-button {
+        position: static;
+        margin-top: 10px;
+    }
+    
+    .center-buttons {
+        justify-content: center;
+    }
+    
+    .nav-btn {
+        padding: 6px 12px;
+        font-size: 11px;
+    }
+}
+
+@media (max-width: 600px) {
+    .user-row {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+    }
+    
+    .app-title {
+        font-size: 22px;
+    }
+    
+    .logo-icon {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .logo-icon i {
+        font-size: 20px;
+    }
+}
 
 /* ============ AUTH CARDS (متطورة) ============ */
 .auth-card {
