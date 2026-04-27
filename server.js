@@ -39,6 +39,18 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
+// Image Schema للصور
+const imageSchema = new mongoose.Schema({
+    patientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Patient', required: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    imageData: { type: String, required: true }, // base64 data
+    caption: { type: String, default: '' },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+
+const Image = mongoose.model('Image', imageSchema);
+
 // Patient Schema
 const patientSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -359,36 +371,54 @@ app.post('/api/notifications', async (req, res) => {
         res.status(500).json({ message: 'خطأ في إرسال الإشعار' });
     }
 });
-// API عام لعرض الصور (بدون تسجيل دخول)
-// ============ APIs الصور ============
+ 
+        // ============ APIs الصور (باستخدام Mongoose) ============
 
 // حفظ صورة جديدة
 app.post('/api/patient-images', async (req, res) => {
     try {
         const { patientId, userId, imageData, caption } = req.body;
         
-        // التحقق من صلاحية المستخدم
-        const patient = await db.collection('patients').findOne({ _id: patientId, userId: userId });
+        console.log('📸 محاولة حفظ صورة للمريض:', patientId);
+        
+        // التحقق من صحة الـ IDs
+        if (!mongoose.Types.ObjectId.isValid(patientId) || !mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({ error: 'معرف غير صالح' });
+        }
+        
+        // التحقق من وجود المريض وصلاحية المستخدم
+        const patient = await Patient.findOne({ _id: patientId, userId: userId });
+        
         if (!patient) {
+            console.log('❌ المريض غير موجود أو غير مصرح');
             return res.status(403).json({ error: 'غير مصرح لك' });
         }
         
         // حفظ الصورة
-        const newImage = {
-            _id: new ObjectId(),
+        const newImage = new Image({
             patientId: patientId,
             userId: userId,
             imageData: imageData,
             caption: caption || '',
             createdAt: new Date(),
             updatedAt: new Date()
-        };
+        });
         
-        await db.collection('patient_images').insertOne(newImage);
+        await newImage.save();
         
-        res.json({ success: true, image: newImage });
+        console.log('✅ تم حفظ الصورة بنجاح، ID:', newImage._id);
+        
+        res.json({ 
+            success: true, 
+            image: {
+                _id: newImage._id,
+                patientId: newImage.patientId,
+                caption: newImage.caption,
+                createdAt: newImage.createdAt
+            }
+        });
     } catch (error) {
-        console.error('Error saving image:', error);
+        console.error('❌ Error saving image:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -398,21 +428,29 @@ app.get('/api/patient-images/:patientId/:userId', async (req, res) => {
     try {
         const { patientId, userId } = req.params;
         
+        console.log('📸 جلب صور المريض:', patientId);
+        
+        // التحقق من صحة الـ IDs
+        if (!mongoose.Types.ObjectId.isValid(patientId) || !mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({ error: 'معرف غير صالح' });
+        }
+        
         // التحقق من صلاحية المستخدم
-        const patient = await db.collection('patients').findOne({ _id: patientId, userId: userId });
+        const patient = await Patient.findOne({ _id: patientId, userId: userId });
+        
         if (!patient) {
+            console.log('❌ المريض غير موجود أو غير مصرح');
             return res.status(403).json({ error: 'غير مصرح لك' });
         }
         
         // جلب الصور
-        const images = await db.collection('patient_images')
-            .find({ patientId: patientId })
-            .sort({ createdAt: -1 })
-            .toArray();
+        const images = await Image.find({ patientId: patientId }).sort({ createdAt: -1 });
+        
+        console.log('✅ تم جلب', images.length, 'صورة');
         
         res.json(images);
     } catch (error) {
-        console.error('Error fetching images:', error);
+        console.error('❌ Error fetching images:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -423,17 +461,76 @@ app.delete('/api/patient-images/:imageId', async (req, res) => {
         const { imageId } = req.params;
         const { userId, patientId } = req.body;
         
+        console.log('🗑️ حذف صورة:', imageId);
+        
+        // التحقق من صحة الـ ID
+        if (!mongoose.Types.ObjectId.isValid(imageId)) {
+            return res.status(400).json({ error: 'معرف غير صالح' });
+        }
+        
         // التحقق من صلاحية المستخدم
-        const image = await db.collection('patient_images').findOne({ _id: new ObjectId(imageId) });
-        if (!image || image.userId !== userId) {
+        const image = await Image.findOne({ _id: imageId });
+        
+        if (!image) {
+            console.log('❌ الصورة غير موجودة');
+            return res.status(404).json({ error: 'الصورة غير موجودة' });
+        }
+        
+        if (image.userId.toString() !== userId) {
+            console.log('❌ غير مصرح بالحذف');
             return res.status(403).json({ error: 'غير مصرح لك' });
         }
         
-        await db.collection('patient_images').deleteOne({ _id: new ObjectId(imageId) });
+        await Image.deleteOne({ _id: imageId });
+        
+        console.log('✅ تم حذف الصورة بنجاح');
         
         res.json({ success: true });
     } catch (error) {
-        console.error('Error deleting image:', error);
+        console.error('❌ Error deleting image:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// API عام لعرض الصور (بدون تسجيل دخول - للمشاركة)
+app.get('/api/public/patient-images/:patientId', async (req, res) => {
+    try {
+        const { patientId } = req.params;
+        
+        console.log('📸 طلب عام لصور المريض:', patientId);
+        
+        // التحقق من صحة الـ ID
+        if (!mongoose.Types.ObjectId.isValid(patientId)) {
+            return res.status(400).json({ error: 'معرف غير صالح' });
+        }
+        
+        // جلب المريض (بيانات عامة فقط)
+        const patient = await Patient.findById(patientId);
+        
+        if (!patient) {
+            return res.status(404).json({ error: 'Patient not found' });
+        }
+        
+        // جلب الصور
+        const images = await Image.find({ patientId: patientId }).sort({ createdAt: -1 });
+        
+        // إرجاع البيانات العامة فقط
+        res.json({
+            patient: {
+                name: patient.name,
+                phone: patient.phone,
+                age: patient.age,
+                address: patient.address
+            },
+            images: images.map(img => ({
+                id: img._id,
+                imageData: img.imageData,
+                caption: img.caption,
+                createdAt: img.createdAt
+            }))
+        });
+    } catch (error) {
+        console.error('❌ Error in public API:', error);
         res.status(500).json({ error: error.message });
     }
 });
