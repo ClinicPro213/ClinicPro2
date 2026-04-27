@@ -680,23 +680,23 @@
     </div>
 </div>
 
-    <!-- Treatment Modal -->
-    <div id="treatmentModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header"><h3>إضافة معالجة</h3><button class="close-btn" onclick="closeModal('treatmentModal')">&times;</button></div>
-            <div class="modal-body">
-                <div id="teethContainer" style="display:grid;grid-template-columns:repeat(8,1fr);gap:5px;margin-bottom:20px"></div>
-                <div class="input-group"><label>رقم السن</label><input type="number" id="toothNumber" readonly style="background:#f1f5f9;width:100%;padding:10px;border-radius:8px"></div>
-                <div class="input-group"><label>نوع المعالجة</label><select id="treatmentTypeSelect" style="width:100%;padding:10px;border-radius:8px"><option value="">-- اختر --</option><option value="فحص">فحص</option><option value="حشو">حشو</option><option value="خلع">خلع</option><option value="تنظيف">تنظيف</option><option value="تلبيس">تلبيس</option><option value="زراعة">زراعة</option><option value="علاج عصب">علاج عصب</option><option value="تبييض">تبييض</option></select></div>
-                <div class="input-group"><label>ملاحظات</label><textarea id="treatmentNotesInput" rows="2" style="width:100%;padding:10px;border-radius:8px"></textarea></div>
-                <div class="input-group"><label>التكلفة</label><input type="number" id="treatmentCostInput" value="0" step="10" oninput="calcRemaining()" style="width:100%;padding:10px;border-radius:8px"></div>
-                <div class="input-group"><label>المدفوع</label><input type="number" id="treatmentPaidInput" value="0" step="10" oninput="calcRemaining()" style="width:100%;padding:10px;border-radius:8px"></div>
-                <div style="background:#f1f5f9;padding:12px;border-radius:12px"><div>المتبقي: <span id="remainingSpan">0</span> ريال</div></div>
-                <button class="btn" onclick="saveTreatmentNow()" style="width:100%;margin-top:10px">حفظ المعالجة</button>
-                <button class="btn btn-whatsapp" onclick="saveAndShareNow()" style="width:100%;margin-top:10px">حفظ ومشاركة</button>
-            </div>
+<!-- Treatment Modal -->
+<div id="treatmentModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header"><h3>إضافة معالجة</h3><button class="close-btn" onclick="closeModal('treatmentModal')">&times;</button></div>
+        <div class="modal-body">
+            <div id="teethContainer" style="display:grid;grid-template-columns:repeat(8,1fr);gap:5px;margin-bottom:20px"></div>
+            <div class="input-group"><label>رقم السن</label><input type="number" id="toothNumber" readonly style="background:#f1f5f9;width:100%;padding:10px;border-radius:8px"></div>
+            <div class="input-group"><label>نوع المعالجة</label><select id="treatmentTypeSelect" style="width:100%;padding:10px;border-radius:8px"><option value="">-- اختر --</option><option value="فحص">فحص</option><option value="حشو">حشو</option><option value="خلع">خلع</option><option value="تنظيف">تنظيف</option><option value="تلبيس">تلبيس</option><option value="زراعة">زراعة</option><option value="علاج عصب">علاج عصب</option><option value="تبييض">تبييض</option></select></div>
+            <div class="input-group"><label>ملاحظات</label><textarea id="treatmentNotesInput" rows="2" style="width:100%;padding:10px;border-radius:8px"></textarea></div>
+            <div class="input-group"><label>التكلفة</label><input type="number" id="treatmentCostInput" placeholder="0" step="10" oninput="calcRemaining()" style="width:100%;padding:10px;border-radius:8px"></div>
+            <div class="input-group"><label>المدفوع</label><input type="number" id="treatmentPaidInput" placeholder="0" step="10" oninput="calcRemaining()" style="width:100%;padding:10px;border-radius:8px"></div>
+            <div style="background:#f1f5f9;padding:12px;border-radius:12px"><div>المتبقي: <span id="remainingSpan">0</span> ريال</div></div>
+            <button class="btn" onclick="saveTreatmentNow()" style="width:100%;margin-top:10px">حفظ المعالجة</button>
+            <button class="btn btn-whatsapp" onclick="saveAndShareNow()" style="width:100%;margin-top:10px">حفظ ومشاركة</button>
         </div>
     </div>
+</div>
 
     <div id="patientDetailsModal" class="modal" style="display:none"></div>
 
