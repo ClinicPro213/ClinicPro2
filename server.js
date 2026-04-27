@@ -359,7 +359,45 @@ app.post('/api/notifications', async (req, res) => {
         res.status(500).json({ message: 'خطأ في إرسال الإشعار' });
     }
 });
-
+// API عام لعرض الصور (بدون تسجيل دخول)
+app.get('/api/public/patient-images/:patientId', async (req, res) => {
+    try {
+        const { patientId } = req.params;
+        const { token } = req.query;
+        
+        // التحقق من صحة التوكن
+        // (يمكن تخزين التوكنات في قاعدة البيانات)
+        
+        // جلب بيانات المريض الأساسية (عامة فقط)
+        const patient = await db.collection('patients').findOne({ _id: patientId });
+        if (!patient) {
+            return res.status(404).json({ error: 'Patient not found' });
+        }
+        
+        // جلب الصور (عامة)
+        const images = await db.collection('patient_images')
+            .find({ patientId: patientId })
+            .sort({ createdAt: -1 })
+            .toArray();
+        
+        // إخفاء البيانات الحساسة
+        res.json({
+            patient: {
+                name: patient.name,
+                phone: patient.phone,
+                age: patient.age,
+                address: patient.address
+            },
+            images: images.map(img => ({
+                data: img.imageData,
+                caption: img.caption,
+                createdAt: img.createdAt
+            }))
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 // جلب إشعارات المستخدم الحالي
 app.get('/api/notifications/user/:userId', async (req, res) => {
     try {
