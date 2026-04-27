@@ -2260,12 +2260,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 // ============ حفظ الصورة (النسخة النهائية) ============
+// ============ حفظ الصورة (النسخة النهائية) ============
 
 async function savePatientImage() {
     const fileInput = document.getElementById('imageFileInput');
     const caption = document.getElementById('imageCaption').value;
     
-    // التحقق من وجود ملف
     if (!fileInput.files || fileInput.files.length === 0) {
         showAlert('dashboardAlert', '❌ الرجاء اختيار صورة', 'error');
         return;
@@ -2273,31 +2273,28 @@ async function savePatientImage() {
     
     const file = fileInput.files[0];
     
-    // التحقق من نوع الملف
     if (!file.type.startsWith('image/')) {
-        showAlert('dashboardAlert', '❌ الرجاء اختيار ملف صورة صالح (jpg, png, gif)', 'error');
-        return;
-    }
-    
-    // التحقق من حجم الملف (حد أقصى 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-        showAlert('dashboardAlert', '❌ حجم الصورة كبير جداً (الحد الأقصى 10MB)', 'error');
+        showAlert('dashboardAlert', '❌ الرجاء اختيار ملف صورة صالح', 'error');
         return;
     }
     
     showAlert('dashboardAlert', '🔄 جاري ضغط ورفع الصورة...', 'info');
-    console.log('📸 بدء معالجة الصورة:', file.name, 'الحجم:', (file.size / 1024).toFixed(1), 'KB');
     
     try {
         // ضغط الصورة
         const compressedImageData = await compressImage(file, 50, 0.7);
         
-        // التحقق من صحة البيانات المضغوطة
-        if (!compressedImageData || compressedImageData === '{}' || compressedImageData.length < 100) {
-            throw new Error('فشل ضغط الصورة - البيانات غير صالحة');
+        // التحقق من صحة البيانات
+        if (typeof compressedImageData !== 'string') {
+            throw new Error('خطأ: بيانات الصورة غير صالحة');
         }
         
-        console.log('📤 إرسال إلى السيرفر، الحجم:', (compressedImageData.length / 1024).toFixed(1), 'KB');
+        if (!compressedImageData.startsWith('data:image')) {
+            throw new Error('خطأ: تنسيق الصورة غير صالح');
+        }
+        
+        console.log('📤 إرسال إلى السيرفر، نوع البيانات:', typeof compressedImageData);
+        console.log('📤 طول البيانات:', compressedImageData.length);
         
         // إرسال إلى السيرفر
         const response = await fetch('/api/patient-images', {
@@ -2309,8 +2306,7 @@ async function savePatientImage() {
                 patientId: currentImagePatientId,
                 userId: currentUser.id,
                 imageData: compressedImageData,
-                caption: caption || '',
-                createdAt: new Date().toISOString()
+                caption: caption || ''
             })
         });
         
@@ -2343,7 +2339,6 @@ async function savePatientImage() {
         showAlert('dashboardAlert', '❌ فشل حفظ الصورة: ' + error.message, 'error');
     }
 }
-
                 // ============ إنشاء صفحة لعرض الصور ============
 
         
@@ -2509,6 +2504,8 @@ async function sharePatientWithImages(patientId) {
 
 // ============ ضغط الصور (معدلة) ============
 
+// ============ ضغط الصورة (نسخة مبسطة 100%) ============
+
 async function compressImage(file, maxSizeKB, quality) {
     maxSizeKB = maxSizeKB || 50;
     quality = quality || 0.7;
@@ -2520,16 +2517,15 @@ async function compressImage(file, maxSizeKB, quality) {
             return;
         }
         
-        console.log('📸 بدء ضغط الصورة:', file.name, 'الحجم:', (file.size / 1024).toFixed(1), 'KB');
+        console.log('📸 بدء ضغط الصورة:', file.name);
+        console.log('📸 الحجم الأصلي:', (file.size / 1024).toFixed(1), 'KB');
         
         const reader = new FileReader();
-        reader.readAsDataURL(file);
         
-        reader.onload = (event) => {
+        reader.onload = function(event) {
             const img = new Image();
-            img.src = event.target.result;
             
-            img.onload = () => {
+            img.onload = function() {
                 // حساب الأبعاد الجديدة
                 let width = img.width;
                 let height = img.height;
@@ -2545,7 +2541,7 @@ async function compressImage(file, maxSizeKB, quality) {
                     }
                 }
                 
-                // إنشاء canvas للضغط
+                // إنشاء canvas
                 const canvas = document.createElement('canvas');
                 canvas.width = width;
                 canvas.height = height;
@@ -2553,49 +2549,47 @@ async function compressImage(file, maxSizeKB, quality) {
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
                 
-                // ضغط الصورة
+                // تحويل إلى base64
                 let result = canvas.toDataURL('image/jpeg', quality);
                 
-                // إذا كان الحجم لا يزال كبيراً، قلل الجودة
-                while (result.length > maxSizeKB * 1024 && quality > 0.2) {
-                    quality -= 0.1;
-                    result = canvas.toDataURL('image/jpeg', quality);
+                // إذا كان الحجم كبير جداً، قلل الجودة
+                let currentQuality = quality;
+                while (result.length > maxSizeKB * 1024 && currentQuality > 0.2) {
+                    currentQuality -= 0.1;
+                    result = canvas.toDataURL('image/jpeg', currentQuality);
                 }
                 
-                console.log('✅ تم ضغط الصورة:', {
-                    original: (file.size / 1024).toFixed(1) + 'KB',
-                    compressed: (result.length / 1024).toFixed(1) + 'KB',
-                    dimensions: width + 'x' + height,
-                    quality: quality
-                });
+                console.log('📸 الحجم بعد الضغط:', (result.length / 1024).toFixed(1), 'KB');
+                console.log('📸 نوع النتيجة:', typeof result);
+                console.log('📸 أول 50 حرف:', result.substring(0, 50));
                 
-                // التحقق من صحة النتيجة
-                if (!result || result === 'data:,' || result.length < 100) {
-                    reject(new Error('فشل ضغط الصورة - النتيجة فارغة'));
+                // التأكد من أن النتيجة string صالحة
+                if (typeof result !== 'string') {
+                    reject(new Error('النتيجة ليست string'));
+                    return;
+                }
+                
+                if (!result.startsWith('data:image')) {
+                    reject(new Error('تنسيق النتيجة غير صالح'));
                     return;
                 }
                 
                 resolve(result);
             };
             
-            img.onerror = () => {
+            img.onerror = function() {
                 reject(new Error('فشل تحميل الصورة'));
             };
+            
+            img.src = event.target.result;
         };
         
-        reader.onerror = () => {
+        reader.onerror = function() {
             reject(new Error('فشل قراءة الملف'));
         };
+        
+        reader.readAsDataURL(file);
     });
-}
-// ضغط الصور المتعددة
-async function compressMultipleImages(files, maxSizeKB) {
-    var compressed = [];
-    for (var i = 0; i < files.length; i++) {
-        var compressedData = await compressImage(files[i], maxSizeKB);
-        compressed.push(compressedData);
-    }
-    return compressed;
 }
 
 // ============ Service Worker معطل نهائياً ============
