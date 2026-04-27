@@ -954,49 +954,100 @@ async function addPatientWithLimitCheck(data) {
     await addPatient(data);
 }
 
-// ============ رسم مخطط الأسنان (فكين) ============
+
+    
+// ============ رسم مخطط أسنان احترافي (2D مع تحديد يدوي) ============
 function drawTeeth() {
     var container = document.getElementById('teethContainer');
     if (!container) return;
     
-    // ترقيم الأسنان حسب نظام FDI العالمي
+    // مخطط الأسنان حسب نظام FDI
     // الفك العلوي (الأيمن إلى الأيسر)
-    var upperJaw = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28];
-    // الفك السفلي (الأيمن إلى الأيسر)
-    var lowerJaw = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38];
+    var upperJaw = [
+        { num: 18, name: 'ضرس العقل', pos: 'يمين' },
+        { num: 17, name: 'الضرس الثاني', pos: 'يمين' },
+        { num: 16, name: 'الضرس الأول', pos: 'يمين' },
+        { num: 15, name: 'الضاحك الثاني', pos: 'يمين' },
+        { num: 14, name: 'الضاحك الأول', pos: 'يمين' },
+        { num: 13, name: 'الناب', pos: 'يمين' },
+        { num: 12, name: 'القاطع الجانبي', pos: 'يمين' },
+        { num: 11, name: 'القاطع المركزي', pos: 'يمين' },
+        { num: 21, name: 'القاطع المركزي', pos: 'يسار' },
+        { num: 22, name: 'القاطع الجانبي', pos: 'يسار' },
+        { num: 23, name: 'الناب', pos: 'يسار' },
+        { num: 24, name: 'الضاحك الأول', pos: 'يسار' },
+        { num: 25, name: 'الضاحك الثاني', pos: 'يسار' },
+        { num: 26, name: 'الضرس الأول', pos: 'يسار' },
+        { num: 27, name: 'الضرس الثاني', pos: 'يسار' },
+        { num: 28, name: 'ضرس العقل', pos: 'يسار' }
+    ];
+    
+    // الفك السفلي
+    var lowerJaw = [
+        { num: 48, name: 'ضرس العقل', pos: 'يمين' },
+        { num: 47, name: 'الضرس الثاني', pos: 'يمين' },
+        { num: 46, name: 'الضرس الأول', pos: 'يمين' },
+        { num: 45, name: 'الضاحك الثاني', pos: 'يمين' },
+        { num: 44, name: 'الضاحك الأول', pos: 'يمين' },
+        { num: 43, name: 'الناب', pos: 'يمين' },
+        { num: 42, name: 'القاطع الجانبي', pos: 'يمين' },
+        { num: 41, name: 'القاطع المركزي', pos: 'يمين' },
+        { num: 31, name: 'القاطع المركزي', pos: 'يسار' },
+        { num: 32, name: 'القاطع الجانبي', pos: 'يسار' },
+        { num: 33, name: 'الناب', pos: 'يسار' },
+        { num: 34, name: 'الضاحك الأول', pos: 'يسار' },
+        { num: 35, name: 'الضاحك الثاني', pos: 'يسار' },
+        { num: 36, name: 'الضرس الأول', pos: 'يسار' },
+        { num: 37, name: 'الضرس الثاني', pos: 'يسار' },
+        { num: 38, name: 'ضرس العقل', pos: 'يسار' }
+    ];
     
     var html = `
-        <div class="jaw-section">
-            <div class="jaw-label upper-jaw-label">
-                <i class="fas fa-arrow-up"></i> الفك العلوي <i class="fas fa-arrow-up"></i>
+        <div class="teeth-legend">
+            <div class="legend-title">📋 نظام الترقيم FDI</div>
+            <div class="legend-items">
+                <span class="legend-item"><span class="legend-color upper"></span> الفك العلوي</span>
+                <span class="legend-item"><span class="legend-color lower"></span> الفك السفلي</span>
+                <span class="legend-item"><span class="legend-color selected"></span> السن المحدد</span>
             </div>
-            <div class="teeth-row upper-teeth" id="upperTeeth">
+        </div>
+        
+        <div class="jaw-container upper-jaw">
+            <div class="jaw-title">🦷 الفك العلوي (الأسنان العلوية)</div>
+            <div class="teeth-grid" id="upperTeeth">
     `;
     
+    // عرض الأسنان العلوية
     for (var i = 0; i < upperJaw.length; i++) {
-        var toothNum = upperJaw[i];
-        html += `<div class="tooth" data-tooth="${toothNum}" onclick="selectTooth(${toothNum})">`;
-        html += `<span class="tooth-number">${toothNum}</span>`;
-        html += `<span class="tooth-icon">🦷</span>`;
-        html += `</div>`;
+        var tooth = upperJaw[i];
+        html += `
+            <div class="tooth-card" data-tooth="${tooth.num}" onclick="selectTooth(${tooth.num})">
+                <div class="tooth-num">${tooth.num}</div>
+                <div class="tooth-name">${tooth.name}</div>
+                <div class="tooth-pos">${tooth.pos}</div>
+            </div>
+        `;
     }
     
     html += `
             </div>
         </div>
-        <div class="jaw-section">
-            <div class="jaw-label lower-jaw-label">
-                <i class="fas fa-arrow-down"></i> الفك السفلي <i class="fas fa-arrow-down"></i>
-            </div>
-            <div class="teeth-row lower-teeth" id="lowerTeeth">
+        
+        <div class="jaw-container lower-jaw">
+            <div class="jaw-title">🦷 الفك السفلي (الأسنان السفلية)</div>
+            <div class="teeth-grid" id="lowerTeeth">
     `;
     
+    // عرض الأسنان السفلية
     for (var i = 0; i < lowerJaw.length; i++) {
-        var toothNum = lowerJaw[i];
-        html += `<div class="tooth" data-tooth="${toothNum}" onclick="selectTooth(${toothNum})">`;
-        html += `<span class="tooth-number">${toothNum}</span>`;
-        html += `<span class="tooth-icon">🦷</span>`;
-        html += `</div>`;
+        var tooth = lowerJaw[i];
+        html += `
+            <div class="tooth-card" data-tooth="${tooth.num}" onclick="selectTooth(${tooth.num})">
+                <div class="tooth-num">${tooth.num}</div>
+                <div class="tooth-name">${tooth.name}</div>
+                <div class="tooth-pos">${tooth.pos}</div>
+            </div>
+        `;
     }
     
     html += `
@@ -1007,25 +1058,34 @@ function drawTeeth() {
     container.innerHTML = html;
 }
 
-// تحديث دالة selectTooth لتحديد السن
-function selectTooth(tooth) {
+// دالة تحديد السن
+function selectTooth(toothNumber) {
     // إزالة التحديد من جميع الأسنان
-    document.querySelectorAll('.tooth').forEach(t => {
-        t.classList.remove('selected');
+    document.querySelectorAll('.tooth-card').forEach(card => {
+        card.classList.remove('selected');
     });
     
     // تحديد السن المختار
-    var selectedTooth = document.querySelector(`.tooth[data-tooth="${tooth}"]`);
-    if (selectedTooth) {
-        selectedTooth.classList.add('selected');
+    var selectedCard = document.querySelector(`.tooth-card[data-tooth="${toothNumber}"]`);
+    if (selectedCard) {
+        selectedCard.classList.add('selected');
+        
+        // تمرير إلى السن المحدد
+        selectedCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // تعبئة حقل رقم السن
+        var toothInput = document.getElementById('toothNumber');
+        if (toothInput) {
+            toothInput.value = toothNumber;
+        }
+        
+        // عرض اسم السن
+        var toothName = selectedCard.querySelector('.tooth-name')?.innerText || '';
+        console.log(`✅ تم تحديد السن ${toothNumber} - ${toothName}`);
+        
+        // إشعار للمستخدم
+        showAlert('dashboardAlert', `🦷 تم تحديد السن ${toothNumber}`, 'success');
     }
-    
-    // تعيين رقم السن في الحقل
-    var toothInput = document.getElementById('toothNumber');
-    if (toothInput) toothInput.value = tooth;
-    
-    // رسالة تأكيد
-    console.log('✅ تم تحديد السن:', tooth);
 }
 
 function calcRemaining() {
