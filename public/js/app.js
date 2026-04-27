@@ -2470,11 +2470,10 @@ async function syncPatientImagesToServer() {
 
                 // ============ إنشاء صفحة لعرض الصور ============
 
-// تخزين الصفحات المنشأة مؤقتاً
-var sharedPages = {};
+        
+// ============ إنشاء رابط عام لمشاركة الصور (بدون تسجيل دخول) ============
 
-// إنشاء صفحة HTML تحتوي على جميع صور المريض
-async function generatePatientImagesPage(patientId) {
+async function generatePublicShareLink(patientId) {
     var patient = null;
     for (var i = 0; i < allPatients.length; i++) {
         if (allPatients[i]._id === patientId) {
@@ -2484,235 +2483,33 @@ async function generatePatientImagesPage(patientId) {
     }
     if (!patient) return null;
     
-    // جلب جميع الصور
-    var images = [];
-    try {
-        var allImages = JSON.parse(localStorage.getItem('patient_images_' + currentUser.id) || '{}');
-        images = allImages[patientId] || [];
-        
-        if (navigator.onLine) {
-            try {
-                var response = await fetch('/api/patient-images/' + patientId + '/' + currentUser.id);
-                if (response.ok) {
-                    var serverImages = await response.json();
-                    for (var i = 0; i < serverImages.length; i++) {
-                        var exists = false;
-                        for (var j = 0; j < images.length; j++) {
-                            if (images[j].id === serverImages[i].id || images[j]._id === serverImages[i]._id) {
-                                exists = true;
-                                break;
-                            }
-                        }
-                        if (!exists) {
-                            images.push(serverImages[i]);
-                        }
-                    }
-                }
-            } catch(e) { console.log('Error fetching images:', e); }
-        }
-    } catch(e) { console.log('Error loading images:', e); }
+    // إنشاء توكن فريد للمشاركة
+    var token = btoa(patientId + '_' + Date.now() + '_' + Math.random());
     
-    if (images.length === 0) return null;
+    // حفظ التوكن مع بيانات المريض في localStorage (مؤقت)
+    var shareData = {
+        patientId: patientId,
+        patientName: patient.name,
+        patientPhone: patient.phone,
+        patientAge: patient.age,
+        patientAddress: patient.address,
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // صلاحية 7 أيام
+    };
+    localStorage.setItem('share_token_' + token, JSON.stringify(shareData));
     
-    // إنشاء HTML لعرض الصور
-    var imagesHtml = '';
-    for (var i = 0; i < images.length; i++) {
-        var img = images[i];
-        var imgData = img.data || img.imageData;
-        var caption = img.caption || 'صورة ' + (i + 1);
-        var date = img.createdAt ? new Date(img.createdAt).toLocaleDateString('ar-EG') : 'تاريخ غير محدد';
-        
-        imagesHtml += `
-            <div class="image-container">
-                <div class="image-header">
-                    <span class="image-number">📸 صورة ${i + 1}</span>
-                    <span class="image-date">${date}</span>
-                </div>
-                <img src="${imgData}" alt="${caption}" onclick="this.classList.toggle('zoomed')">
-                <div class="image-caption">📝 ${escapeHtml(caption)}</div>
-            </div>
-        `;
-    }
-    
-    // إنشاء الصفحة الكاملة
-    var pageHtml = `<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>صور المريض - ${patient.name}</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        .header {
-            background: white;
-            border-radius: 20px;
-            padding: 20px;
-            margin-bottom: 20px;
-            text-align: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-        .header h1 {
-            color: #1e40af;
-            font-size: 24px;
-            margin-bottom: 10px;
-        }
-        .header .patient-info {
-            color: #64748b;
-            font-size: 14px;
-        }
-        .header .patient-info p {
-            margin: 5px 0;
-        }
-        .stats {
-            background: #f1f5f9;
-            border-radius: 15px;
-            padding: 15px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        .stats span {
-            font-size: 24px;
-            font-weight: bold;
-            color: #1e40af;
-        }
-        .images-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        .image-container {
-            background: white;
-            border-radius: 20px;
-            overflow: hidden;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            transition: transform 0.3s;
-        }
-        .image-container:hover {
-            transform: translateY(-5px);
-        }
-        .image-header {
-            background: #f8fafc;
-            padding: 12px 15px;
-            display: flex;
-            justify-content: space-between;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        .image-number {
-            font-weight: bold;
-            color: #1e40af;
-        }
-        .image-date {
-            color: #64748b;
-            font-size: 12px;
-        }
-        .image-container img {
-            width: 100%;
-            max-height: 400px;
-            object-fit: contain;
-            background: #f1f5f9;
-            cursor: pointer;
-            transition: transform 0.3s;
-        }
-        .image-container img.zoomed {
-            transform: scale(1.5);
-            cursor: zoom-out;
-        }
-        .image-caption {
-            padding: 12px 15px;
-            background: #f8fafc;
-            color: #334155;
-            font-size: 14px;
-            border-top: 1px solid #e2e8f0;
-        }
-        .footer {
-            text-align: center;
-            padding: 20px;
-            color: white;
-            font-size: 12px;
-        }
-        .btn {
-            display: inline-block;
-            background: #10b981;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 50px;
-            text-decoration: none;
-            margin-top: 10px;
-            font-size: 14px;
-        }
-        @media (max-width: 600px) {
-            body { padding: 10px; }
-            .header h1 { font-size: 20px; }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🦷 صور المريض - ${escapeHtml(patient.name)}</h1>
-            <div class="patient-info">
-                <p>📞 ${escapeHtml(patient.phone || 'غير مسجل')} | 📅 العمر: ${patient.age} سنة</p>
-                <p>📍 ${escapeHtml(patient.address || 'العنوان غير مسجل')}</p>
-            </div>
-        </div>
-        
-        <div class="stats">
-            📸 عدد الصور: <span>${images.length}</span> صورة
-        </div>
-        
-        <div class="images-grid">
-            ${imagesHtml}
-        </div>
-        
-        <div class="footer">
-            <p>🦷 ClinicPro - نظام إدارة عيادات الأسنان</p>
-            <p>تم إنشاء هذا الرابط لمشاركة صور المريض</p>
-            <small>📅 تاريخ الإنشاء: ${new Date().toLocaleDateString('ar-EG')}</small>
-        </div>
-    </div>
-    
-    <script>
-        // دالة لتكبير الصورة عند النقر
-        document.querySelectorAll('.image-container img').forEach(img => {
-            img.addEventListener('click', function() {
-                this.classList.toggle('zoomed');
-            });
-        });
-    </script>
-</body>
-</html>`;
-    
-    // حفظ الصفحة في localStorage مؤقتاً
-    var pageId = 'patient_' + patientId + '_' + Date.now();
-    localStorage.setItem('shared_page_' + pageId, pageHtml);
-    
-    // إنشاء رابط للصفحة باستخدام Blob URL
-    var blob = new Blob([pageHtml], { type: 'text/html' });
-    var url = URL.createObjectURL(blob);
+    // إنشاء الرابط الكامل
+    var baseUrl = window.location.origin;
+    var shareUrl = baseUrl + '/view-images.html?id=' + patientId + '&token=' + encodeURIComponent(token);
     
     return {
-        url: url,
-        pageId: pageId,
-        imageCount: images.length,
-        patientName: patient.name
+        url: shareUrl,
+        token: token,
+        expiresAt: shareData.expiresAt
     };
 }
 
-// ============ دالة المشاركة المعدلة (مع رابط الصور) ============
+// ============ دالة المشاركة المعدلة (مع رابط عام) ============
 
 async function sharePatientWithImages(patientId) {
     var patient = null;
@@ -2724,11 +2521,10 @@ async function sharePatientWithImages(patientId) {
     }
     if (!patient) return;
     
-    showAlert('dashboardAlert', '🔄 جاري تجهيز التقرير والرابط...', 'info');
+    showAlert('dashboardAlert', '🔄 جاري تجهيز رابط المشاركة...', 'info');
     
     // جلب سجل المعالجات
     var treatments = [];
-    
     try {
         var localTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
         for (var i = 0; i < localTreatments.length; i++) {
@@ -2736,7 +2532,7 @@ async function sharePatientWithImages(patientId) {
                 treatments.push(localTreatments[i]);
             }
         }
-    } catch(e) { console.log('Error loading treatments:', e); }
+    } catch(e) {}
     
     if (navigator.onLine) {
         try {
@@ -2756,7 +2552,7 @@ async function sharePatientWithImages(patientId) {
                     }
                 }
             }
-        } catch(e) { console.log('Error fetching treatments:', e); }
+        } catch(e) {}
     }
     
     // حساب الإجماليات
@@ -2801,8 +2597,8 @@ async function sharePatientWithImages(patientId) {
         treatmentsText = '\n\n🦷 *سجل المعالجات:*\n━━━━━━━━━━━━━━━━━━━━\nلا توجد معالجات مسجلة\n';
     }
     
-    // ✅ إنشاء رابط الصور
-    var imagesPage = await generatePatientImagesPage(patientId);
+    // ✅ إنشاء رابط عام للمشاركة
+    var shareLink = await generatePublicShareLink(patientId);
     
     // بناء الرسالة
     var message = '*🦷 تقرير المريض - ' + patient.name + '*\n';
@@ -2811,22 +2607,13 @@ async function sharePatientWithImages(patientId) {
     message += '📞 *الهاتف:* ' + (patient.phone || 'غير مسجل') + '\n';
     message += '📅 *العمر:* ' + patient.age + ' سنة\n';
     message += '📍 *العنوان:* ' + (patient.address || 'غير مسجل') + '\n';
-    message += '📝 *ملاحظات:* ' + (patient.notes || 'لا توجد') + '\n';
     message += treatmentsText;
     message += '\n━━━━━━━━━━━━━━━━━━━━\n';
-    
-    if (imagesPage && imagesPage.imageCount > 0) {
-        message += '📸 *صور المريض:* ' + imagesPage.imageCount + ' صورة\n';
-        message += '🔗 *رابط مشاهدة الصور:*\n';
-        message += imagesPage.url + '\n';
-        message += '\n💡 *تعليمات:* اضغط على الرابط أعلاه لمشاهدة جميع الصور مع الشرح\n';
-        message += '📱 يمكنك فتح الرابط في المتصفح لمشاهدة الصور بشكل كامل\n';
-    } else {
-        message += '📸 *الصور:* لا توجد صور مسجلة لهذا المريض\n';
-    }
-    
-    message += '\n━━━━━━━━━━━━━━━━━━━━\n';
-    message += '🦷 *ClinicPro - نظام إدارة عيادات الأسنان*';
+    message += '📸 *رابط مشاهدة جميع صور المريض:*\n';
+    message += shareLink.url + '\n';
+    message += '\n💡 *ملاحظة:* الرابط صالح لمدة 7 أيام\n';
+    message += '🔒 يمكن لأي شخص لديه الرابط مشاهدة الصور بدون حاجة لتسجيل دخول\n';
+    message += '\n🦷 *ClinicPro - نظام إدارة عيادات الأسنان*';
     
     // إرسال الرسالة عبر واتساب
     var phoneNumber = patient.phone || '967773041464';
@@ -2837,16 +2624,9 @@ async function sharePatientWithImages(patientId) {
     
     window.open('https://wa.me/' + phoneNumber + '?text=' + encodeURIComponent(message), '_blank');
     
-    // تنظيف الرابط بعد 10 دقائق
-    if (imagesPage && imagesPage.url) {
-        setTimeout(function() {
-            URL.revokeObjectURL(imagesPage.url);
-            localStorage.removeItem('shared_page_' + imagesPage.pageId);
-        }, 10 * 60 * 1000);
-    }
-    
-    showAlert('dashboardAlert', '✅ تم فتح واتساب مع رابط صور ' + patient.name + ' (' + (imagesPage ? imagesPage.imageCount : 0) + ' صورة)', 'success');
+    showAlert('dashboardAlert', '✅ تم إنشاء رابط مشاركة لصور ' + patient.name + ' وفتح واتساب', 'success');
 }
+   
 
 // ============ ضغط الصور ============
 // ============ ضغط الصور بشكل قوي ============
