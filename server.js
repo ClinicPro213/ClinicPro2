@@ -360,41 +360,80 @@ app.post('/api/notifications', async (req, res) => {
     }
 });
 // API عام لعرض الصور (بدون تسجيل دخول)
-app.get('/api/public/patient-images/:patientId', async (req, res) => {
+// ============ APIs الصور ============
+
+// حفظ صورة جديدة
+app.post('/api/patient-images', async (req, res) => {
     try {
-        const { patientId } = req.params;
-        const { token } = req.query;
+        const { patientId, userId, imageData, caption } = req.body;
         
-        // التحقق من صحة التوكن
-        // (يمكن تخزين التوكنات في قاعدة البيانات)
-        
-        // جلب بيانات المريض الأساسية (عامة فقط)
-        const patient = await db.collection('patients').findOne({ _id: patientId });
+        // التحقق من صلاحية المستخدم
+        const patient = await db.collection('patients').findOne({ _id: patientId, userId: userId });
         if (!patient) {
-            return res.status(404).json({ error: 'Patient not found' });
+            return res.status(403).json({ error: 'غير مصرح لك' });
         }
         
-        // جلب الصور (عامة)
+        // حفظ الصورة
+        const newImage = {
+            _id: new ObjectId(),
+            patientId: patientId,
+            userId: userId,
+            imageData: imageData,
+            caption: caption || '',
+            createdAt: new Date(),
+            updatedAt: new Date()
+        };
+        
+        await db.collection('patient_images').insertOne(newImage);
+        
+        res.json({ success: true, image: newImage });
+    } catch (error) {
+        console.error('Error saving image:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// جلب صور المريض
+app.get('/api/patient-images/:patientId/:userId', async (req, res) => {
+    try {
+        const { patientId, userId } = req.params;
+        
+        // التحقق من صلاحية المستخدم
+        const patient = await db.collection('patients').findOne({ _id: patientId, userId: userId });
+        if (!patient) {
+            return res.status(403).json({ error: 'غير مصرح لك' });
+        }
+        
+        // جلب الصور
         const images = await db.collection('patient_images')
             .find({ patientId: patientId })
             .sort({ createdAt: -1 })
             .toArray();
         
-        // إخفاء البيانات الحساسة
-        res.json({
-            patient: {
-                name: patient.name,
-                phone: patient.phone,
-                age: patient.age,
-                address: patient.address
-            },
-            images: images.map(img => ({
-                data: img.imageData,
-                caption: img.caption,
-                createdAt: img.createdAt
-            }))
-        });
+        res.json(images);
     } catch (error) {
+        console.error('Error fetching images:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// حذف صورة
+app.delete('/api/patient-images/:imageId', async (req, res) => {
+    try {
+        const { imageId } = req.params;
+        const { userId, patientId } = req.body;
+        
+        // التحقق من صلاحية المستخدم
+        const image = await db.collection('patient_images').findOne({ _id: new ObjectId(imageId) });
+        if (!image || image.userId !== userId) {
+            return res.status(403).json({ error: 'غير مصرح لك' });
+        }
+        
+        await db.collection('patient_images').deleteOne({ _id: new ObjectId(imageId) });
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error deleting image:', error);
         res.status(500).json({ error: error.message });
     }
 });
