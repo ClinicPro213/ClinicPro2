@@ -2261,6 +2261,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // ============ حفظ الصورة (نسخة مبسطة) ============
 
+// ============ حفظ الصورة (نسخة مباشرة بدون ضغط) ============
+
 async function savePatientImage() {
     const fileInput = document.getElementById('imageFileInput');
     const caption = document.getElementById('imageCaption').value;
@@ -2280,45 +2282,62 @@ async function savePatientImage() {
     showAlert('dashboardAlert', '🔄 جاري رفع الصورة...', 'info');
     
     try {
-        // قراءة الصورة بدون ضغط (للتجربة)
-        const imageData = await compressImage(file);
+        // استخدام FileReader مباشرة بدون Promise معقد
+        const reader = new FileReader();
         
-        console.log('📤 إرسال إلى السيرفر...');
-        console.log('📤 نوع البيانات:', typeof imageData);
-        console.log('📤 بداية البيانات:', imageData.substring(0, 50));
-        
-        const response = await fetch('/api/patient-images', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                patientId: currentImagePatientId,
-                userId: currentUser.id,
-                imageData: imageData,
-                caption: caption || ''
-            })
-        });
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('❌ خطأ من السيرفر:', errorText);
-            throw new Error('فشل رفع الصورة');
-        }
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            showAlert('dashboardAlert', '✅ تم حفظ الصورة بنجاح', 'success');
-            closeModal('addImageModal');
-            await renderPatientImages(currentImagePatientId);
+        reader.onload = async function(e) {
+            const imageData = e.target.result;
             
-            document.getElementById('imageFileInput').value = '';
-            document.getElementById('imageCaption').value = '';
-            document.getElementById('imagePreview').style.display = 'none';
-        } else {
-            throw new Error(result.error || 'فشل حفظ الصورة');
-        }
+            console.log('✅ تم قراءة الصورة بنجاح');
+            console.log('📸 نوع البيانات:', typeof imageData);
+            console.log('📸 حجم البيانات:', (imageData.length / 1024).toFixed(1), 'KB');
+            console.log('📸 بداية البيانات:', imageData.substring(0, 100));
+            
+            try {
+                const response = await fetch('/api/patient-images', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        patientId: currentImagePatientId,
+                        userId: currentUser.id,
+                        imageData: imageData,
+                        caption: caption || ''
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('❌ خطأ من السيرفر:', errorText);
+                    throw new Error('فشل رفع الصورة: ' + response.status);
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert('dashboardAlert', '✅ تم حفظ الصورة بنجاح', 'success');
+                    closeModal('addImageModal');
+                    await renderPatientImages(currentImagePatientId);
+                    
+                    document.getElementById('imageFileInput').value = '';
+                    document.getElementById('imageCaption').value = '';
+                    document.getElementById('imagePreview').style.display = 'none';
+                } else {
+                    throw new Error(result.error || 'فشل حفظ الصورة');
+                }
+                
+            } catch (error) {
+                console.error('❌ خطأ في الإرسال:', error);
+                showAlert('dashboardAlert', '❌ فشل حفظ الصورة: ' + error.message, 'error');
+            }
+        };
+        
+        reader.onerror = function() {
+            showAlert('dashboardAlert', '❌ فشل قراءة الصورة', 'error');
+        };
+        
+        reader.readAsDataURL(file);
         
     } catch (error) {
         console.error('❌ خطأ:', error);
