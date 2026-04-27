@@ -393,29 +393,20 @@ app.post('/api/patient-images', async (req, res) => {
         
         console.log('📸 محاولة حفظ صورة للمريض:', patientId);
         console.log('📸 نوع imageData:', typeof imageData);
-        console.log('📸 طول imageData:', imageData ? imageData.length : 0);
         
-        // ✅ التحقق من صحة البيانات
-        if (!patientId || !userId) {
-            console.log('❌ معرف المريض أو المستخدم مفقود');
-            return res.status(400).json({ error: 'معرف المريض أو المستخدم مفقود' });
-        }
-        
+        // التحقق من وجود البيانات
         if (!imageData) {
-            console.log('❌ بيانات الصورة مفقودة');
-            return res.status(400).json({ error: 'بيانات الصورة مفقودة' });
+            console.log('❌ لا توجد بيانات صورة');
+            return res.status(400).json({ error: 'لا توجد بيانات صورة' });
         }
         
-        // التحقق من أن imageData هو string base64 صالح
+        // التحقق من أن imageData هو string
         if (typeof imageData !== 'string') {
             console.log('❌ imageData ليس string، نوعه:', typeof imageData);
             return res.status(400).json({ error: 'بيانات الصورة غير صالحة' });
         }
         
-        if (!imageData.startsWith('data:image')) {
-            console.log('❌ imageData ليس بتنسيق base64 صالح');
-            return res.status(400).json({ error: 'تنسيق الصورة غير صالح' });
-        }
+        console.log('📸 طول imageData:', imageData.length);
         
         // التحقق من صلاحية المستخدم
         const patient = await Patient.findOne({ _id: patientId, userId: userId });
