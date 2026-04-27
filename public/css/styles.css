@@ -92,6 +92,155 @@ body::before {
     flex-direction: column;
     gap: 16px;
 }
+/* ============ قائمة تحديد السن (بسيطة) ============ */
+
+#teethContainer {
+    background: #f8fafc;
+    border-radius: 20px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.fdi-simple {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* صف الاختيارات */
+.fdi-simple-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.fdi-simple-label {
+    width: 70px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #475569;
+}
+
+.fdi-simple-buttons {
+    display: flex;
+    gap: 10px;
+    flex: 1;
+}
+
+/* الأزرار */
+.simple-btn {
+    padding: 8px 18px;
+    border: 2px solid #e2e8f0;
+    background: white;
+    border-radius: 40px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #475569;
+}
+
+.simple-btn:hover {
+    border-color: #14b8a6;
+    transform: translateY(-2px);
+}
+
+.simple-btn.active {
+    background: linear-gradient(135deg, #0f766e, #14b8a6);
+    border-color: #0f766e;
+    color: white;
+}
+
+/* القائمة المنسدلة */
+.fdi-simple-select {
+    flex: 1;
+}
+
+.simple-select {
+    width: 100%;
+    padding: 10px 14px;
+    border: 2px solid #e2e8f0;
+    border-radius: 40px;
+    font-size: 13px;
+    background: white;
+    color: #334155;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.simple-select:focus {
+    outline: none;
+    border-color: #14b8a6;
+    box-shadow: 0 0 0 3px rgba(20,184,166,0.1);
+}
+
+/* النتيجة */
+.fdi-simple-result {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.simple-result {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    background: white;
+    padding: 12px 20px;
+    border-radius: 50px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.simple-fdi {
+    background: linear-gradient(135deg, #0f766e, #14b8a6);
+    color: white;
+    padding: 6px 16px;
+    border-radius: 40px;
+    font-size: 18px;
+    font-weight: 700;
+    min-width: 60px;
+    text-align: center;
+}
+
+.simple-name {
+    font-size: 13px;
+    color: #475569;
+    font-weight: 500;
+}
+
+/* استجابة للشاشات الصغيرة */
+@media (max-width: 550px) {
+    .fdi-simple-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .fdi-simple-label {
+        width: auto;
+    }
+    
+    .fdi-simple-buttons {
+        justify-content: center;
+    }
+    
+    .simple-btn {
+        flex: 1;
+        text-align: center;
+        justify-content: center;
+    }
+    
+    .simple-result {
+        flex-direction: column;
+        text-align: center;
+        gap: 8px;
+    }
+}
 
 /* ===== الصف الأول: الشعار في المنتصف ===== */
 .logo-center {
