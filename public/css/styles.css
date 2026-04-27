@@ -1802,3 +1802,101 @@ tr:hover {
 ::-webkit-scrollbar-thumb:hover {
     background: linear-gradient(135deg, #0d5a54, #0f766e);
     }
+/* ============ أزرار بطاقات المرضى (إصلاح نهائي) ============ */
+
+/* التأكد من ظهور الأزرار */
+.patient-actions {
+    display: flex !important;
+    gap: 8px !important;
+    flex-wrap: wrap !important;
+    margin-top: 12px !important;
+    padding-top: 12px !important;
+    border-top: 1px solid #e2e8f0 !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* تنسيق الأزرار */
+.patient-actions button {
+    background: rgba(255,255,255,0.2) !important;
+    border: none !important;
+    color: white !important;
+    padding: 6px 12px !important;
+    border-radius: 40px !important;
+    cursor: pointer !important;
+    font-size: 12px !important;
+    transition: all 0.2s ease !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+
+.patient-actions button:hover {
+    background: rgba(255,255,255,0.4) !important;
+    transform: scale(1.05) !important;
+}
+
+/* أزرار إضافية في جسم البطاقة */
+.patient-body .action-buttons {
+    display: flex !important;
+    gap: 8px !important;
+    margin-top: 12px !important;
+    flex-wrap: wrap !important;
+}
+
+.patient-body .action-buttons button {
+    background: #3b82f6 !important;
+    color: white !important;
+    border: none !important;
+    padding: 6px 12px !important;
+    border-radius: 20px !important;
+    cursor: pointer !important;
+    font-size: 12px !important;
+    transition: all 0.2s !important;
+}
+
+.patient-body .action-buttons button:nth-child(2) {
+    background: #10b981 !important;
+}
+
+.patient-body .action-buttons button:nth-child(3) {
+    background: #f59e0b !important;
+}
+
+.patient-body .action-buttons button:nth-child(4) {
+    background: #ef4444 !important;
+}
+
+.patient-body .action-buttons button:hover {
+    transform: translateY(-2px) !important;
+}
+
+/* ============ إصلاح صفحة الاشتراكات ============ */
+
+/* التأكد من ظهور أيقونات Font Awesome */
+.plan-icon i, .payment-icon i, .step-number i {
+    display: inline-block !important;
+    font-family: "Font Awesome 6 Free" !important;
+    font-weight: 900 !important;
+}
+
+/* تحسين ظهور البطاقات */
+.plan-card {
+    cursor: pointer !important;
+}
+
+/* التأكد من ظهور الصور في صفحة الاشتراكات */
+.subscription-hero {
+    background: linear-gradient(135deg, #0f766e, #14b8a6) !important;
+}
+
+/* ============ إصلاح شامل للأزرار ============ */
+button, .btn, .patient-actions button, .action-buttons button {
+    cursor: pointer !important;
+}
+
+/* إظهار أي عنصر مخفي */
+.patient-actions, .action-buttons {
+    display: flex !important;
+    visibility: visible !important;
+}
