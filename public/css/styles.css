@@ -426,6 +426,103 @@ body::before {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
+/* ============ نظام اختيار FDI (نسخة مصغرة) ============ */
+
+.fdi-selector-compact {
+    background: #f8fafc;
+    border-radius: 16px;
+    padding: 12px;
+}
+
+/* صف الاختيارات في سطر واحد */
+.fdi-row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.fdi-item {
+    flex: 1;
+    min-width: 100px;
+}
+
+.fdi-select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 13px;
+    background: white;
+    color: #334155;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.fdi-select:hover {
+    border-color: #14b8a6;
+}
+
+.fdi-select:focus {
+    outline: none;
+    border-color: #0f766e;
+    box-shadow: 0 0 0 2px rgba(15,118,110,0.1);
+}
+
+/* نتيجة التحديد */
+.fdi-result-compact {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.result-compact {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    background: white;
+    padding: 8px 16px;
+    border-radius: 30px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.result-fdi {
+    background: linear-gradient(135deg, #0f766e, #14b8a6);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 30px;
+    font-size: 16px;
+    font-weight: 700;
+    min-width: 50px;
+    text-align: center;
+}
+
+.result-name {
+    font-size: 12px;
+    color: #475569;
+    font-weight: 500;
+}
+
+/* استجابة للشاشات الصغيرة */
+@media (max-width: 550px) {
+    .fdi-row {
+        flex-direction: column;
+        gap: 6px;
+    }
+    
+    .fdi-item {
+        min-width: auto;
+    }
+    
+    .result-compact {
+        flex-direction: column;
+        gap: 6px;
+        text-align: center;
+    }
+}
 /* ============ مخطط الأسنان الاحترافي ============ */
 
 #teethContainer {
