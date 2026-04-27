@@ -957,52 +957,62 @@ async function addPatientWithLimitCheck(data) {
 
     
 
-    
-// ============ اختيار السن عبر نظام FDI (نسخة مصغرة) ============
+    // ============ قائمة تحديد السن (بسيطة وعملية) ============
 function drawTeeth() {
     var container = document.getElementById('teethContainer');
     if (!container) return;
     
     var html = `
-        <div class="fdi-selector-compact">
-            <!-- صف الاختيارات في سطر واحد -->
-            <div class="fdi-row">
-                <div class="fdi-item">
-                    <select class="fdi-select" id="jawSelect" onchange="selectJaw(this.value)">
-                        <option value="">الفك</option>
-                        <option value="upper">↑ الفك العلوي</option>
-                        <option value="lower">↓ الفك السفلي</option>
-                    </select>
+        <div class="fdi-simple">
+            <!-- صف الفك -->
+            <div class="fdi-simple-row">
+                <div class="fdi-simple-label">🦷 الفك:</div>
+                <div class="fdi-simple-buttons">
+                    <button type="button" class="simple-btn jaw-btn" data-jaw="upper" onclick="selectJawSimple('upper')">
+                        <i class="fas fa-arrow-up"></i> علوي
+                    </button>
+                    <button type="button" class="simple-btn jaw-btn" data-jaw="lower" onclick="selectJawSimple('lower')">
+                        <i class="fas fa-arrow-down"></i> سفلي
+                    </button>
                 </div>
-                
-                <div class="fdi-item">
-                    <select class="fdi-select" id="sideSelect" onchange="selectSide(this.value)">
-                        <option value="">الجهة</option>
-                        <option value="right">→ يمين</option>
-                        <option value="left">← يسار</option>
-                    </select>
+            </div>
+            
+            <!-- صف الجهة -->
+            <div class="fdi-simple-row">
+                <div class="fdi-simple-label">📍 الجهة:</div>
+                <div class="fdi-simple-buttons">
+                    <button type="button" class="simple-btn side-btn" data-side="right" onclick="selectSideSimple('right')">
+                        <i class="fas fa-arrow-right"></i> يمين
+                    </button>
+                    <button type="button" class="simple-btn side-btn" data-side="left" onclick="selectSideSimple('left')">
+                        <i class="fas fa-arrow-left"></i> يسار
+                    </button>
                 </div>
-                
-                <div class="fdi-item">
-                    <select class="fdi-select" id="numberSelect" onchange="selectToothNumber(this.value)">
-                        <option value="">الرقم</option>
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                        <option value="3">3</option>
-                        <option value="4">4</option>
-                        <option value="5">5</option>
-                        <option value="6">6</option>
-                        <option value="7">7</option>
-                        <option value="8">8</option>
+            </div>
+            
+            <!-- صف الرقم (قائمة منسدلة) -->
+            <div class="fdi-simple-row">
+                <div class="fdi-simple-label">🔢 رقم السن:</div>
+                <div class="fdi-simple-select">
+                    <select class="simple-select" id="numberSelectSimple" onchange="selectNumberSimple(this.value)">
+                        <option value="">-- اختر الرقم --</option>
+                        <option value="1">1 - قاطع مركزي</option>
+                        <option value="2">2 - قاطع جانبي</option>
+                        <option value="3">3 - ناب</option>
+                        <option value="4">4 - ضاحك أول</option>
+                        <option value="5">5 - ضاحك ثاني</option>
+                        <option value="6">6 - ضرس أول</option>
+                        <option value="7">7 - ضرس ثاني</option>
+                        <option value="8">8 - ضرس عقل</option>
                     </select>
                 </div>
             </div>
             
-            <!-- عرض النتيجة (رقم FDI + اسم السن) -->
-            <div class="fdi-result-compact" id="fdiResultCompact" style="display:none;">
-                <div class="result-compact">
-                    <span class="result-fdi" id="selectedFDICompact">---</span>
-                    <span class="result-name" id="selectedToothNameCompact">السن المحدد</span>
+            <!-- النتيجة -->
+            <div class="fdi-simple-result" id="fdiSimpleResult" style="display:none;">
+                <div class="simple-result">
+                    <span class="simple-fdi" id="selectedFDISimple">---</span>
+                    <span class="simple-name" id="selectedToothNameSimple">السن المحدد</span>
                 </div>
             </div>
         </div>
@@ -1013,41 +1023,57 @@ function drawTeeth() {
     container.innerHTML = html;
 }
 
-// المتغيرات الحالية
-var currentJawCompact = '';
-var currentSideCompact = '';
-var currentNumberCompact = '';
+// المتغيرات
+var currentJawSimple = '';
+var currentSideSimple = '';
+var currentNumberSimple = '';
 
-// دالة اختيار الفك
-function selectJaw(value) {
-    currentJawCompact = value;
-    updateResultCompact();
+// اختيار الفك
+function selectJawSimple(jaw) {
+    currentJawSimple = jaw;
+    
+    // تحديث واجهة الأزرار
+    document.querySelectorAll('.jaw-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`.jaw-btn[data-jaw="${jaw}"]`).classList.add('active');
+    
+    updateResultSimple();
 }
 
-// دالة اختيار الجهة
-function selectSide(value) {
-    currentSideCompact = value;
-    updateResultCompact();
+// اختيار الجهة
+function selectSideSimple(side) {
+    currentSideSimple = side;
+    
+    // تحديث واجهة الأزرار
+    document.querySelectorAll('.side-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`.side-btn[data-side="${side}"]`).classList.add('active');
+    
+    updateResultSimple();
 }
 
-// دالة اختيار الرقم
-function selectToothNumber(value) {
-    currentNumberCompact = value;
-    updateResultCompact();
+// اختيار الرقم من القائمة المنسدلة
+function selectNumberSimple(value) {
+    if (value) {
+        currentNumberSimple = parseInt(value);
+    } else {
+        currentNumberSimple = '';
+    }
+    updateResultSimple();
 }
 
 // تحديث النتيجة
-function updateResultCompact() {
-    var resultDiv = document.getElementById('fdiResultCompact');
+function updateResultSimple() {
+    var resultDiv = document.getElementById('fdiSimpleResult');
     
-    if (currentJawCompact && currentSideCompact && currentNumberCompact) {
-        // حساب رقم FDI
-        var fdi = calculateFDICompact(currentJawCompact, currentSideCompact, parseInt(currentNumberCompact));
-        var toothName = getToothNameCompact(currentJawCompact, currentSideCompact, parseInt(currentNumberCompact));
+    if (currentJawSimple && currentSideSimple && currentNumberSimple) {
+        var fdi = calculateFDISimple(currentJawSimple, currentSideSimple, currentNumberSimple);
+        var toothName = getToothNameSimple(currentJawSimple, currentSideSimple, currentNumberSimple);
         
-        // عرض النتيجة
-        document.getElementById('selectedFDICompact').innerHTML = fdi;
-        document.getElementById('selectedToothNameCompact').innerHTML = toothName;
+        document.getElementById('selectedFDISimple').innerHTML = fdi;
+        document.getElementById('selectedToothNameSimple').innerHTML = toothName;
         resultDiv.style.display = 'block';
         
         // تعيين رقم السن في الحقل الرئيسي
@@ -1056,9 +1082,7 @@ function updateResultCompact() {
             toothInput.value = fdi;
         }
         
-        console.log('السن المحدد:', { fdi: fdi, name: toothName });
-        
-        // عرض رسالة تأكيد خفيفة
+        // عرض رسالة تأكيد
         showAlert('dashboardAlert', `🦷 تم تحديد السن ${fdi} - ${toothName}`, 'success');
     } else {
         resultDiv.style.display = 'none';
@@ -1069,7 +1093,7 @@ function updateResultCompact() {
 }
 
 // حساب رقم FDI
-function calculateFDICompact(jaw, side, number) {
+function calculateFDISimple(jaw, side, number) {
     var base = 0;
     if (jaw === 'upper') {
         base = (side === 'right') ? 10 : 20;
@@ -1080,7 +1104,7 @@ function calculateFDICompact(jaw, side, number) {
 }
 
 // الحصول على اسم السن
-function getToothNameCompact(jaw, side, number) {
+function getToothNameSimple(jaw, side, number) {
     var names = {
         1: 'قاطع مركزي',
         2: 'قاطع جانبي',
@@ -1095,28 +1119,31 @@ function getToothNameCompact(jaw, side, number) {
     var jawName = jaw === 'upper' ? 'علوي' : 'سفلي';
     var sideName = side === 'right' ? 'أيمن' : 'أيسر';
     
-    return `${names[number]} ${jawName} ${sideName}`;
+    return `${names[number]} (${jawName} ${sideName})`;
 }
 
 // إعادة تعيين الاختيارات
-function resetToothSelection() {
-    currentJaw = '';
-    currentSide = '';
-    currentNumber = '';
-    currentNumberName = '';
-    currentFDI = '';
-    currentToothFullName = '';
+function resetToothSelectionSimple() {
+    currentJawSimple = '';
+    currentSideSimple = '';
+    currentNumberSimple = '';
     
-    document.querySelectorAll('.jaw-btn, .side-btn, .tooth-number-btn').forEach(btn => {
+    document.querySelectorAll('.jaw-btn, .side-btn').forEach(btn => {
         btn.classList.remove('active');
     });
     
-    var resultDiv = document.getElementById('fdiResult');
+    var select = document.getElementById('numberSelectSimple');
+    if (select) select.value = '';
+    
+    var resultDiv = document.getElementById('fdiSimpleResult');
     if (resultDiv) resultDiv.style.display = 'none';
     
     var toothInput = document.getElementById('toothNumber');
     if (toothInput) toothInput.value = '';
 }
+
+
+
 
 function calcRemaining() {
     var costInput = document.getElementById('treatmentCostInput');
