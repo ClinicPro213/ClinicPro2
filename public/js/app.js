@@ -1145,17 +1145,38 @@ function resetToothSelectionSimple() {
 }
 
 
-
+// ============ تفريغ حقول المعالجة ============
+function clearTreatmentForm() {
+    document.getElementById('toothNumber').value = '';
+    document.getElementById('treatmentTypeSelect').value = '';
+    document.getElementById('treatmentNotesInput').value = '';
+    document.getElementById('treatmentCostInput').value = '';
+    document.getElementById('treatmentPaidInput').value = '';
+    document.getElementById('remainingSpan').textContent = '0';
+    
+    if (typeof resetToothSelectionSimple === 'function') {
+        resetToothSelectionSimple();
+    }
+    
+    document.querySelectorAll('.tooth, .tooth-card, .jaw-btn, .side-btn, .tooth-number-btn').forEach(el => {
+        el.classList.remove('active', 'selected');
+    });
+}
 
 function calcRemaining() {
     var costInput = document.getElementById('treatmentCostInput');
     var paidInput = document.getElementById('treatmentPaidInput');
     var remainingSpan = document.getElementById('remainingSpan');
+    
     if (!costInput || !paidInput || !remainingSpan) return;
+    
+    // ✅ التعامل مع القيم الفارغة
     var cost = parseFloat(costInput.value) || 0;
     var paid = parseFloat(paidInput.value) || 0;
     var remaining = cost - paid;
+    
     remainingSpan.textContent = remaining;
+    
     if (remaining < 0) {
         remainingSpan.style.color = '#10b981';
     } else if (remaining > 0) {
@@ -1168,12 +1189,37 @@ function calcRemaining() {
 function showTreatmentModal(pid) {
     currentPatientId = pid;
     drawTeeth();
+    
+    
+    // ✅ تفريغ الحقول من البيانات السابقة
+    document.getElementById('toothNumber').value = '';
+    document.getElementById('treatmentTypeSelect').value = '';
+    document.getElementById('treatmentNotesInput').value = '';
+    document.getElementById('treatmentCostInput').value = '';
+    document.getElementById('treatmentPaidInput').value = '';
+    document.getElementById('remainingSpan').textContent = '0';
+    
+    // ✅ إعادة تعيين اختيارات الأسنان
+    resetToothSelectionSimple();
+    // في saveTreatmentNow
+clearTreatmentForm();
+
+    
     var modal = document.getElementById('treatmentModal');
     if (modal) modal.style.display = 'flex';
 }
 
-// ============ حفظ المعالجة ============
+
+// ============ حفظ المعالجة (مع منع التكرار) ============
+let isSavingTreatment = false;
+
 async function saveTreatmentNow() {
+    // ✅ منع التكرار
+    if (isSavingTreatment) {
+        showAlert('dashboardAlert', '⚠️ جاري الحفظ، يرجى الانتظار...', 'warning');
+        return;
+    }
+    
     if (!currentPatientId) {
         showAlert('dashboardAlert', 'خطأ: لم يتم تحديد المريض', 'error');
         return;
@@ -1215,49 +1261,111 @@ async function saveTreatmentNow() {
         _id: 'offline_tx_' + Date.now()
     };
     
-    var offlineTx = [];
+    // ✅ منع إضافة معالجة مكررة
+    isSavingTreatment = true;
+    
     try {
-        offlineTx = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
-    } catch(e) { console.log('Parse error:', e); }
-    offlineTx.push(treatmentData);
-    try {
-        localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(offlineTx));
-    } catch(e) { console.log('Save error:', e); }
-    
-    showAlert('dashboardAlert', '📴 تم حفظ معالجة السن ' + tooth + ' محلياً - ستتم المزامنة لاحقاً', 'warning');
-    closeModal('treatmentModal');
-    
-    var detailsModal = document.getElementById('patientDetailsModal');
-    if (detailsModal && detailsModal.style.display === 'flex') {
-        await showPatientFullDetails(currentPatientId);
+        var offlineTx = [];
+        try {
+            offlineTx = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+        } catch(e) { console.log('Parse error:', e); }
+        
+        // ✅ التحقق من عدم وجود معالجة مكررة (بنفس السن ونفس التاريخ)
+        var isDuplicate = false;
+        for (var i = 0; i < offlineTx.length; i++) {
+            if (offlineTx[i].toothNumber === treatmentData.toothNumber && 
+                offlineTx[i].treatmentDate === treatmentData.treatmentDate) {
+                isDuplicate = true;
+                break;
+            }
+        }
+        
+        if (!isDuplicate) {
+            offlineTx.push(treatmentData);
+            try {
+                localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(offlineTx));
+            } catch(e) { console.log('Save error:', e); }
+            
+            showAlert('dashboardAlert', '📴 تم حفظ معالجة السن ' + tooth + ' محلياً - ستتم المزامنة لاحقاً', 'warning');
+        } else {
+            showAlert('dashboardAlert', '⚠️ هذه المعالجة موجودة بالفعل', 'warning');
+            return;
+        }
+        
+        closeModal('treatmentModal');
+        
+        var detailsModal = document.getElementById('patientDetailsModal');
+        if (detailsModal && detailsModal.style.display === 'flex') {
+            await showPatientFullDetails(currentPatientId);
+        }
+        
+        if (navigator.onLine) {
+            setTimeout(async function() {
+                await syncAllOfflineData();
+            }, 500);
+        }
+        saveAllDataToLocal();
+        
+    } finally {
+        // ✅ إعادة التعيين بعد الانتهاء
+        setTimeout(() => {
+            isSavingTreatment = false;
+        }, 1000);
     }
-    
-    if (navigator.onLine) {
-        setTimeout(async function() {
-            await syncAllOfflineData();
-        }, 500);
-    }
-    saveAllDataToLocal();
 }
 
+
+let isSharing = false;
+
 async function saveAndShareNow() {
-    await saveTreatmentNow();
-    var patient = null;
-    for (var i = 0; i < allPatients.length; i++) {
-        if (allPatients[i]._id === currentPatientId) {
-            patient = allPatients[i];
-            break;
-        }
+    if (isSharing) {
+        showAlert('dashboardAlert', '⚠️ جاري التنفيذ، يرجى الانتظار...', 'warning');
+        return;
     }
-    if (patient) {
-        var tooth = document.getElementById('toothNumber').value;
-        var type = document.getElementById('treatmentTypeSelect').value;
-        var cost = document.getElementById('treatmentCostInput').value;
-        var paid = document.getElementById('treatmentPaidInput').value;
-        var notes = document.getElementById('treatmentNotesInput').value;
-        var message = '*🦷 تقرير المعالجة*\n\n👤 المريض: ' + patient.name + '\n🦷 السن: ' + tooth + '\n💊 نوع المعالجة: ' + type + '\n💰 التكلفة: ' + cost + ' ريال\n💵 المدفوع: ' + paid + ' ريال\n⚠️ المتبقي: ' + (cost - paid) + ' ريال\n' + (notes ? '📝 ملاحظات: ' + notes + '\n' : '') + '🦷 ClinicPro';
-        var phone = patient.phone || '967773041464';
-        window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(message), '_blank');
+    
+    isSharing = true;
+    
+    try {
+        await saveTreatmentNow();
+        
+        var patient = null;
+        for (var i = 0; i < allPatients.length; i++) {
+            if (allPatients[i]._id === currentPatientId) {
+                patient = allPatients[i];
+                break;
+            }
+        }
+        
+        if (patient) {
+            var tooth = document.getElementById('toothNumber').value;
+            var type = document.getElementById('treatmentTypeSelect').value;
+            var cost = document.getElementById('treatmentCostInput').value;
+            var paid = document.getElementById('treatmentPaidInput').value;
+            var notes = document.getElementById('treatmentNotesInput').value;
+            
+            var message = '*🦷 تقرير المعالجة*\n\n';
+            message += '👤 المريض: ' + patient.name + '\n';
+            message += '🦷 السن: ' + tooth + '\n';
+            message += '💊 نوع المعالجة: ' + type + '\n';
+            message += '💰 التكلفة: ' + cost + ' ريال\n';
+            message += '💵 المدفوع: ' + paid + ' ريال\n';
+            message += '⚠️ المتبقي: ' + (cost - paid) + ' ريال\n';
+            if (notes) message += '📝 ملاحظات: ' + notes + '\n';
+            message += '\n🦷 ClinicPro - نظام إدارة عيادات الأسنان';
+            
+            var phone = patient.phone || '967773041464';
+            phone = phone.replace(/[^0-9]/g, '');
+            if (phone.startsWith('7') && phone.length === 9) {
+                phone = '967' + phone;
+            }
+            
+            window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(message), '_blank');
+            showAlert('dashboardAlert', '✅ تم حفظ ومشاركة تقرير المعالجة', 'success');
+        }
+    } finally {
+        setTimeout(() => {
+            isSharing = false;
+        }, 2000);
     }
 }
 
