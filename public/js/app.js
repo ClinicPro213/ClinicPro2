@@ -2028,78 +2028,97 @@ function deletePatientImage(patientId, imageId) {
 
 // ============ عرض صور المريض (مصغرة مع زر حفظ) ============
 
+
+              // ============ عرض الصور من السيرفر ============
+
 async function renderPatientImages(patientId) {
+    console.log('🎯 جاري تحميل صور المريض من السيرفر:', patientId);
+    
     var container = document.getElementById('imagesContainer_' + patientId);
-    if (!container) return;
-    
-    // جلب الصور من localStorage أولاً
-    var images = [];
-    try {
-        var allImages = JSON.parse(localStorage.getItem('patient_images_' + currentUser.id) || '{}');
-        images = allImages[patientId] || [];
-    } catch(e) { console.log('Error loading images:', e); }
-    
-    // جلب من السيرفر إذا كان متصلاً
-    if (navigator.onLine) {
-        try {
-            var response = await fetch('/api/patient-images/' + patientId + '/' + currentUser.id);
-            if (response.ok) {
-                var serverImages = await response.json();
-                // دمج الصور وتجنب التكرار
-                for (var i = 0; i < serverImages.length; i++) {
-                    var exists = false;
-                    for (var j = 0; j < images.length; j++) {
-                        if (images[j].id === serverImages[i].id || images[j]._id === serverImages[i]._id) {
-                            exists = true;
-                            break;
-                        }
-                    }
-                    if (!exists) {
-                        images.push(serverImages[i]);
-                    }
-                }
-            }
-        } catch(e) { console.log('Error fetching images:', e); }
-    }
-    
-    if (!images || images.length === 0) {
-        container.innerHTML = '<div style="text-align:center;padding:30px;color:#64748b;background:#f8fafc;border-radius:12px;">📷 لا توجد صور لهذا المريض<br><small>اضغط على "إضافة صورة" لإضافة صور جديدة</small></div>';
+    if (!container) {
+        console.log('❌ الحاوية غير موجودة للمريض:', patientId);
         return;
     }
     
+    // عرض رسالة تحميل
+    container.innerHTML = '<div style="text-align:center;padding:20px;">🔄 جاري تحميل الصور من السيرفر...</div>';
+    
+    var images = [];
+    
+    // ✅ جلب الصور من السيرفر فقط
+    if (navigator.onLine) {
+        try {
+            var response = await fetch('/api/patient-images/' + patientId + '/' + currentUser.id);
+            
+            if (response.ok) {
+                var serverImages = await response.json();
+                console.log('📸 تم جلب الصور من السيرفر:', serverImages.length);
+                images = serverImages;
+            } else {
+                console.log('❌ فشل جلب الصور من السيرفر، الحالة:', response.status);
+                container.innerHTML = `
+                    <div style="text-align:center;padding:30px;color:#ef4444;background:#fef2f2;border-radius:12px;">
+                        ❌ فشل تحميل الصور من السيرفر<br>
+                        <small>الرمز: ${response.status}</small>
+                    </div>
+                `;
+                return;
+            }
+        } catch(e) { 
+            console.log('❌ خطأ في الاتصال بالسيرفر:', e);
+            container.innerHTML = `
+                <div style="text-align:center;padding:30px;color:#ef4444;background:#fef2f2;border-radius:12px;">
+                    ❌ لا يمكن الاتصال بالسيرفر<br>
+                    <small>${e.message}</small>
+                </div>
+            `;
+            return;
+        }
+    } else {
+        container.innerHTML = `
+            <div style="text-align:center;padding:30px;color:#f59e0b;background:#fef3c7;border-radius:12px;">
+                📴 لا يوجد اتصال بالإنترنت<br>
+                <small>سيتم عرض الصور عند استعادة الاتصال</small>
+            </div>
+        `;
+        return;
+    }
+    
+    if (!images || images.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center;padding:30px;color:#64748b;background:#f8fafc;border-radius:12px;">
+                📷 لا توجد صور لهذا المريض<br>
+                <small>اضغط على "إضافة صورة" لإضافة صور جديدة</small>
+            </div>
+        `;
+        return;
+    }
+    
+    // عرض الصور
     var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:12px;">';
     
     for (var i = 0; i < images.length; i++) {
         var img = images[i];
-        var imageSrc = img.data || img.imageData;
+        var imageSrc = img.data || img.imageData || img.url;
         var imageCaption = img.caption || 'صورة ' + (i + 1);
-        var isPending = img.pendingSync === true;
+        
+        if (!imageSrc) {
+            console.log('⚠️ صورة بدون بيانات:', img);
+            continue;
+        }
         
         html += `
-            <div style="position:relative;background:#f8fafc;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;transition:all 0.2s;">
-                <!-- الصورة المصغرة -->
-                <div style="position:relative;cursor:pointer;" onclick="viewFullImage('${patientId}', '${img.id || img._id}', '${imageSrc.replace(/'/g, "\\'")}', '${imageCaption.replace(/'/g, "\\'")}')">
-                    <img src="${imageSrc}" 
-                         style="width:100%;height:100px;object-fit:cover;display:block;"
-                         alt="${escapeHtml(imageCaption)}">
-                    
-                    <!-- علامة انتظار المزامنة -->
-                    ${isPending ? '<div style="position:absolute;top:5px;left:5px;background:#f59e0b;color:white;font-size:10px;padding:2px 6px;border-radius:10px;">📴</div>' : ''}
-                    
-                    <!-- طبقة تعتيم عند المرور -->
-                    <div style="position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.2s;">
-                        <i class="fas fa-search-plus" style="color:white;font-size:20px;"></i>
-                    </div>
+            <div style="position:relative;background:#f8fafc;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">
+                <div style="cursor:pointer;" onclick="viewFullImage('${patientId}', '${img._id || img.id}', '${imageSrc.replace(/'/g, "\\'")}', '${imageCaption.replace(/'/g, "\\'")}')">
+                    <img src="${imageSrc}" style="width:100%;height:100px;object-fit:cover;display:block;">
                 </div>
-                
-                <!-- زر حفظ الصورة -->
                 <div style="padding:8px;display:flex;justify-content:space-between;align-items:center;background:white;">
-                    <span style="font-size:10px;color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">
+                    <span style="font-size:10px;color:#64748b;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                         ${escapeHtml(imageCaption.length > 15 ? imageCaption.substring(0,15)+'...' : imageCaption)}
                     </span>
-                    <button onclick="saveImageToDevice('${imageSrc}')" 
-                            style="background:#10b981;color:white;border:none;border-radius:8px;padding:4px 8px;cursor:pointer;font-size:11px;display:flex;align-items:center;gap:4px;">
-                        <i class="fas fa-download" style="font-size:10px;"></i> حفظ
+                    <button onclick="saveImageToDevice('${imageSrc.replace(/'/g, "\\'")}')" 
+                            style="background:#10b981;color:white;border:none;border-radius:8px;padding:4px 8px;cursor:pointer;font-size:11px;">
+                        <i class="fas fa-download"></i> حفظ
                     </button>
                 </div>
             </div>
@@ -2108,127 +2127,9 @@ async function renderPatientImages(patientId) {
     
     html += '</div>';
     container.innerHTML = html;
-}
+    console.log('✅ تم عرض', images.length, 'صور بنجاح');
+}  
 
-// ============ عرض الصورة بشكل مكبر (نافذة منبثقة) ============
-
-function viewFullImage(patientId, imageId, imageSrc, caption) {
-    // إنشاء نافذة عرض الصورة
-    var modal = document.createElement('div');
-    modal.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0,0,0,0.95);
-        z-index: 100000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        animation: fadeIn 0.2s ease;
-    `;
-    
-    // إضافة زر الإغلاق
-    var closeBtn = document.createElement('button');
-    closeBtn.innerHTML = '✕';
-    closeBtn.style.cssText = `
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        background: rgba(255,255,255,0.2);
-        color: white;
-        border: none;
-        border-radius: 50%;
-        width: 40px;
-        height: 40px;
-        font-size: 24px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.2s;
-    `;
-    closeBtn.onmouseover = function() { this.style.background = 'rgba(255,255,255,0.4)'; };
-    closeBtn.onmouseout = function() { this.style.background = 'rgba(255,255,255,0.2)'; };
-    closeBtn.onclick = function(e) {
-        e.stopPropagation();
-        modal.remove();
-    };
-    
-    // إضافة زر حفظ الصورة في النافذة المكبرة
-    var saveBtn = document.createElement('button');
-    saveBtn.innerHTML = '<i class="fas fa-download"></i> حفظ الصورة';
-    saveBtn.style.cssText = `
-        position: absolute;
-        bottom: 30px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: #10b981;
-        color: white;
-        border: none;
-        border-radius: 50px;
-        padding: 12px 24px;
-        font-size: 16px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        z-index: 100001;
-        font-family: inherit;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        transition: all 0.2s;
-    `;
-    saveBtn.onmouseover = function() { this.style.background = '#059669'; };
-    saveBtn.onmouseout = function() { this.style.background = '#10b981'; };
-    saveBtn.onclick = function(e) {
-        e.stopPropagation();
-        saveImageToDevice(imageSrc);
-    };
-    
-    // إضافة شرح الصورة
-    var captionDiv = document.createElement('div');
-    captionDiv.innerHTML = '<i class="fas fa-info-circle"></i> ' + escapeHtml(caption);
-    captionDiv.style.cssText = `
-        position: absolute;
-        bottom: 100px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(0,0,0,0.7);
-        color: white;
-        border-radius: 30px;
-        padding: 8px 16px;
-        font-size: 14px;
-        white-space: nowrap;
-        z-index: 100001;
-    `;
-    
-    // الصورة المكبرة
-    var img = document.createElement('img');
-    img.src = imageSrc;
-    img.style.cssText = `
-        max-width: 90%;
-        max-height: 90%;
-        object-fit: contain;
-        border-radius: 8px;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-    `;
-    
-    modal.appendChild(img);
-    modal.appendChild(closeBtn);
-    modal.appendChild(saveBtn);
-    modal.appendChild(captionDiv);
-    
-    // إغلاق النافذة عند النقر على الخلفية
-    modal.onclick = function(e) {
-        if (e.target === modal) {
-            modal.remove();
-        }
-    };
-    
-    document.body.appendChild(modal);
-}
 
 // ============ دالة حفظ الصورة على الجهاز ============
 
@@ -2402,6 +2303,8 @@ async function savePatientImageToServer(patientId, imageFile, caption) {
     }
 }
 
+// ============ حفظ الصورة على السيرفر ============
+
 async function savePatientImage() {
     var fileInput = document.getElementById('imageFileInput');
     var caption = document.getElementById('imageCaption').value;
@@ -2412,15 +2315,42 @@ async function savePatientImage() {
     }
     
     var file = fileInput.files[0];
-    showAlert('dashboardAlert', '🔄 جاري معالجة الصورة...', 'info');
+    showAlert('dashboardAlert', '🔄 جاري ضغط ورفع الصورة...', 'info');
     
     try {
-        // ✅ استخدام الدالة الجديدة للحفظ على السيرفر
-        await savePatientImageToServer(currentImagePatientId, file, caption);
-        closeModal('addImageModal');
+        // ضغط الصورة
+        var compressedImage = await compressImage(file, 50, 0.6);
+        
+        // إرسال إلى السيرفر
+        var response = await fetch('/api/patient-images', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                patientId: currentImagePatientId,
+                userId: currentUser.id,
+                imageData: compressedImage,
+                caption: caption || '',
+                timestamp: new Date().toISOString()
+            })
+        });
+        
+        if (response.ok) {
+            var result = await response.json();
+            showAlert('dashboardAlert', '✅ تم حفظ الصورة على السيرفر بنجاح', 'success');
+            closeModal('addImageModal');
+            
+            // تحديث عرض الصور
+            await renderPatientImages(currentImagePatientId);
+        } else {
+            var errorText = await response.text();
+            console.log('Server error:', errorText);
+            throw new Error('فشل رفع الصورة: ' + response.status);
+        }
     } catch (error) {
-        console.error('Error:', error);
-        showAlert('dashboardAlert', '❌ فشل في حفظ الصورة', 'error');
+        console.error('Error saving image:', error);
+        showAlert('dashboardAlert', '❌ فشل حفظ الصورة على السيرفر: ' + error.message, 'error');
     }
 }
 
