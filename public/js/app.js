@@ -165,6 +165,234 @@ function fetchWithTimeout(url, options, timeout) {
 
 // ============ نظام الإشعارات (متكامل مع السيرفر) ============
 
+// ============ إدارة الدخل والإحصائيات ============
+
+let currentIncomeFilter = 'all';
+let allIncomeTreatments = [];
+
+// عرض صفحة الدخل
+async function showIncomePage() {
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('incomePage').style.display = 'block';
+    document.getElementById('incomeUserName').textContent = currentUser.fullName || currentUser.username;
+    
+    await loadIncomeData();
+}
+
+// إغلاق صفحة الدخل
+function closeIncomePage() {
+    document.getElementById('incomePage').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+}
+
+// تحميل بيانات الدخل
+async function loadIncomeData() {
+    try {
+        // جلب جميع المعالجات من السيرفر
+        const response = await fetch('/api/treatments/user/' + currentUser.id);
+        
+        if (response.ok) {
+            allIncomeTreatments = await response.json();
+        } else {
+            // استخدام البيانات المحلية
+            const localTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+            allIncomeTreatments = localTreatments;
+        }
+        
+        // حساب الإجماليات
+        calculateIncomeTotals(allIncomeTreatments);
+        
+        // عرض الجدول حسب التصفية الحالية
+        filterIncome(currentIncomeFilter);
+        
+    } catch (error) {
+        console.error('Error loading income data:', error);
+        // استخدام البيانات المحلية
+        const localTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+        allIncomeTreatments = localTreatments;
+        calculateIncomeTotals(allIncomeTreatments);
+        filterIncome(currentIncomeFilter);
+    }
+}
+
+// حساب الإجماليات
+function calculateIncomeTotals(treatments) {
+    let totalCost = 0;
+    let totalPaid = 0;
+    
+    for (const t of treatments) {
+        const cost = t.cost || 0;
+        let paid = t.paid || 0;
+        
+        // محاولة استخراج المدفوع من notes
+        if (!paid && t.notes) {
+            const match = t.notes.match(/المدفوع:\s*([\d.]+)/);
+            if (match) paid = parseFloat(match[1]);
+        }
+        
+        totalCost += cost;
+        totalPaid += paid;
+    }
+    
+    const totalRemaining = totalCost - totalPaid;
+    
+    document.getElementById('totalIncome').textContent = totalCost.toLocaleString();
+    document.getElementById('totalPaidIncome').textContent = totalPaid.toLocaleString();
+    document.getElementById('totalRemainingIncome').textContent = totalRemaining.toLocaleString();
+}
+
+// تصفية المعالجات حسب الفترة
+function filterIncome(filter) {
+    currentIncomeFilter = filter;
+    
+    // تحديث ألوان الأزرار
+    document.getElementById('filterAll').style.background = '#64748b';
+    document.getElementById('filterMonth').style.background = '#64748b';
+    document.getElementById('filterYear').style.background = '#64748b';
+    document.getElementById('filterToday').style.background = '#64748b';
+    
+    let activeBtn;
+    if (filter === 'all') activeBtn = 'filterAll';
+    else if (filter === 'month') activeBtn = 'filterMonth';
+    else if (filter === 'year') activeBtn = 'filterYear';
+    else activeBtn = 'filterToday';
+    
+    document.getElementById(activeBtn).style.background = '#3b82f6';
+    
+    // تصفية المعالجات
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    let filteredTreatments = [...allIncomeTreatments];
+    
+    if (filter === 'today') {
+        filteredTreatments = allIncomeTreatments.filter(t => {
+            const tDate = new Date(t.treatmentDate);
+            return tDate >= today;
+        });
+    } else if (filter === 'month') {
+        filteredTreatments = allIncomeTreatments.filter(t => {
+            const tDate = new Date(t.treatmentDate);
+            return tDate.getFullYear() === currentYear && tDate.getMonth() === currentMonth;
+        });
+    } else if (filter === 'year') {
+        filteredTreatments = allIncomeTreatments.filter(t => {
+            const tDate = new Date(t.treatmentDate);
+            return tDate.getFullYear() === currentYear;
+        });
+    }
+    
+    // عرض المعالجات في الجدول
+    renderIncomeTable(filteredTreatments);
+    
+    // تحديث الملخصات
+    updateIncomeSummaries(filteredTreatments);
+}
+
+// عرض جدول المعالجات
+async function renderIncomeTable(treatments) {
+    const tbody = document.getElementById('incomeTableBody');
+    
+    if (!treatments || treatments.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px">📭 لا توجد معالجات</td></tr>';
+        return;
+    }
+    
+    // جلب أسماء المرضى
+    let html = '';
+    
+    for (const t of treatments) {
+        // جلب اسم المريض
+        let patientName = 'غير معروف';
+        const patient = allPatients.find(p => p._id === t.patientId);
+        if (patient) patientName = patient.name;
+        
+        const cost = t.cost || 0;
+        let paid = t.paid || 0;
+        
+        if (!paid && t.notes) {
+            const match = t.notes.match(/المدفوع:\s*([\d.]+)/);
+            if (match) paid = parseFloat(match[1]);
+        }
+        
+        const remaining = cost - paid;
+        const date = new Date(t.treatmentDate).toLocaleDateString('ar-EG');
+        const treatmentName = t.treatmentType || t.toothNumber ? `السن ${t.toothNumber}` : 'معالجة';
+        
+        html += `
+            <tr style="border-bottom:1px solid #e2e8f0">
+                <td style="padding:12px">${escapeHtml(patientName)}</td>
+                <td style="padding:12px">${escapeHtml(treatmentName)}</td>
+                <td style="padding:12px;color:#1e40af;font-weight:bold">${cost.toLocaleString()} ريال</td>
+                <td style="padding:12px;color:#10b981;font-weight:bold">${paid.toLocaleString()} ريال</td>
+                <td style="padding:12px;color:${remaining > 0 ? '#ef4444' : '#10b981'};font-weight:bold">${remaining.toLocaleString()} ريال</td>
+                <td style="padding:12px;color:#64748b">${date}</td>
+            </tr>
+        `;
+    }
+    
+    tbody.innerHTML = html;
+}
+
+// تحديث الملخصات الشهرية والسنوية
+function updateIncomeSummaries(treatments) {
+    // حساب ملخص اليوم
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    let monthTotal = 0, monthPaid = 0;
+    let yearTotal = 0, yearPaid = 0;
+    
+    for (const t of allIncomeTreatments) {
+        const cost = t.cost || 0;
+        let paid = t.paid || 0;
+        
+        if (!paid && t.notes) {
+            const match = t.notes.match(/المدفوع:\s*([\d.]+)/);
+            if (match) paid = parseFloat(match[1]);
+        }
+        
+        const tDate = new Date(t.treatmentDate);
+        
+        // حساب السنة
+        if (tDate.getFullYear() === currentYear) {
+            yearTotal += cost;
+            yearPaid += paid;
+        }
+        
+        // حساب الشهر
+        if (tDate.getFullYear() === currentYear && tDate.getMonth() === currentMonth) {
+            monthTotal += cost;
+            monthPaid += paid;
+        }
+    }
+    
+    document.getElementById('monthTotal').textContent = monthTotal.toLocaleString() + ' ريال';
+    document.getElementById('monthPaid').textContent = monthPaid.toLocaleString() + ' ريال';
+    document.getElementById('monthRemaining').textContent = (monthTotal - monthPaid).toLocaleString() + ' ريال';
+    
+    document.getElementById('yearTotal').textContent = yearTotal.toLocaleString() + ' ريال';
+    document.getElementById('yearPaid').textContent = yearPaid.toLocaleString() + ' ريال';
+    document.getElementById('yearRemaining').textContent = (yearTotal - yearPaid).toLocaleString() + ' ريال';
+}
+
+// إضافة API جديد في server.js لجلب معالجات المستخدم
+// أضف هذا في server.js:
+
+/*
+app.get('/api/treatments/user/:userId', async (req, res) => {
+    try {
+        const treatments = await Treatment.find({ userId: req.params.userId }).sort({ treatmentDate: -1 });
+        res.json(treatments);
+    } catch (error) {
+        res.status(500).json({ message: 'خطأ' });
+    }
+});
+*/
 // جلب إشعارات المستخدم من السيرفر
 async function fetchUserNotifications() {
     if (!currentUser) return [];
