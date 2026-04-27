@@ -1727,7 +1727,6 @@ async function showPatientFullDetails(pid) {
         }
         modal.innerHTML = modalHtml;
         modal.style.display = 'flex';
-        renderPatientImages(pid);
     } catch (error) {
         console.error('Error showing patient details:', error);
         showAlert('dashboardAlert', 'خطأ في جلب بيانات المريض', 'error');
