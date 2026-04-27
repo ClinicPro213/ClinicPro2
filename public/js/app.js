@@ -966,7 +966,6 @@ function drawTeeth() {
     
     var html = `
         <div class="fdi-simple">
-            <!-- صف الفك -->
             <div class="fdi-simple-row">
                 <div class="fdi-simple-label">🦷 الفك:</div>
                 <div class="fdi-simple-buttons">
@@ -978,8 +977,6 @@ function drawTeeth() {
                     </button>
                 </div>
             </div>
-            
-            <!-- صف الجهة -->
             <div class="fdi-simple-row">
                 <div class="fdi-simple-label">📍 الجهة:</div>
                 <div class="fdi-simple-buttons">
@@ -991,8 +988,6 @@ function drawTeeth() {
                     </button>
                 </div>
             </div>
-            
-            <!-- صف الرقم (قائمة منسدلة) -->
             <div class="fdi-simple-row">
                 <div class="fdi-simple-label">🔢 رقم السن:</div>
                 <div class="fdi-simple-select">
@@ -1009,8 +1004,6 @@ function drawTeeth() {
                     </select>
                 </div>
             </div>
-            
-            <!-- النتيجة -->
             <div class="fdi-simple-result" id="fdiSimpleResult" style="display:none;">
                 <div class="simple-result">
                     <span class="simple-fdi" id="selectedFDISimple">---</span>
@@ -1018,13 +1011,10 @@ function drawTeeth() {
                 </div>
             </div>
         </div>
-        
-        <input type="hidden" id="selectedFDIValue" value="">
     `;
     
     container.innerHTML = html;
 }
-
 // المتغيرات
 var currentJawSimple = '';
 var currentSideSimple = '';
@@ -1213,69 +1203,75 @@ function showTreatmentModal(pid) {
 }
 
 
-// ============ حفظ المعالجة (مع منع التكرار) ============
-let isSavingTreatment = false;
-let lastSaveTime = 0;
+// منع التكرار
+let isSaving = false;
+let lastSavedTreatmentId = null;
 
-
-            async function saveTreatmentNow() {
-    // منع التكرار
-    if (isSavingTreatment) {
-        showAlert('dashboardAlert', '⚠️ جاري الحفظ، يرجى الانتظار...', 'warning');
+async function saveTreatmentNow() {
+    // منع التكرار المطلق
+    if (isSaving) {
+        console.log("⚠️ عملية حفظ جارية، تم تجاهل الطلب");
         return;
     }
     
-    // منع النقر المتكرر خلال ثانية
-    const now = Date.now();
-    if (now - lastSaveTime < 2000) {
-        showAlert('dashboardAlert', '⚠️ يرجى الانتظار قبل إضافة معالجة أخرى', 'warning');
-        return;
-    }
-    
+    // التحقق من الحقول
     if (!currentPatientId) {
         showAlert('dashboardAlert', 'خطأ: لم يتم تحديد المريض', 'error');
         return;
     }
+    
     var tooth = document.getElementById('toothNumber').value;
     if (!tooth) {
         showAlert('dashboardAlert', 'اختر السن أولاً', 'error');
         return;
     }
+    
     var type = document.getElementById('treatmentTypeSelect').value;
     if (!type) {
         showAlert('dashboardAlert', 'اختر نوع المعالجة', 'error');
         return;
     }
-    var notes = document.getElementById('treatmentNotesInput').value;
-    var cost = parseFloat(document.getElementById('treatmentCostInput').value) || 0;
-    var paid = parseFloat(document.getElementById('treatmentPaidInput').value) || 0;
     
-    var patient = null;
-    for (var i = 0; i < allPatients.length; i++) {
-        if (allPatients[i]._id === currentPatientId) {
-            patient = allPatients[i];
-            break;
-        }
+    // إنشاء ID فريد للمعالجة الحالية
+    var currentTreatmentId = Date.now() + '_' + Math.random();
+    
+    // التحقق من تكرار نفس المعالجة خلال ثانية
+    if (lastSavedTreatmentId && (Date.now() - parseInt(lastSavedTreatmentId.split('_')[0]) < 1500)) {
+        console.log("⚠️ تم حفظ معالجة مشابهة قبل أقل من 1.5 ثانية");
+        return;
     }
     
-    var treatmentData = {
-        patientId: currentPatientId,
-        userId: currentUser.id,
-        toothNumber: parseInt(tooth),
-        treatmentType: type,
-        cost: cost,
-        paid: paid,
-        notes: 'التكلفة: ' + cost + ' | المدفوع: ' + paid + ' | المتبقي: ' + (cost-paid) + '\n' + notes,
-        treatmentDate: new Date().toISOString(),
-        patientName: patient ? patient.name : 'غير معروف',
-        offline: true,
-        pendingSync: true,
-        _id: 'offline_tx_' + Date.now()
-    };
-    
-    isSavingTreatment = true;
+    isSaving = true;
+    lastSavedTreatmentId = currentTreatmentId;
     
     try {
+        var notes = document.getElementById('treatmentNotesInput').value;
+        var cost = parseFloat(document.getElementById('treatmentCostInput').value) || 0;
+        var paid = parseFloat(document.getElementById('treatmentPaidInput').value) || 0;
+        
+        var patient = null;
+        for (var i = 0; i < allPatients.length; i++) {
+            if (allPatients[i]._id === currentPatientId) {
+                patient = allPatients[i];
+                break;
+            }
+        }
+        
+        var treatmentData = {
+            patientId: currentPatientId,
+            userId: currentUser.id,
+            toothNumber: parseInt(tooth),
+            treatmentType: type,
+            cost: cost,
+            paid: paid,
+            notes: 'التكلفة: ' + cost + ' | المدفوع: ' + paid + ' | المتبقي: ' + (cost-paid) + '\n' + notes,
+            treatmentDate: new Date().toISOString(),
+            patientName: patient ? patient.name : 'غير معروف',
+            offline: true,
+            pendingSync: true,
+            _id: 'offline_tx_' + Date.now() + '_' + Math.random()
+        };
+        
         var offlineTx = [];
         try {
             offlineTx = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
@@ -1285,7 +1281,7 @@ let lastSaveTime = 0;
         var isDuplicate = false;
         for (var i = 0; i < offlineTx.length; i++) {
             if (offlineTx[i].toothNumber === treatmentData.toothNumber && 
-                offlineTx[i].treatmentDate === treatmentData.treatmentDate) {
+                offlineTx[i].treatmentType === treatmentData.treatmentType) {
                 isDuplicate = true;
                 break;
             }
@@ -1293,11 +1289,8 @@ let lastSaveTime = 0;
         
         if (!isDuplicate) {
             offlineTx.push(treatmentData);
-            try {
-                localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(offlineTx));
-            } catch(e) { console.log('Save error:', e); }
-            
-            showAlert('dashboardAlert', '📴 تم حفظ معالجة السن ' + tooth + ' محلياً - ستتم المزامنة لاحقاً', 'warning');
+            localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(offlineTx));
+            showAlert('dashboardAlert', '✅ تم حفظ معالجة السن ' + tooth, 'success');
         } else {
             showAlert('dashboardAlert', '⚠️ هذه المعالجة موجودة بالفعل', 'warning');
             return;
@@ -1305,42 +1298,43 @@ let lastSaveTime = 0;
         
         closeModal('treatmentModal');
         
-        var detailsModal = document.getElementById('patientDetailsModal');
         if (detailsModal && detailsModal.style.display === 'flex') {
             await showPatientFullDetails(currentPatientId);
         }
         
         if (navigator.onLine) {
-            setTimeout(async function() {
-                await syncAllOfflineData();
-            }, 500);
+            setTimeout(() => syncAllOfflineData(), 500);
         }
         saveAllDataToLocal();
         
-        // ✅ تحديث وقت آخر حفظ في المكان الصحيح
-        lastSaveTime = Date.now();
+        // تفريغ الحقول
+        document.getElementById('toothNumber').value = '';
+        document.getElementById('treatmentTypeSelect').value = '';
+        document.getElementById('treatmentNotesInput').value = '';
+        document.getElementById('treatmentCostInput').value = '';
+        document.getElementById('treatmentPaidInput').value = '';
+        document.getElementById('remainingSpan').textContent = '0';
+        
+        resetToothSelectionSimple();
         
     } finally {
         setTimeout(() => {
-            isSavingTreatment = false;
+            isSaving = false;
         }, 1000);
     }
-            }
+}
 
-
-let isSharing = false;
 
 async function saveAndShareNow() {
-    if (isSharing) {
-        showAlert('dashboardAlert', '⚠️ جاري التنفيذ، يرجى الانتظار...', 'warning');
+    if (isSaving) {
+        showAlert('dashboardAlert', '⚠️ جاري الحفظ، يرجى الانتظار...', 'warning');
         return;
     }
     
-    isSharing = true;
+    await saveTreatmentNow();
     
-    try {
-        await saveTreatmentNow();
-        
+    // انتظر قليلاً ثم قم بالمشاركة
+    setTimeout(async () => {
         var patient = null;
         for (var i = 0; i < allPatients.length; i++) {
             if (allPatients[i]._id === currentPatientId) {
@@ -1352,8 +1346,8 @@ async function saveAndShareNow() {
         if (patient) {
             var tooth = document.getElementById('toothNumber').value;
             var type = document.getElementById('treatmentTypeSelect').value;
-            var cost = document.getElementById('treatmentCostInput').value;
-            var paid = document.getElementById('treatmentPaidInput').value;
+            var cost = document.getElementById('treatmentCostInput').value || '0';
+            var paid = document.getElementById('treatmentPaidInput').value || '0';
             var notes = document.getElementById('treatmentNotesInput').value;
             
             var message = '*🦷 تقرير المعالجة*\n\n';
@@ -1362,9 +1356,9 @@ async function saveAndShareNow() {
             message += '💊 نوع المعالجة: ' + type + '\n';
             message += '💰 التكلفة: ' + cost + ' ريال\n';
             message += '💵 المدفوع: ' + paid + ' ريال\n';
-            message += '⚠️ المتبقي: ' + (cost - paid) + ' ريال\n';
+            message += '⚠️ المتبقي: ' + (parseFloat(cost) - parseFloat(paid)) + ' ريال\n';
             if (notes) message += '📝 ملاحظات: ' + notes + '\n';
-            message += '\n🦷 ClinicPro - نظام إدارة عيادات الأسنان';
+            message += '\n🦷 ClinicPro';
             
             var phone = patient.phone || '967773041464';
             phone = phone.replace(/[^0-9]/g, '');
@@ -1373,15 +1367,14 @@ async function saveAndShareNow() {
             }
             
             window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(message), '_blank');
-            showAlert('dashboardAlert', '✅ تم حفظ ومشاركة تقرير المعالجة', 'success');
+            showAlert('dashboardAlert', '✅ تم حفظ ومشاركة التقرير', 'success');
         }
-    } finally {
-        setTimeout(() => {
-            isSharing = false;
-        }, 2000);
-    }
+    }, 300);
 }
 
+
+            
+            
 // ============ إدارة المرضى ============
 async function loadPatients() {
     try {
