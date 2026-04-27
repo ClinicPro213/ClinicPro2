@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>عرض صور المريض - ClinicPro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .header {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .header h1 {
+            color: #1e40af;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        .patient-info {
+            background: #f1f5f9;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .patient-info p {
+            margin: 5px 0;
+            color: #334155;
+        }
+        .stats {
+            background: #e0f2fe;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .stats span {
+            font-size: 28px;
+            font-weight: bold;
+            color: #1e40af;
+        }
+        .images-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .image-card {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        .image-card:hover {
+            transform: translateY(-5px);
+        }
+        .image-header {
+            background: #f8fafc;
+            padding: 12px 15px;
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .image-number {
+            font-weight: bold;
+            color: #1e40af;
+        }
+        .image-date {
+            color: #64748b;
+            font-size: 12px;
+        }
+        .image-card img {
+            width: 100%;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        .image-caption {
+            padding: 12px 15px;
+            background: #f8fafc;
+            color: #334155;
+            border-top: 1px solid #e2e8f0;
+        }
+        .save-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .save-btn:hover {
+            background: #059669;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: white;
+            font-size: 12px;
+        }
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: white;
+            font-size: 18px;
+        }
+        /* نافذة عرض الصورة المكبرة */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.95);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .modal img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+        }
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        .modal-save {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 12px 24px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            .header h1 { font-size: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="container">
+        <div class="loading">🔄 جاري تحميل البيانات...</div>
+    </div>
+
+    <script>
+        // الحصول على معرف المريض من الرابط
+        var urlParams = new URLSearchParams(window.location.search);
+        var patientId = urlParams.get('id');
+        var token = urlParams.get('token');
+        
+        // التحقق من صحة التوكن
+        async function loadPatientImages() {
+            if (!patientId) {
+                document.getElementById('container').innerHTML = `
+                    <div class="header">
+                        <h1>❌ خطأ</h1>
+                        <p>رابط غير صالح</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            try {
+                // جلب البيانات من API العام
+                var response = await fetch('/api/public/patient-images/' + patientId + '?token=' + token);
+                
+                if (!response.ok) {
+                    throw new Error('فشل تحميل البيانات');
+                }
+                
+                var data = await response.json();
+                displayImages(data);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('container').innerHTML = `
+                    <div class="header">
+                        <h1>❌ خطأ</h1>
+                        <p>حدث خطأ في تحميل الصور. الرابط قد يكون منتهي الصلاحية.</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // عرض الصور
+        function displayImages(data) {
+            var patient = data.patient;
+            var images = data.images;
+            
+            if (!images || images.length === 0) {
+                document.getElementById('container').innerHTML = `
+                    <div class="container">
+                        <div class="header">
+                            <h1>🦷 ${escapeHtml(patient.name)}</h1>
+                            <div class="patient-info">
+                                <p>📞 ${escapeHtml(patient.phone || 'غير مسجل')}</p>
+                                <p>📅 العمر: ${patient.age} سنة</p>
+                            </div>
+                        </div>
+                        <div class="stats">
+                            📸 لا توجد صور مسجلة لهذا المريض
+                        </div>
+                        <div class="footer">
+                            <p>🦷 ClinicPro - نظام إدارة عيادات الأسنان</p>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            
+            var imagesHtml = '';
+            for (var i = 0; i < images.length; i++) {
+                var img = images[i];
+                var imageSrc = img.data || img.imageData;
+                var caption = img.caption || 'صورة ' + (i + 1);
+                var date = img.createdAt ? new Date(img.createdAt).toLocaleDateString('ar-EG') : 'تاريخ غير محدد';
+                
+                imagesHtml += `
+                    <div class="image-card">
+                        <div class="image-header">
+                            <span class="image-number">📸 صورة ${i + 1}</span>
+                            <span class="image-date">📅 ${date}</span>
+                        </div>
+                        <img src="${imageSrc}" alt="${escapeHtml(caption)}" onclick="openFullImage('${imageSrc.replace(/'/g, "\\'")}', '${escapeHtml(caption)}')">
+                        <div class="image-caption">
+                            <div>📝 ${escapeHtml(caption)}</div>
+                            <button class="save-btn" onclick="saveImage('${imageSrc.replace(/'/g, "\\'")}')">
+                                <i class="fas fa-download"></i> حفظ الصورة
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            document.getElementById('container').innerHTML = `
+                <div class="container">
+                    <div class="header">
+                        <h1>🦷 صور المريض - ${escapeHtml(patient.name)}</h1>
+                        <div class="patient-info">
+                            <p>📞 ${escapeHtml(patient.phone || 'غير مسجل')}</p>
+                            <p>📅 العمر: ${patient.age} سنة</p>
+                            <p>📍 ${escapeHtml(patient.address || 'العنوان غير مسجل')}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stats">
+                        📸 عدد الصور: <span>${images.length}</span>
+                    </div>
+                    
+                    <div class="images-grid">
+                        ${imagesHtml}
+                    </div>
+                    
+                    <div class="footer">
+                        <p>🦷 ClinicPro - نظام إدارة عيادات الأسنان</p>
+                        <p>تم إنشاء هذا الرابط لمشاركة صور المريض</p>
+                        <small>📅 تاريخ الإنشاء: ${new Date().toLocaleDateString('ar-EG')}</small>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // فتح الصورة بشكل مكبر
+        function openFullImage(imageSrc, caption) {
+            var modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <button class="modal-close" onclick="this.parentElement.remove()">✕</button>
+                <img src="${imageSrc}" alt="${caption}">
+                <button class="modal-save" onclick="saveImage('${imageSrc.replace(/'/g, "\\'")}')">
+                    <i class="fas fa-download"></i> حفظ الصورة
+                </button>
+            `;
+            modal.onclick = function(e) {
+                if (e.target === modal) modal.remove();
+            };
+            document.body.appendChild(modal);
+        }
+        
+        // حفظ الصورة
+        async function saveImage(imageSrc) {
+            try {
+                var response = await fetch(imageSrc);
+                var blob = await response.blob();
+                var url = URL.createObjectURL(blob);
+                var link = document.createElement('a');
+                link.href = url;
+                link.download = 'clinicpro_image_' + Date.now() + '.jpg';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                alert('✅ تم حفظ الصورة بنجاح');
+            } catch(e) {
+                alert('❌ اضغط مع الاستمرار على الصورة واختر "حفظ الصورة"');
+            }
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // تحميل الصفحة
+        loadPatientImages();
+    </script>
+</body>
+</html>
