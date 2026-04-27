@@ -954,30 +954,78 @@ async function addPatientWithLimitCheck(data) {
     await addPatient(data);
 }
 
-// ============ رسم الأسنان ============
+// ============ رسم مخطط الأسنان (فكين) ============
 function drawTeeth() {
-    var teeth = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32];
     var container = document.getElementById('teethContainer');
     if (!container) return;
-    var html = '';
-    for (var i = 0; i < teeth.length; i++) {
-        html += '<div class="tooth" onclick="selectTooth(' + teeth[i] + ')">' + teeth[i] + '</div>';
+    
+    // ترقيم الأسنان حسب نظام FDI العالمي
+    // الفك العلوي (الأيمن إلى الأيسر)
+    var upperJaw = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28];
+    // الفك السفلي (الأيمن إلى الأيسر)
+    var lowerJaw = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38];
+    
+    var html = `
+        <div class="jaw-section">
+            <div class="jaw-label upper-jaw-label">
+                <i class="fas fa-arrow-up"></i> الفك العلوي <i class="fas fa-arrow-up"></i>
+            </div>
+            <div class="teeth-row upper-teeth" id="upperTeeth">
+    `;
+    
+    for (var i = 0; i < upperJaw.length; i++) {
+        var toothNum = upperJaw[i];
+        html += `<div class="tooth" data-tooth="${toothNum}" onclick="selectTooth(${toothNum})">`;
+        html += `<span class="tooth-number">${toothNum}</span>`;
+        html += `<span class="tooth-icon">🦷</span>`;
+        html += `</div>`;
     }
+    
+    html += `
+            </div>
+        </div>
+        <div class="jaw-section">
+            <div class="jaw-label lower-jaw-label">
+                <i class="fas fa-arrow-down"></i> الفك السفلي <i class="fas fa-arrow-down"></i>
+            </div>
+            <div class="teeth-row lower-teeth" id="lowerTeeth">
+    `;
+    
+    for (var i = 0; i < lowerJaw.length; i++) {
+        var toothNum = lowerJaw[i];
+        html += `<div class="tooth" data-tooth="${toothNum}" onclick="selectTooth(${toothNum})">`;
+        html += `<span class="tooth-number">${toothNum}</span>`;
+        html += `<span class="tooth-icon">🦷</span>`;
+        html += `</div>`;
+    }
+    
+    html += `
+            </div>
+        </div>
+    `;
+    
     container.innerHTML = html;
 }
 
+// تحديث دالة selectTooth لتحديد السن
 function selectTooth(tooth) {
+    // إزالة التحديد من جميع الأسنان
+    document.querySelectorAll('.tooth').forEach(t => {
+        t.classList.remove('selected');
+    });
+    
+    // تحديد السن المختار
+    var selectedTooth = document.querySelector(`.tooth[data-tooth="${tooth}"]`);
+    if (selectedTooth) {
+        selectedTooth.classList.add('selected');
+    }
+    
+    // تعيين رقم السن في الحقل
     var toothInput = document.getElementById('toothNumber');
-    var typeSelect = document.getElementById('treatmentTypeSelect');
-    var notesInput = document.getElementById('treatmentNotesInput');
-    var costInput = document.getElementById('treatmentCostInput');
-    var paidInput = document.getElementById('treatmentPaidInput');
     if (toothInput) toothInput.value = tooth;
-    if (typeSelect) typeSelect.value = '';
-    if (notesInput) notesInput.value = '';
-    if (costInput) costInput.value = '0';
-    if (paidInput) paidInput.value = '0';
-    calcRemaining();
+    
+    // رسالة تأكيد
+    console.log('✅ تم تحديد السن:', tooth);
 }
 
 function calcRemaining() {
