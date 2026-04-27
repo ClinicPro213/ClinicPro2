@@ -206,6 +206,202 @@ body::before {
     left: 0;
 }
 
+
+/* ============ نظام اختيار FDI المحسن ============ */
+
+.fdi-selector {
+    background: white;
+    border-radius: 24px;
+    padding: 20px;
+}
+
+.fdi-title {
+    text-align: center;
+    font-size: 18px;
+    font-weight: 700;
+    color: #0f766e;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+.fdi-group {
+    margin-bottom: 24px;
+}
+
+.fdi-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    margin-bottom: 10px;
+}
+
+.fdi-options {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.fdi-btn {
+    padding: 10px 20px;
+    border: 2px solid #e2e8f0;
+    background: white;
+    border-radius: 40px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #475569;
+}
+
+.fdi-btn:hover {
+    border-color: #14b8a6;
+    transform: translateY(-2px);
+}
+
+.fdi-btn.active {
+    background: linear-gradient(135deg, #0f766e, #14b8a6);
+    border-color: #0f766e;
+    color: white;
+}
+
+/* أزرار الأسنان */
+.tooth-numbers {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+
+.tooth-number-btn {
+    padding: 12px 8px;
+    border: 2px solid #e2e8f0;
+    background: white;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.tooth-number-btn .num {
+    display: block;
+    font-size: 20px;
+    font-weight: 800;
+    color: #0f766e;
+}
+
+.tooth-number-btn .name {
+    display: block;
+    font-size: 10px;
+    color: #64748b;
+    margin-top: 4px;
+}
+
+.tooth-number-btn:hover {
+    border-color: #14b8a6;
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.tooth-number-btn.active {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    border-color: #f59e0b;
+}
+
+.tooth-number-btn.active .num,
+.tooth-number-btn.active .name {
+    color: white;
+}
+
+/* نتيجة التحديد */
+.fdi-result {
+    background: linear-gradient(135deg, #f0fdfa, #e6f7f2);
+    border-radius: 20px;
+    padding: 16px;
+    margin-top: 20px;
+    border: 1px solid #14b8a6;
+}
+
+.result-header {
+    font-size: 14px;
+    font-weight: 600;
+    color: #0f766e;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.result-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.result-tooth, .result-name {
+    flex: 1;
+    text-align: center;
+}
+
+.result-label {
+    display: block;
+    font-size: 11px;
+    color: #64748b;
+    margin-bottom: 4px;
+}
+
+.result-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.result-value strong {
+    font-size: 24px;
+    color: #0f766e;
+}
+
+.confirm-tooth-btn {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    border: none;
+    border-radius: 40px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.confirm-tooth-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16,185,129,0.3);
+}
+
+/* استجابة للشاشات */
+@media (max-width: 600px) {
+    .tooth-numbers {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .result-content {
+        flex-direction: column;
+        text-align: center;
+    }
+}
 /* تنسيق الأزرار */
 .nav-btn {
     display: flex;
