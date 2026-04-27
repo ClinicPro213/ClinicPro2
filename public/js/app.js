@@ -1800,7 +1800,8 @@ async function syncAllDataWithServer() {
 // ============ المصادقة ============
 
 
-    async function register() {
+    
+                    async function register() {
     var data = {
         fullName: document.getElementById('regFullName').value.trim(),
         username: document.getElementById('regUsername').value.trim(),
@@ -1857,6 +1858,7 @@ async function syncAllDataWithServer() {
     
     if (navigator.onLine) {
         try {
+            // 1. تسجيل المستخدم
             var response = await fetch('/api/register', {
                 method: 'POST',
                 headers: {
@@ -1868,37 +1870,50 @@ async function syncAllDataWithServer() {
             var result = await response.json();
             
             if (response.ok && result.success) {
-                // ✅ تسجيل الدخول التلقائي
-                currentUser = result.user;
+                // 2. تسجيل الدخول التلقائي مباشرة
+                var loginResponse = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: data.username,
+                        password: data.password
+                    })
+                });
                 
-                // حفظ البيانات في localStorage
-                try {
+                var loginResult = await loginResponse.json();
+                
+                if (loginResponse.ok && loginResult.success) {
+                    currentUser = loginResult.user;
+                    
+                    // حفظ البيانات
                     localStorage.setItem('userId', currentUser.id);
                     saveOfflineAuth(currentUser, data.password);
-                } catch(e) { console.log('Save error:', e); }
-                
-                // إخفاء صفحات التسجيل والدخول
-                document.getElementById('registerPage').style.display = 'none';
-                document.getElementById('loginPage').style.display = 'none';
-                
-                // ✅ تحميل لوحة التحكم مباشرة
-                await loadDashboard();
-                
-                showAlert('dashboardAlert', '✅ تم إنشاء الحساب وتسجيل الدخول بنجاح', 'success');
+                    
+                    // إخفاء صفحات التسجيل والدخول
+                    document.getElementById('registerPage').style.display = 'none';
+                    document.getElementById('loginPage').style.display = 'none';
+                    
+                    // تحميل لوحة التحكم
+                    await loadDashboard();
+                    
+                    showAlert('dashboardAlert', '✅ تم إنشاء الحساب وتسجيل الدخول بنجاح', 'success');
+                } else {
+                    showAlert('registerAlert', 'تم إنشاء الحساب ولكن فشل تسجيل الدخول التلقائي', 'error');
+                    showLogin();
+                }
             } else {
-                // ✅ إذا فشل التسجيل بسبب عدم إرجاع user، حاول تسجيل الدخول مباشرة
-                console.log('محاولة تسجيل الدخول التلقائي...');
-                await autoLoginAfterRegister(data.username, data.password);
+                showAlert('registerAlert', result.message || 'فشل إنشاء الحساب', 'error');
             }
         } catch (e) {
             console.log('Registration error:', e);
-            // ✅ محاولة تسجيل الدخول حتى مع وجود خطأ
-            await autoLoginAfterRegister(data.username, data.password);
+            showAlert('registerAlert', 'خطأ في الاتصال بالخادم', 'error');
         }
     } else {
         showAlert('registerAlert', 'لا يوجد اتصال بالإنترنت. يرجى الاتصال بالإنترنت للتسجيل', 'error');
     }
-}
+                    }
 
 // ✅ دالة تسجيل الدخول التلقائي بعد التسجيل
 async function autoLoginAfterRegister(username, password) {
