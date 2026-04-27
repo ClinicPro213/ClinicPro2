@@ -1391,7 +1391,8 @@ async function syncAllDataWithServer() {
 
 // ============ المصادقة ============
 
-async function register() {
+
+    async function register() {
     var data = {
         fullName: document.getElementById('regFullName').value.trim(),
         username: document.getElementById('regUsername').value.trim(),
@@ -1402,7 +1403,7 @@ async function register() {
         address: document.getElementById('regAddress').value.trim()
     };
     
-    // ✅ التحقق من الحقول المطلوبة
+    // التحقق من الحقول المطلوبة
     if (!data.fullName || data.fullName.length < 3) {
         showAlert('registerAlert', 'الاسم الكامل يجب أن يكون 3 أحرف على الأقل', 'error');
         return;
@@ -1413,39 +1414,38 @@ async function register() {
         return;
     }
     
-    // ✅ التحقق من كلمة المرور
+    // التحقق من كلمة المرور
     const passwordRegex = /^[A-Za-z0-9]{6,}$/;
     if (!data.password || !passwordRegex.test(data.password)) {
         showAlert('registerAlert', 'كلمة المرور يجب أن تكون 6 خانات على الأقل وتحتوي على حروف إنجليزية وأرقام فقط', 'error');
         return;
     }
     
-    // ✅ التحقق من رقم الهاتف
+    // التحقق من رقم الهاتف
     const phoneRegex = /^7[0-9]{8}$/;
     if (!data.phone || !phoneRegex.test(data.phone)) {
         showAlert('registerAlert', 'رقم الهاتف يجب أن يكون 9 أرقام ويبدأ بالرقم 7 (مثال: 712345678)', 'error');
         return;
     }
     
-    // ✅ التحقق من اسم المستخدم
+    // التحقق من اسم المستخدم
     const usernameRegex = /^[a-zA-Z0-9]+$/;
     if (!usernameRegex.test(data.username)) {
         showAlert('registerAlert', 'اسم المستخدم يجب أن يحتوي على حروف إنجليزية وأرقام فقط', 'error');
         return;
     }
     
-    // ✅ التحقق من العمر
+    // التحقق من العمر
     if (!data.age || data.age < 18 || data.age > 100) {
         showAlert('registerAlert', 'العمر يجب أن يكون بين 18 و 100 سنة', 'error');
         return;
     }
     
-    // ✅ التحقق من اسم العيادة
+    // التحقق من اسم العيادة
     if (!data.clinicName || data.clinicName.length < 2) {
         showAlert('registerAlert', 'اسم العيادة مطلوب', 'error');
         return;
     }
-    
     
     if (navigator.onLine) {
         try {
@@ -1460,18 +1460,25 @@ async function register() {
             var result = await response.json();
             
             if (response.ok && result.success) {
-    currentUser = result.user;
-    try {
-        localStorage.setItem('userId', currentUser.id);
-        saveOfflineAuth(currentUser, data.password);
-    } catch(e) { console.log('Save error:', e); }
-    
-    // ✅ أضف هذين السطرين لإخفاء صفحات التسجيل والدخول
-    document.getElementById('registerPage').style.display = 'none';
-    document.getElementById('loginPage').style.display = 'none';
-    
-    await loadDashboard();
-    showAlert('dashboardAlert', '✅ تم إنشاء الحساب وتسجيل الدخول بنجاح', 'success');
+                // ✅ تسجيل الدخول التلقائي
+                currentUser = result.user;
+                
+                // حفظ البيانات في localStorage
+                try {
+                    localStorage.setItem('userId', currentUser.id);
+                    saveOfflineAuth(currentUser, data.password);
+                } catch(e) { console.log('Save error:', e); }
+                
+                // إخفاء صفحات التسجيل والدخول
+                document.getElementById('registerPage').style.display = 'none';
+                document.getElementById('loginPage').style.display = 'none';
+                
+                // ✅ تحميل لوحة التحكم مباشرة
+                await loadDashboard();
+                
+                showAlert('dashboardAlert', '✅ تم إنشاء الحساب وتسجيل الدخول بنجاح', 'success');
+            } else {
+                showAlert('registerAlert', result.message || 'فشل إنشاء الحساب', 'error');
             }
         } catch (e) {
             console.log('Registration error:', e);
@@ -1480,7 +1487,7 @@ async function register() {
     } else {
         showAlert('registerAlert', 'لا يوجد اتصال بالإنترنت. يرجى الاتصال بالإنترنت للتسجيل', 'error');
     }
-}
+    }
 
 async function login() {
     var username = document.getElementById('loginUsername').value;
