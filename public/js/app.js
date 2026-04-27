@@ -1158,8 +1158,8 @@ function clearTreatmentForm() {
         resetToothSelectionSimple();
     }
     
-    document.querySelectorAll('.tooth, .tooth-card, .jaw-btn, .side-btn, .tooth-number-btn').forEach(el => {
-        el.classList.remove('active', 'selected');
+    document.querySelectorAll('.jaw-btn, .side-btn, .tooth-number-btn').forEach(el => {
+        el.classList.remove('active');
     });
 }
 
@@ -1190,8 +1190,7 @@ function showTreatmentModal(pid) {
     currentPatientId = pid;
     drawTeeth();
     
-    
-    // ✅ تفريغ الحقول من البيانات السابقة
+    // تفريغ الحقول
     document.getElementById('toothNumber').value = '';
     document.getElementById('treatmentTypeSelect').value = '';
     document.getElementById('treatmentNotesInput').value = '';
@@ -1199,11 +1198,15 @@ function showTreatmentModal(pid) {
     document.getElementById('treatmentPaidInput').value = '';
     document.getElementById('remainingSpan').textContent = '0';
     
-    // ✅ إعادة تعيين اختيارات الأسنان
-    resetToothSelectionSimple();
-    // في saveTreatmentNow
-clearTreatmentForm();
-
+    // إعادة تعيين الاختيارات
+    if (typeof resetToothSelectionSimple === 'function') {
+        resetToothSelectionSimple();
+    }
+    
+    // إزالة التحديد من عناصر واجهة الأسنان
+    document.querySelectorAll('.jaw-btn, .side-btn, .tooth-number-btn').forEach(el => {
+        el.classList.remove('active');
+    });
     
     var modal = document.getElementById('treatmentModal');
     if (modal) modal.style.display = 'flex';
@@ -1212,13 +1215,23 @@ clearTreatmentForm();
 
 // ============ حفظ المعالجة (مع منع التكرار) ============
 let isSavingTreatment = false;
+let lastSaveTime = 0;
 
 async function saveTreatmentNow() {
-    // ✅ منع التكرار
+    // منع التكرار
     if (isSavingTreatment) {
         showAlert('dashboardAlert', '⚠️ جاري الحفظ، يرجى الانتظار...', 'warning');
         return;
     }
+    
+    // منع النقر المتكرر خلال ثانية
+    const now = Date.now();
+    if (now - lastSaveTime < 2000) {
+        showAlert('dashboardAlert', '⚠️ يرجى الانتظار قبل إضافة معالجة أخرى', 'warning');
+        return;
+    }
+    
+
     
     if (!currentPatientId) {
         showAlert('dashboardAlert', 'خطأ: لم يتم تحديد المريض', 'error');
@@ -1305,6 +1318,11 @@ async function saveTreatmentNow() {
             }, 500);
         }
         saveAllDataToLocal();
+            // ... باقي الكود ...
+    
+    // في نهاية الدالة، قبل finally
+    lastSaveTime = Date.now();
+    
         
     } finally {
         // ✅ إعادة التعيين بعد الانتهاء
