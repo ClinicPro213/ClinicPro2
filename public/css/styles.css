@@ -77,6 +77,23 @@ body::before {
     width: 100%;
     padding: 20px;
 }
+
+/* إخفاء عناصر الصور */
+.patient-images-section {
+    display: none !important;
+}
+
+#addImageModal {
+    display: none !important;
+}
+
+.image-preview,
+.images-grid,
+.image-card,
+.image-viewer {
+    display: none !important;
+}
+
 /* ============ القائمة العلوية حسب الطلب ============ */
 
 .navbar {
