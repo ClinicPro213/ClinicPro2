@@ -3055,8 +3055,8 @@ function showAddPaymentModal(treatmentId, patientId) {
             <div class="modal-content modal-small">
                 <div class="modal-header">
                     <h3><i class="fas fa-money-bill-wave"></i> إضافة دفعة جديدة</h3>
-                    <button class="close-btn" onclick="closeModal('paymentModal')">&times;</button>
-                </div>
+                    <button class="close-btn" onclick="closePaymentModal()">&times;</button>
+                    </div>
                 <div class="modal-body">
                     <div class="input-group">
                         <label>💵 المبلغ</label>
@@ -3082,6 +3082,10 @@ function showAddPaymentModal(treatmentId, patientId) {
     
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     document.getElementById('paymentDate').value = new Date().toISOString().split('T')[0];
+}
+function closePaymentModal() {
+    let modal = document.getElementById('paymentModal');
+    if (modal) modal.remove();
 }
 
 // إضافة دفعة جديدة لمعالجة محددة
