@@ -300,7 +300,30 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-
+// حذف معالجة
+app.delete('/api/treatments/:id', async (req, res) => {
+    try {
+        const treatmentId = req.params.id;
+        
+        // حذف المعالجة من قاعدة البيانات
+        const deletedTreatment = await Treatment.findByIdAndDelete(treatmentId);
+        
+        if (!deletedTreatment) {
+            return res.status(404).json({ success: false, message: 'المعالجة غير موجودة' });
+        }
+        
+        // حذف الدفعات المرتبطة بهذه المعالجة
+        await Payment.deleteMany({ treatmentId: treatmentId });
+        
+        // حذف العوائد المرتبطة بهذه المعالجة
+        await FollowUp.deleteMany({ treatmentId: treatmentId });
+        
+        res.json({ success: true, message: 'تم حذف المعالجة بنجاح' });
+    } catch (error) {
+        console.error('Error deleting treatment:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
 // ============ API لإدارة الدفعات ============
 
 // نموذج الدفعة (أضفه مع النماذج الأخرى)
