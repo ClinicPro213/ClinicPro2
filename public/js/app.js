@@ -2825,6 +2825,8 @@ async function loadDashboard() {
                     renderPatients(allPatients);
                     document.getElementById('totalPatients').textContent = allPatients.length;
                     saveAllDataToLocal();
+                    // في دالة syncAllDataWithServer، بعد تحميل المرضى
+await syncTreatmentsToLocal();
                 }
                 if (typeof syncPatientImagesToServer === 'function') await syncPatientImagesToServer();
             } catch (e) {
@@ -3185,6 +3187,8 @@ async function clearOldCaches() {
 
 window.addEventListener('online', function() {
     console.log('🔄 Connection restored');
+    // في دالة syncAllDataWithServer، بعد تحميل المرضى
+await syncTreatmentsToLocal();
     var offlineDiv = document.getElementById('offlineNotification');
     if (offlineDiv) offlineDiv.remove();
     if (typeof syncAllDataWithServer === 'function') syncAllDataWithServer();
@@ -3274,6 +3278,8 @@ window.syncAllDataWithServer = async function() {
             renderPatients(allPatients);
             document.getElementById('totalPatients').textContent = allPatients.length;
             saveAllDataToLocal();
+            // في دالة syncAllDataWithServer، بعد تحميل المرضى
+await syncTreatmentsToLocal();
         }
     } catch (e) {
         console.log('⚠️ خطأ في تحديث المرضى:', e);
@@ -4026,3 +4032,37 @@ window.savePaymentOnlyData = function() {
 };
 
 console.log('✅ جميع دوال العودة والدفع جاهزة');
+// ============ حفظ معالجات السيرفر في localStorage ============
+// ============ حفظ معالجات السيرفر في localStorage ============
+async function syncTreatmentsToLocal() {
+    if (!currentUser || !navigator.onLine) return;
+    
+    try {
+        const response = await fetch('/api/treatments/user/' + currentUser.id);
+        if (response.ok) {
+            const serverTreatments = await response.json();
+            
+            // جلب المعالجات المحلية الحالية
+            let localTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+            
+            // دمج المعالجات (تجنب التكرار)
+            for (const serverTx of serverTreatments) {
+                const exists = localTreatments.some(localTx => localTx._id === serverTx._id);
+                if (!exists) {
+                    // إضافة معالجة السيرفر إلى localStorage مع تعيين offline = false
+                    localTreatments.push({
+                        ...serverTx,
+                        offline: false,
+                        pendingSync: false,
+                        payments: serverTx.payments || []
+                    });
+                }
+            }
+            
+            localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(localTreatments));
+            console.log('✅ تم حفظ معالجات السيرفر في localStorage:', serverTreatments.length);
+        }
+    } catch (e) {
+        console.log('⚠️ فشل مزامنة المعالجات:', e);
+    }
+}
