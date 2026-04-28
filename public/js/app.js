@@ -1982,58 +1982,82 @@ async function showPatientFullDetails(pid) {
         var totalPaid = 0;
         var treatmentsHtml = '';
         
-        for (var i = 0; i < allTreatments.length; i++) {
-            var t = allTreatments[i];
-            var cost = t.cost || 0;
-            
-            // ✅ حساب المدفوع من payments array أولاً
-            var paid = 0;
-            if (t.payments && t.payments.length > 0) {
-                // حساب إجمالي الدفعات المسجلة
-                for (var p = 0; p < t.payments.length; p++) {
-                    paid += t.payments[p].amount || 0;
-                }
-            } else if (t.paid) {
-                paid = t.paid;
-            } else if (t.notes && !t.paid) {
-                var match = t.notes.match(/المدفوع:\s*([\d.]+)/);
-                if (match) paid = parseFloat(match[1]);
-            }
-            
-            totalCost += cost;
-            totalPaid += paid;
-            var isOffline = (t.offline === true || t.pendingSync === true);
-            var offlineBadge = isOffline ? '<span style="background:#f59e0b; font-size:10px; padding:2px 6px; border-radius:20px; margin-right:8px;">📴 مؤقت</span>' : '';
-            var bgStyle = isOffline ? 'background:#fef3c7;' : '';
-            var remaining = cost - paid;
-            var remainingColor = remaining > 0 ? '#ef4444' : '#10b981';
-            
-            // ✅ عرض سجل الدفعات (الميزة الجديدة)
-            var paymentHistoryHtml = '';
-            if (t.payments && t.payments.length > 0) {
-                paymentHistoryHtml = '<div style="background:#f1f5f9; border-radius:10px; padding:8px; margin-top:8px;">';
-                paymentHistoryHtml += '<div style="font-size:11px; color:#1e40af; font-weight:bold; margin-bottom:5px;"><i class="fas fa-history"></i> سجل الدفعات:</div>';
-                for (var p = 0; p < t.payments.length; p++) {
-                    var pay = t.payments[p];
-                    var payDate = pay.date ? new Date(pay.date).toLocaleDateString('ar-EG') : 'تاريخ غير محدد';
-                    paymentHistoryHtml += '<div style="font-size:11px; padding:3px 0; border-bottom:1px solid #e2e8f0;">';
-                    paymentHistoryHtml += '💵 ' + (pay.amount || 0) + ' ريال - 📅 ' + payDate;
-                    if (pay.note) paymentHistoryHtml += ' - 📝 ' + escapeHtml(pay.note);
-                    paymentHistoryHtml += '</div>';
-                }
-                paymentHistoryHtml += '</div>';
-            }
             
              
             
 
-// الأزرار
-var addPaymentBtn = '<button class="add-payment-btn" onclick="event.stopPropagation(); showAddPaymentModal(\'' + t._id + '\', \'' + pid + '\')" style="background:#10b981; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px;"><i class="fas fa-plus-circle"></i> إضافة دفعة</button>';
-var addFollowUpBtn = '<button class="add-followup-btn" onclick="event.stopPropagation(); openFollowUpModal(\'' + t._id + '\', \'' + pid + '\')" style="background:#f59e0b; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px; margin-right:5px;"><i class="fas fa-undo-alt"></i> إضافة عودة</button>';
-
-treatmentsHtml += '<div style="display:flex; gap:5px; flex-wrap:wrap;">' + addPaymentBtn + addFollowUpBtn + '</div>';
-treatmentsHtml += '</div>';
+for (var i = 0; i < allTreatments.length; i++) {
+    var t = allTreatments[i];
+    var cost = t.cost || 0;
+    
+    // حساب المدفوع
+    var paid = 0;
+    if (t.payments && t.payments.length > 0) {
+        for (var p = 0; p < t.payments.length; p++) {
+            paid += t.payments[p].amount || 0;
         }
+    } else if (t.paid) {
+        paid = t.paid;
+    } else if (t.notes && !t.paid) {
+        var match = t.notes.match(/المدفوع:\s*([\d.]+)/);
+        if (match) paid = parseFloat(match[1]);
+    }
+    
+    totalCost += cost;
+    totalPaid += paid;
+    var isOffline = (t.offline === true || t.pendingSync === true);
+    var offlineBadge = isOffline ? '<span style="background:#f59e0b; font-size:10px; padding:2px 6px; border-radius:20px; margin-right:8px;">📴 مؤقت</span>' : '';
+    var bgStyle = isOffline ? 'background:#fef3c7;' : '';
+    var remaining = cost - paid;
+    var remainingColor = remaining > 0 ? '#ef4444' : '#10b981';
+    
+    // عرض سجل الدفعات
+    var paymentHistoryHtml = '';
+    if (t.payments && t.payments.length > 0) {
+        paymentHistoryHtml = '<div style="background:#f1f5f9; border-radius:10px; padding:8px; margin-top:8px;">';
+        paymentHistoryHtml += '<div style="font-size:11px; color:#1e40af; font-weight:bold; margin-bottom:5px;"><i class="fas fa-history"></i> سجل الدفعات:</div>';
+        for (var p = 0; p < t.payments.length; p++) {
+            var pay = t.payments[p];
+            var payDate = pay.date ? new Date(pay.date).toLocaleDateString('ar-EG') : 'تاريخ غير محدد';
+            paymentHistoryHtml += '<div style="font-size:11px; padding:3px 0; border-bottom:1px solid #e2e8f0;">';
+            paymentHistoryHtml += '💵 ' + (pay.amount || 0) + ' ريال - 📅 ' + payDate;
+            if (pay.note) paymentHistoryHtml += ' - 📝 ' + escapeHtml(pay.note);
+            paymentHistoryHtml += '</div>';
+        }
+        paymentHistoryHtml += '</div>';
+    }
+    
+    // عرض سجل العوائد
+    var followUpsHtml = '';
+    if (t.followUps && t.followUps.length > 0) {
+        followUpsHtml = '<div style="background:#fef3c7; border-radius:10px; padding:8px; margin-top:8px;">';
+        followUpsHtml += '<div style="font-size:11px; color:#d97706; font-weight:bold; margin-bottom:5px;"><i class="fas fa-undo-alt"></i> سجل العوائد:</div>';
+        for (var f = 0; f < t.followUps.length; f++) {
+            var fu = t.followUps[f];
+            var fuDate = fu.date ? new Date(fu.date).toLocaleDateString('ar-EG') : 'تاريخ غير محدد';
+            followUpsHtml += '<div style="font-size:11px; padding:3px 0; border-bottom:1px solid #fde68a;">';
+            followUpsHtml += '📅 ' + fuDate + ': ' + escapeHtml(fu.notes.substring(0, 50));
+            if (fu.amountPaid > 0) followUpsHtml += ' | 💵 دفع: ' + fu.amountPaid + ' ريال';
+            followUpsHtml += '</div>';
+        }
+        followUpsHtml += '</div>';
+    }
+    
+    // الأزرار
+    var addPaymentBtn = '<button class="add-payment-btn" onclick="event.stopPropagation(); showAddPaymentModal(\'' + t._id + '\', \'' + pid + '\')" style="background:#10b981; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px;"><i class="fas fa-plus-circle"></i> إضافة دفعة</button>';
+    var addFollowUpBtn = '<button class="add-followup-btn" onclick="event.stopPropagation(); openFollowUpModal(\'' + t._id + '\', \'' + pid + '\')" style="background:#f59e0b; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px; margin-right:5px;"><i class="fas fa-undo-alt"></i> إضافة عودة</button>';
+    
+    treatmentsHtml += '<div style="padding:12px; border-bottom:1px solid #e2e8f0; ' + bgStyle + '">';
+    treatmentsHtml += '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">';
+    treatmentsHtml += '<div><strong>🦷 السن ' + t.toothNumber + '</strong> - ' + t.treatmentType + offlineBadge + '</div>';
+    treatmentsHtml += '<div style="font-size:11px; color:#64748b;">📅 ' + new Date(t.treatmentDate).toLocaleDateString('ar-EG') + '</div>';
+    treatmentsHtml += '</div>';
+    treatmentsHtml += '<div style="margin-top:5px;"><span style="font-size:13px;">💰 ' + cost + ' ريال</span> | <span style="color:#10b981; font-size:13px;">💵 ' + paid + ' ريال</span> | <span style="color:' + remainingColor + '; font-size:13px;">⚠️ ' + remaining + ' ريال</span></div>';
+    treatmentsHtml += paymentHistoryHtml;
+    treatmentsHtml += followUpsHtml;
+    treatmentsHtml += '<div style="display:flex; gap:5px; flex-wrap:wrap; margin-top:8px;">' + addPaymentBtn + addFollowUpBtn + '</div>';
+    treatmentsHtml += '</div>';
+}
         
         var remaining = totalCost - totalPaid;
         var remainingColor = remaining > 0 ? '#ef4444' : '#10b981';
