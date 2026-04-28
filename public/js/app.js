@@ -2264,14 +2264,42 @@ var deleteTreatmentBtn = '<button class="delete-treatment-btn" onclick="event.st
     }
 }
     
-        // حذف معالجة
-window.deleteTreatment = function(treatmentId, patientId) {
-    // تأكيد الحذف
+
+// حذف معالجة - مع مزامنة مع السيرفر
+window.deleteTreatment = async function(treatmentId, patientId) {
     if (!confirm('⚠️ هل أنت متأكد من حذف هذه المعالجة؟\n\nسيتم حذف جميع الدفعات والعوائد المرتبطة بها.\nهذا الإجراء لا يمكن التراجع عنه.')) {
         return;
     }
     
-    // جلب المعالجات من localStorage
+    // 1. محاولة الحذف من السيرفر أولاً
+    if (navigator.onLine) {
+        try {
+            const response = await fetch('/api/treatments/' + treatmentId, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            if (response.ok) {
+                // 2. حذف من localStorage أيضاً
+                let treatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+                let treatmentIndex = treatments.findIndex(t => t._id === treatmentId);
+                if (treatmentIndex !== -1) {
+                    treatments.splice(treatmentIndex, 1);
+                    localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(treatments));
+                }
+                
+                alert('✅ تم حذف المعالجة بنجاح');
+                showPatientFullDetails(patientId);
+                return;
+            } else {
+                console.error('فشل الحذف من السيرفر');
+            }
+        } catch (e) {
+            console.error('خطأ في الاتصال بالسيرفر:', e);
+        }
+    }
+    
+    // 3. إذا كان غير متصل أو فشل السيرفر، احذف محلياً فقط
     let treatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
     let treatmentIndex = treatments.findIndex(t => t._id === treatmentId);
     
@@ -2280,15 +2308,10 @@ window.deleteTreatment = function(treatmentId, patientId) {
         return;
     }
     
-    // حذف المعالجة
     treatments.splice(treatmentIndex, 1);
-    
-    // حفظ التغييرات
     localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(treatments));
     
-    alert('✅ تم حذف المعالجة بنجاح');
-    
-    // تحديث عرض تفاصيل المريض
+    alert('📴 تم حذف المعالجة محلياً. سيتم المزامنة مع السيرفر عند استعادة الاتصال.');
     showPatientFullDetails(patientId);
 };
 
