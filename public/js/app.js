@@ -2026,16 +2026,8 @@ async function showPatientFullDetails(pid) {
                 paymentHistoryHtml += '</div>';
             }
             
-            // ✅ زر إضافة دفع (الميزة الجديدة)
-            var addPaymentBtn = '<button class="add-payment-btn" onclick="event.stopPropagation(); showAddPaymentModal(\'' + t._id + '\', \'' + pid + '\')" style="background:#10b981; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px;"><i class="fas fa-plus-circle"></i> إضافة دفعة</button>';
+             
             
-            treatmentsHtml += '<div style="padding:12px; border-bottom:1px solid #e2e8f0; ' + bgStyle + '">';
-            treatmentsHtml += '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">';
-            treatmentsHtml += '<div><strong>🦷 السن ' + t.toothNumber + '</strong> - ' + t.treatmentType + offlineBadge + '</div>';
-            treatmentsHtml += '<div style="font-size:11px; color:#64748b;">📅 ' + new Date(t.treatmentDate).toLocaleDateString('ar-EG') + '</div>';
-            treatmentsHtml += '</div>';
-            treatmentsHtml += '<div style="margin-top:5px;"><span style="font-size:13px;">💰 ' + cost + ' ريال</span> | <span style="color:#10b981; font-size:13px;">💵 ' + paid + ' ريال</span> | <span style="color:' + remainingColor + '; font-size:13px;">⚠️ ' + remaining + ' ريال</span></div>';
-treatmentsHtml += paymentHistoryHtml;
 
 // الأزرار
 var addPaymentBtn = '<button class="add-payment-btn" onclick="event.stopPropagation(); showAddPaymentModal(\'' + t._id + '\', \'' + pid + '\')" style="background:#10b981; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px;"><i class="fas fa-plus-circle"></i> إضافة دفعة</button>';
@@ -3590,3 +3582,260 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 console.log('✅ نظام المزامنة التلقائية جاهز');
+
+// ============================================
+// دوال العودة والدفع الجديدة
+// ============================================
+
+let currentFollowUpTreatmentId = null;
+let currentFollowUpPatientId = null;
+
+// فتح نافذة إضافة عودة
+window.openFollowUpModal = function(treatmentId, patientId) {
+    console.log('فتح نافذة العودة', treatmentId, patientId);
+    currentFollowUpTreatmentId = treatmentId;
+    currentFollowUpPatientId = patientId;
+    
+    // جلب المعالجة لعرض تفاصيلها
+    let treatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+    let treatment = treatments.find(t => t._id === treatmentId);
+    
+    if (!treatment) {
+        alert('لم يتم العثور على المعالجة');
+        return;
+    }
+    
+    let remaining = (treatment.cost || 0) - (treatment.paid || 0);
+    
+    let modalHtml = `
+        <div id="followUpModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; justify-content:center; align-items:center; z-index:100000;">
+            <div style="background:white; border-radius:20px; max-width:450px; width:90%; max-height:80vh; overflow-y:auto;">
+                <div style="padding:15px; background:#f59e0b; color:white; border-radius:20px 20px 0 0; display:flex; justify-content:space-between;">
+                    <h3 style="margin:0"><i class="fas fa-undo-alt"></i> إضافة عودة</h3>
+                    <button onclick="document.getElementById('followUpModal').remove()" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">&times;</button>
+                </div>
+                <div style="padding:20px;">
+                    <div style="background:#fef3c7; padding:12px; border-radius:12px; margin-bottom:15px;">
+                        <div><strong>🦷 المعالجة:</strong> السن ${treatment.toothNumber} - ${treatment.treatmentType}</div>
+                        <div><strong>💰 التكلفة:</strong> ${treatment.cost || 0} ريال</div>
+                        <div><strong>💵 المدفوع:</strong> ${treatment.paid || 0} ريال</div>
+                        <div><strong>⚠️ المتبقي:</strong> ${remaining} ريال</div>
+                    </div>
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block; margin-bottom:5px; font-weight:bold;">📝 ملاحظات العودة *</label>
+                        <textarea id="followUpNotes" rows="3" placeholder="ماذا تم في هذه العودة؟" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px;"></textarea>
+                    </div>
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block; margin-bottom:5px; font-weight:bold;">💰 المبلغ المدفوع اليوم</label>
+                        <input type="number" id="followUpAmount" placeholder="0" step="10" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px;">
+                    </div>
+                    <div style="margin-bottom:20px;">
+                        <label style="display:block; margin-bottom:5px; font-weight:bold;">📅 تاريخ العودة</label>
+                        <input type="date" id="followUpDate" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px;">
+                    </div>
+                    <button onclick="saveFollowUpData()" style="width:100%; background:#f59e0b; color:white; border:none; padding:12px; border-radius:8px; font-size:16px; font-weight:bold; cursor:pointer;">💾 حفظ العودة</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    document.getElementById('followUpDate').value = new Date().toISOString().split('T')[0];
+};
+
+// حفظ بيانات العودة
+window.saveFollowUpData = function() {
+    let notes = document.getElementById('followUpNotes').value;
+    if (!notes.trim()) {
+        alert('⚠️ الرجاء إدخال ملاحظات عن العودة');
+        return;
+    }
+    
+    let amount = parseFloat(document.getElementById('followUpAmount').value) || 0;
+    let date = document.getElementById('followUpDate').value;
+    
+    // جلب المعالجات
+    let treatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+    let treatmentIndex = treatments.findIndex(t => t._id === currentFollowUpTreatmentId);
+    
+    if (treatmentIndex === -1) {
+        alert('⚠️ لم يتم العثور على المعالجة');
+        return;
+    }
+    
+    let treatment = treatments[treatmentIndex];
+    
+    // إضافة سجل العودة
+    if (!treatment.followUps) treatment.followUps = [];
+    treatment.followUps.push({
+        id: 'fu_' + Date.now(),
+        date: date,
+        notes: notes,
+        amountPaid: amount,
+        createdAt: new Date().toISOString()
+    });
+    
+    // إذا تم دفع مبلغ، أضفه كدفعة
+    if (amount > 0) {
+        if (!treatment.payments) treatment.payments = [];
+        treatment.payments.push({
+            id: 'pay_' + Date.now(),
+            amount: amount,
+            date: date,
+            note: 'دفعة من عودة: ' + notes.substring(0, 50)
+        });
+        
+        // تحديث إجمالي المدفوع
+        let totalPaid = 0;
+        for (let p of treatment.payments) totalPaid += p.amount;
+        treatment.paid = totalPaid;
+    }
+    
+    // حفظ
+    treatments[treatmentIndex] = treatment;
+    localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(treatments));
+    
+    // إغلاق المودال
+    let modal = document.getElementById('followUpModal');
+    if (modal) modal.remove();
+    
+    alert('✅ تم إضافة العودة بنجاح');
+    location.reload();
+};
+
+// ============================================
+// إضافة دفعة لمعالجة سابقة فقط
+// ============================================
+
+window.openPaymentOnlyModalFirst = function() {
+    if (!currentPatientId) {
+        alert('⚠️ الرجاء فتح ملف مريض أولاً');
+        return;
+    }
+    
+    // جلب معالجات المريض الحالي
+    let treatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+    let patientTreatments = treatments.filter(t => t.patientId === currentPatientId);
+    
+    if (patientTreatments.length === 0) {
+        alert('⚠️ لا توجد معالجات مسجلة لهذا المريض');
+        return;
+    }
+    
+    // بناء خيارات القائمة
+    let optionsHtml = '<option value="">-- اختر معالجة --</option>';
+    for (let t of patientTreatments) {
+        let remaining = (t.cost || 0) - (t.paid || 0);
+        optionsHtml += `<option value="${t._id}" data-cost="${t.cost || 0}" data-paid="${t.paid || 0}" data-remaining="${remaining}" data-name="السن ${t.toothNumber} - ${t.treatmentType}">السن ${t.toothNumber} - ${t.treatmentType} (متبقي: ${remaining} ريال)</option>`;
+    }
+    
+    let modalHtml = `
+        <div id="paymentOnlyModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; justify-content:center; align-items:center; z-index:100000;">
+            <div style="background:white; border-radius:20px; max-width:450px; width:90%;">
+                <div style="padding:15px; background:#10b981; color:white; border-radius:20px 20px 0 0; display:flex; justify-content:space-between;">
+                    <h3 style="margin:0"><i class="fas fa-money-bill-wave"></i> إضافة دفعة لمعالجة سابقة</h3>
+                    <button onclick="document.getElementById('paymentOnlyModal').remove()" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">&times;</button>
+                </div>
+                <div style="padding:20px;">
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block; margin-bottom:5px; font-weight:bold;">🦷 اختر المعالجة</label>
+                        <select id="paymentOnlyTreatmentSelect" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px;">${optionsHtml}</select>
+                    </div>
+                    <div id="paymentOnlyDetails" style="background:#f1f5f9; padding:12px; border-radius:12px; margin-bottom:15px; display:none;"></div>
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block; margin-bottom:5px; font-weight:bold;">💰 المبلغ</label>
+                        <input type="number" id="paymentOnlyAmount" placeholder="المبلغ" step="10" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px;">
+                    </div>
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block; margin-bottom:5px; font-weight:bold;">📅 تاريخ الدفع</label>
+                        <input type="date" id="paymentOnlyDate" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px;">
+                    </div>
+                    <div style="margin-bottom:20px;">
+                        <label style="display:block; margin-bottom:5px; font-weight:bold;">📝 ملاحظات</label>
+                        <textarea id="paymentOnlyNote" rows="2" placeholder="ملاحظات عن الدفعة" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px;"></textarea>
+                    </div>
+                    <button onclick="savePaymentOnlyData()" style="width:100%; background:#10b981; color:white; border:none; padding:12px; border-radius:8px; font-size:16px; font-weight:bold; cursor:pointer;">💾 إضافة الدفعة</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    document.getElementById('paymentOnlyDate').value = new Date().toISOString().split('T')[0];
+    
+    // عرض تفاصيل المعالجة عند الاختيار
+    document.getElementById('paymentOnlyTreatmentSelect').onchange = function() {
+        let select = this;
+        let option = select.options[select.selectedIndex];
+        let detailsDiv = document.getElementById('paymentOnlyDetails');
+        
+        if (option.value) {
+            detailsDiv.style.display = 'block';
+            detailsDiv.innerHTML = `
+                <div><strong>🦷 المعالجة:</strong> ${option.getAttribute('data-name')}</div>
+                <div><strong>💰 التكلفة:</strong> ${option.getAttribute('data-cost')} ريال</div>
+                <div><strong>💵 المدفوع حتى الآن:</strong> ${option.getAttribute('data-paid')} ريال</div>
+                <div><strong>⚠️ المتبقي:</strong> ${option.getAttribute('data-remaining')} ريال</div>
+            `;
+        } else {
+            detailsDiv.style.display = 'none';
+        }
+    };
+};
+
+// حفظ الدفعة فقط
+window.savePaymentOnlyData = function() {
+    let treatmentId = document.getElementById('paymentOnlyTreatmentSelect').value;
+    if (!treatmentId) {
+        alert('⚠️ الرجاء اختيار المعالجة');
+        return;
+    }
+    
+    let amount = parseFloat(document.getElementById('paymentOnlyAmount').value);
+    if (isNaN(amount) || amount <= 0) {
+        alert('⚠️ الرجاء إدخال مبلغ صحيح');
+        return;
+    }
+    
+    let date = document.getElementById('paymentOnlyDate').value;
+    let note = document.getElementById('paymentOnlyNote').value;
+    
+    // جلب المعالجات
+    let treatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+    let treatmentIndex = treatments.findIndex(t => t._id === treatmentId);
+    
+    if (treatmentIndex === -1) {
+        alert('⚠️ لم يتم العثور على المعالجة');
+        return;
+    }
+    
+    let treatment = treatments[treatmentIndex];
+    
+    // إضافة الدفعة
+    if (!treatment.payments) treatment.payments = [];
+    treatment.payments.push({
+        id: 'pay_' + Date.now(),
+        amount: amount,
+        date: date,
+        note: note,
+        createdAt: new Date().toISOString()
+    });
+    
+    // تحديث إجمالي المدفوع
+    let totalPaid = 0;
+    for (let p of treatment.payments) totalPaid += p.amount;
+    treatment.paid = totalPaid;
+    
+    // حفظ
+    treatments[treatmentIndex] = treatment;
+    localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(treatments));
+    
+    // إغلاق المودال
+    let modal = document.getElementById('paymentOnlyModal');
+    if (modal) modal.remove();
+    
+    alert(`✅ تم إضافة دفعة بقيمة ${amount} ريال بنجاح`);
+    location.reload();
+};
+
+console.log('✅ جميع دوال العودة والدفع جاهزة');
