@@ -109,6 +109,52 @@ body::before {
     flex-direction: column;
     gap: 16px;
 }
+/* أنماط إدارة الدفعات */
+.payment-history {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 12px;
+    margin-top: 10px;
+    font-size: 13px;
+}
+
+.payment-history-title {
+    font-weight: bold;
+    color: #1e40af;
+    margin-bottom: 8px;
+    font-size: 12px;
+}
+
+.payment-item {
+    background: white;
+    padding: 8px 10px;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    border-right: 3px solid #10b981;
+    font-size: 12px;
+}
+
+.payment-item small {
+    color: #64748b;
+    display: block;
+    margin-top: 3px;
+}
+
+.add-payment-btn {
+    background: #10b981;
+    color: white;
+    border: none;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    cursor: pointer;
+    margin-top: 6px;
+}
+
+.add-payment-btn:hover { background: #059669; }
+
+/* مودال إضافة دفع */
+.modal-small { max-width: 400px; }
 /* ============ قائمة تحديد السن (بسيطة) ============ */
 
 #teethContainer {
