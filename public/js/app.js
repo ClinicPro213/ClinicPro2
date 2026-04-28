@@ -31,9 +31,48 @@ window.showAddPaymentModal = function(treatmentId, patientId) {
 
 window.savePayment = function() {
     let amount = document.getElementById('payAmount').value;
-    alert('تم حفظ دفعة بقيمة: ' + amount);
+    let date = document.getElementById('payDate').value;
+    let note = document.getElementById('payNote').value;
+    
+    if (!amount || parseFloat(amount) <= 0) {
+        alert('⚠️ الرجاء إدخال مبلغ صحيح');
+        return;
+    }
+    
+    // جلب المعالجات من localStorage
+    let treatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+    let treatmentIndex = treatments.findIndex(t => t._id === window.currentPayTreatmentId);
+    
+    if (treatmentIndex === -1) {
+        alert('⚠️ لم يتم العثور على المعالجة');
+        return;
+    }
+    
+    let treatment = treatments[treatmentIndex];
+    
+    // إضافة الدفعة
+    if (!treatment.payments) treatment.payments = [];
+    treatment.payments.push({
+        id: 'pay_' + Date.now(),
+        amount: parseFloat(amount),
+        date: date || new Date().toISOString().split('T')[0],
+        note: note || '',
+        createdAt: new Date().toISOString()
+    });
+    
+    // تحديث إجمالي المدفوع
+    let totalPaid = 0;
+    for (let p of treatment.payments) totalPaid += p.amount;
+    treatment.paid = totalPaid;
+    
+    // حفظ
+    treatments[treatmentIndex] = treatment;
+    localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(treatments));
+    
+    // إغلاق المودال وتحديث الصفحة
     document.getElementById('paymentModal').remove();
-    location.reload();
+    alert(`✅ تم إضافة دفعة بقيمة ${amount} ريال بنجاح`);
+    showPatientFullDetails(window.currentPayPatientId);
 };
 // ============ كشف الأخطاء (مبسط لـ iOS) ============
 window.onerror = function(message, source, lineno, colno, error) {
@@ -117,106 +156,189 @@ window.onerror = function(message, source, lineno, colno, error) {
         });
     }
 })();
-function openPaymentOnlyModalFirst() {
-    // ملء القائمة بمعالجات المريض الحالي
-    let treatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
-    let patientTreatments = treatments.filter(t => t.patientId === currentPatientId);
+window.openPaymentOnlyModalFirst = function() {
+    // الحصول على patientId من النافذة المفتوحة
+    let patientId = currentPatientId;
     
-    let select = document.getElementById('paymentTreatmentSelect');
-    select.innerHTML = '<option value="">-- اختر معالجة --</option>';
-    
-    for (let t of patientTreatments) {
-        let remaining = (t.cost || 0) - (t.paid || 0);
-        select.innerHTML += `<option value="${t._id}" data-cost="${t.cost || 0}" data-paid="${t.paid || 0}" data-remaining="${remaining}" data-name="السن ${t.toothNumber} - ${t.treatmentType}">السن ${t.toothNumber} - ${t.treatmentType} (متبقي: ${remaining} ريال)</option>`;
+    // إذا لم يكن موجود، حاول استخراجه من DOM
+    if (!patientId) {
+        let modal = document.getElementById('patientDetailsModal');
+        if (modal && modal.style.display === 'flex') {
+            let match = modal.innerHTML.match(/editPatient\('([^']+)'\)/);
+            if (match) patientId = match[1];
+        }
     }
     
-    // عرض تفاصيل المعالجة عند الاختيار
-    select.onchange = function() {
-        let option = select.options[select.selectedIndex];
-        if (option.value) {
-            document.getElementById('paymentTreatmentDetails').style.display = 'block';
-            document.getElementById('paymentTreatmentName').innerHTML = option.getAttribute('data-name');
-            document.getElementById('paymentTreatmentCost').innerHTML = option.getAttribute('data-cost');
-            document.getElementById('paymentTreatmentPaid').innerHTML = option.getAttribute('data-paid');
-            document.getElementById('paymentTreatmentRemaining').innerHTML = option.getAttribute('data-remaining');
+    if (!patientId) {
+        alert('⚠️ الرجاء فتح ملف مريض أولاً (اضغط على اسم المريض)');
+        return;
+    }
+    
+    currentPatientId = patientId; // تعيين المتغير
+    
+    let treatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+    let patientTreatments = treatments.filter(t => t.patientId === patientId);
+    
+    if (patientTreatments.length === 0) {
+        alert('⚠️ لا توجد معالجات مسجلة لهذا المريض');
+        return;
+    }
+    
+    // باقي الكود كما هو...
+    let optionsHtml = '<option value="">-- اختر معالجة --</option>';
+    for (let t of patientTreatments) {
+        let remaining = (t.cost || 0) - (t.paid || 0);
+        optionsHtml += `<option value="${t._id}" data-cost="${t.cost || 0}" data-paid="${t.paid || 0}" data-remaining="${remaining}" data-name="السن ${t.toothNumber} - ${t.treatmentType}">السن ${t.toothNumber} - ${t.treatmentType} (متبقي: ${remaining} ريال)</option>`;
+    }
+    
+    let modalHtml = `
+        <div id="paymentOnlyModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; justify-content:center; align-items:center; z-index:100000;">
+            <div style="background:white; border-radius:20px; max-width:450px; width:90%;">
+                <div style="padding:15px; background:#10b981; color:white; border-radius:20px 20px 0 0; display:flex; justify-content:space-between;">
+                    <h3><i class="fas fa-money-bill-wave"></i> إضافة دفعة لمعالجة سابقة</h3>
+                    <button onclick="document.getElementById('paymentOnlyModal').remove()" style="background:none; border:none; color:white; font-size:24px;">&times;</button>
+                </div>
+                <div style="padding:20px;">
+                    <select id="payOnlyTreatmentSelect" style="width:100%; padding:10px; margin-bottom:15px; border:1px solid #ccc; border-radius:8px;">${optionsHtml}</select>
+                    <div id="payOnlyDetails" style="background:#f1f5f9; padding:12px; border-radius:12px; margin-bottom:15px; display:none;"></div>
+                    <input type="number" id="payOnlyAmount" placeholder="المبلغ" style="width:100%; padding:10px; margin-bottom:15px; border:1px solid #ccc; border-radius:8px;">
+                    <input type="date" id="payOnlyDate" style="width:100%; padding:10px; margin-bottom:15px; border:1px solid #ccc; border-radius:8px;">
+                    <textarea id="payOnlyNote" rows="2" placeholder="ملاحظات" style="width:100%; padding:10px; margin-bottom:15px; border:1px solid #ccc; border-radius:8px;"></textarea>
+                    <button onclick="savePaymentOnlyData2()" style="width:100%; background:#10b981; color:white; border:none; padding:12px; border-radius:8px;">حفظ</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    document.getElementById('payOnlyDate').value = new Date().toISOString().split('T')[0];
+    
+    document.getElementById('payOnlyTreatmentSelect').onchange = function() {
+        let opt = this.options[this.selectedIndex];
+        let div = document.getElementById('payOnlyDetails');
+        if (opt.value) {
+            div.style.display = 'block';
+            div.innerHTML = `<div>🦷 ${opt.getAttribute('data-name')}</div>
+                            <div>💰 التكلفة: ${opt.getAttribute('data-cost')} ريال</div>
+                            <div>💵 مدفوع: ${opt.getAttribute('data-paid')} ريال</div>
+                            <div>⚠️ متبقي: ${opt.getAttribute('data-remaining')} ريال</div>`;
         } else {
-            document.getElementById('paymentTreatmentDetails').style.display = 'none';
+            div.style.display = 'none';
         }
     };
+};
+
+function savePaymentOnlyData2() {
+    let treatmentId = document.getElementById('payOnlyTreatmentSelect').value;
+    if (!treatmentId) {
+        alert('⚠️ اختر معالجة');
+        return;
+    }
     
-    document.getElementById('paymentOnlyDate').value = new Date().toISOString().split('T')[0];
-    document.getElementById('paymentOnlyAmount').value = '';
-    document.getElementById('paymentOnlyNote').value = '';
-    document.getElementById('paymentToTreatmentModal').style.display = 'flex';
+    let amount = parseFloat(document.getElementById('payOnlyAmount').value);
+    if (isNaN(amount) || amount <= 0) {
+        alert('⚠️ مبلغ صحيح');
+        return;
+    }
+    
+    let date = document.getElementById('payOnlyDate').value;
+    let note = document.getElementById('payOnlyNote').value;
+    
+    let treatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+    let index = treatments.findIndex(t => t._id === treatmentId);
+    
+    if (index === -1) {
+        alert('⚠️ لم يتم العثور على المعالجة');
+        return;
+    }
+    
+    if (!treatments[index].payments) treatments[index].payments = [];
+    treatments[index].payments.push({
+        id: 'pay_' + Date.now(),
+        amount: amount,
+        date: date,
+        note: note
+    });
+    
+    let totalPaid = 0;
+    for (let p of treatments[index].payments) totalPaid += p.amount;
+    treatments[index].paid = totalPaid;
+    
+    localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(treatments));
+    
+    let modal = document.getElementById('paymentOnlyModal');
+    if (modal) modal.remove();
+    
+    alert(`✅ تم إضافة دفعة بقيمة ${amount} ريال`);
+    showPatientFullDetails(currentPatientId);
 }
-
 // ============ دوال العودة (المراجعة) ============
-
 
 
 function openFollowUpModal(treatmentId, patientId) {
     currentFollowUpTreatmentId = treatmentId;
     currentFollowUpPatientId = patientId;
     
-    // ملء قائمة المعالجات
+    // جلب المعالجة مباشرة (بدون قائمة اختيار)
     let treatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
-    let patientTreatments = treatments.filter(t => t.patientId === patientId);
+    let treatment = treatments.find(t => t._id === treatmentId);
     
-    let select = document.getElementById('followUpTreatmentSelect');
-    select.innerHTML = '<option value="">-- اختر معالجة --</option>';
-    
-    for (let t of patientTreatments) {
-        let selected = (t._id === treatmentId) ? 'selected' : '';
-        let remaining = (t.cost || 0) - (t.paid || 0);
-        select.innerHTML += `<option value="${t._id}" ${selected} data-cost="${t.cost || 0}" data-paid="${t.paid || 0}" data-remaining="${remaining}" data-name="السن ${t.toothNumber} - ${t.treatmentType}">السن ${t.toothNumber} - ${t.treatmentType} (متبقي: ${remaining} ريال)</option>`;
-    }
-    
-    // عرض تفاصيل المعالجة المحددة
-    select.onchange = function() {
-        let option = select.options[select.selectedIndex];
-        if (option.value) {
-            document.getElementById('selectedTreatmentDetails').style.display = 'block';
-            document.getElementById('selectedTreatmentName').innerHTML = option.getAttribute('data-name');
-            document.getElementById('selectedTreatmentCost').innerHTML = option.getAttribute('data-cost');
-            document.getElementById('selectedTreatmentPaid').innerHTML = option.getAttribute('data-paid');
-            document.getElementById('selectedTreatmentRemaining').innerHTML = option.getAttribute('data-remaining');
-        } else {
-            document.getElementById('selectedTreatmentDetails').style.display = 'none';
-        }
-    };
-    
-    // تفعيل التغيير الأول
-    if (select.value) {
-        select.onchange();
-    }
-    
-    document.getElementById('followUpDate').value = new Date().toISOString().split('T')[0];
-    document.getElementById('followUpAmount').value = '0';
-    document.getElementById('followUpNotes').value = '';
-    
-    document.getElementById('followUpModal').style.display = 'flex';
-}
-
-// حفظ العودة
-function saveFollowUp() {
-    let treatmentId = document.getElementById('followUpTreatmentSelect').value;
-    if (!treatmentId) {
-        alert('⚠️ الرجاء اختيار المعالجة');
+    if (!treatment) {
+        alert('لم يتم العثور على المعالجة');
         return;
     }
     
-    let notes = document.getElementById('followUpNotes').value;
-    let amount = parseFloat(document.getElementById('followUpAmount').value) || 0;
-    let date = document.getElementById('followUpDate').value;
+    let remaining = (treatment.cost || 0) - (treatment.paid || 0);
     
+    let modalHtml = `
+        <div id="followUpModalDirect" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; justify-content:center; align-items:center; z-index:100000;">
+            <div style="background:white; border-radius:20px; max-width:450px; width:90%;">
+                <div style="padding:15px; background:#f59e0b; color:white; border-radius:20px 20px 0 0; display:flex; justify-content:space-between;">
+                    <h3><i class="fas fa-undo-alt"></i> إضافة عودة</h3>
+                    <button onclick="document.getElementById('followUpModalDirect').remove()" style="background:none; border:none; color:white; font-size:24px;">&times;</button>
+                </div>
+                <div style="padding:20px;">
+                    <div style="background:#fef3c7; padding:12px; border-radius:12px; margin-bottom:15px;">
+                        <div><strong>🦷 السن:</strong> ${treatment.toothNumber}</div>
+                        <div><strong>💊 النوع:</strong> ${treatment.treatmentType}</div>
+                        <div><strong>💰 التكلفة:</strong> ${treatment.cost || 0} ريال</div>
+                        <div><strong>💵 المدفوع:</strong> ${treatment.paid || 0} ريال</div>
+                        <div><strong>⚠️ المتبقي:</strong> ${remaining} ريال</div>
+                    </div>
+                    <div style="margin-bottom:15px;">
+                        <label>📝 ملاحظات العودة *</label>
+                        <textarea id="followUpNotesDirect" rows="3" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px;"></textarea>
+                    </div>
+                    <div style="margin-bottom:15px;">
+                        <label>💰 المبلغ المدفوع اليوم</label>
+                        <input type="number" id="followUpAmountDirect" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px;">
+                    </div>
+                    <div style="margin-bottom:15px;">
+                        <label>📅 تاريخ العودة</label>
+                        <input type="date" id="followUpDateDirect" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px;">
+                    </div>
+                    <button onclick="saveFollowUpDirect()" style="width:100%; background:#f59e0b; color:white; border:none; padding:12px; border-radius:8px;">حفظ العودة</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    document.getElementById('followUpDateDirect').value = new Date().toISOString().split('T')[0];
+}
+
+function saveFollowUpDirect() {
+    let notes = document.getElementById('followUpNotesDirect').value;
     if (!notes.trim()) {
         alert('⚠️ الرجاء إدخال ملاحظات عن العودة');
         return;
     }
     
-    // جلب المعالجات
+    let amount = parseFloat(document.getElementById('followUpAmountDirect').value) || 0;
+    let date = document.getElementById('followUpDateDirect').value;
+    
     let treatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
-    let treatmentIndex = treatments.findIndex(t => t._id === treatmentId);
+    let treatmentIndex = treatments.findIndex(t => t._id === currentFollowUpTreatmentId);
     
     if (treatmentIndex === -1) {
         alert('⚠️ لم يتم العثور على المعالجة');
@@ -225,41 +347,39 @@ function saveFollowUp() {
     
     let treatment = treatments[treatmentIndex];
     
-    // إضافة سجل العودة
     if (!treatment.followUps) treatment.followUps = [];
     treatment.followUps.push({
-        id: 'fu_' + Date.now() + '_' + Math.random(),
+        id: 'fu_' + Date.now(),
         date: date,
         notes: notes,
-        amountPaid: amount,
-        createdAt: new Date().toISOString()
+        amountPaid: amount
     });
     
-    // إذا تم دفع مبلغ، أضفه كدفعة أيضاً
     if (amount > 0) {
         if (!treatment.payments) treatment.payments = [];
         treatment.payments.push({
             id: 'pay_' + Date.now(),
             amount: amount,
             date: date,
-            note: 'دفعة من عودة - ' + notes.substring(0, 50),
-            fromFollowUp: true
+            note: 'دفعة من عودة: ' + notes.substring(0, 50)
         });
         
-        // تحديث إجمالي المدفوع
         let totalPaid = 0;
         for (let p of treatment.payments) totalPaid += p.amount;
         treatment.paid = totalPaid;
     }
     
-    // حفظ
     treatments[treatmentIndex] = treatment;
     localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(treatments));
     
-    closeModal('followUpModal');
+    let modal = document.getElementById('followUpModalDirect');
+    if (modal) modal.remove();
+    
     alert('✅ تم إضافة العودة بنجاح');
     showPatientFullDetails(currentFollowUpPatientId);
 }
+
+            
 
 // ============ إضافة دفعة لمعالجة سابقة فقط (بدون عودة) ============
 
