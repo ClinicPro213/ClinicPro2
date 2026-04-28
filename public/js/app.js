@@ -152,9 +152,7 @@ function openPaymentOnlyModalFirst() {
 
 // ============ دوال العودة (المراجعة) ============
 
-// فتح نافذة إضافة عودة
-let currentFollowUpTreatmentId = null;
-let currentFollowUpPatientId = null;
+
 
 function openFollowUpModal(treatmentId, patientId) {
     currentFollowUpTreatmentId = treatmentId;
