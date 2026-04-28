@@ -2206,10 +2206,11 @@ async function showPatientFullDetails(pid) {
             }
             
             // الأزرار
-            var addPaymentBtn = '<button class="add-payment-btn" onclick="event.stopPropagation(); showAddPaymentModal(\'' + t._id + '\', \'' + pid + '\')" style="background:#10b981; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px;"><i class="fas fa-plus-circle"></i> إضافة دفعة</button>';
+var addPaymentBtn = '<button class="add-payment-btn" onclick="event.stopPropagation(); showAddPaymentModal(\'' + t._id + '\', \'' + pid + '\')" style="background:#10b981; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px;"><i class="fas fa-plus-circle"></i> إضافة دفعة</button>';
 var addFollowUpBtn = '<button class="add-followup-btn" onclick="event.stopPropagation(); openFollowUpModal(\'' + t._id + '\', \'' + pid + '\')" style="background:#f59e0b; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px; margin-right:5px;"><i class="fas fa-undo-alt"></i> إضافة عودة</button>';
 var shareTreatmentBtn = '<button class="share-treatment-btn" onclick="event.stopPropagation(); shareSingleTreatment(\'' + t._id + '\', \'' + pid + '\')" style="background:#25d366; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px; margin-right:5px;"><i class="fab fa-whatsapp"></i> مشاركة</button>';
-
+// ✅ أضف زر حذف المعالجة
+var deleteTreatmentBtn = '<button class="delete-treatment-btn" onclick="event.stopPropagation(); deleteTreatment(\'' + t._id + '\', \'' + pid + '\')" style="background:#ef4444; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px; margin-right:5px;"><i class="fas fa-trash-alt"></i> حذف</button>';
             
             treatmentsHtml += '<div style="padding:12px; border-bottom:1px solid #e2e8f0; ' + bgStyle + '">';
             treatmentsHtml += '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">';
@@ -2220,8 +2221,7 @@ var shareTreatmentBtn = '<button class="share-treatment-btn" onclick="event.stop
             treatmentsHtml += paymentHistoryHtml;
             treatmentsHtml += followUpsHtml;
             
-            treatmentsHtml += '<div style="display:flex; gap:5px; flex-wrap:wrap; margin-top:8px;">' + addPaymentBtn + addFollowUpBtn + shareTreatmentBtn + '</div>';
-            treatmentsHtml += '</div>';
+            treatmentsHtml += '<div style="display:flex; gap:5px; flex-wrap:wrap; margin-top:8px;">' + addPaymentBtn + addFollowUpBtn + shareTreatmentBtn + deleteTreatmentBtn + '</div>';     treatmentsHtml += '</div>';
         }
         
         var remaining = totalCost - totalPaid;
@@ -2264,7 +2264,33 @@ var shareTreatmentBtn = '<button class="share-treatment-btn" onclick="event.stop
     }
 }
     
-        
+        // حذف معالجة
+window.deleteTreatment = function(treatmentId, patientId) {
+    // تأكيد الحذف
+    if (!confirm('⚠️ هل أنت متأكد من حذف هذه المعالجة؟\n\nسيتم حذف جميع الدفعات والعوائد المرتبطة بها.\nهذا الإجراء لا يمكن التراجع عنه.')) {
+        return;
+    }
+    
+    // جلب المعالجات من localStorage
+    let treatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+    let treatmentIndex = treatments.findIndex(t => t._id === treatmentId);
+    
+    if (treatmentIndex === -1) {
+        alert('⚠️ لم يتم العثور على المعالجة');
+        return;
+    }
+    
+    // حذف المعالجة
+    treatments.splice(treatmentIndex, 1);
+    
+    // حفظ التغييرات
+    localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(treatments));
+    
+    alert('✅ تم حذف المعالجة بنجاح');
+    
+    // تحديث عرض تفاصيل المريض
+    showPatientFullDetails(patientId);
+};
 
 // ============ صفحة الادمن ============
 async function loadAdminUsers() {
