@@ -2064,10 +2064,11 @@ treatmentsHtml += '</div>';
         modalHtml += '<p><strong style="color:' + remainingColor + ';">⚠️ المتبقي:</strong> ' + remaining + ' ريال</p>';
         modalHtml += '</div>';
         modalHtml += '<div style="display:flex; gap:10px; flex-wrap:wrap;">';
-        modalHtml += '<button class="btn" onclick="closeModal(\'patientDetailsModal\'); editPatient(\'' + patient._id + '\')" style="flex:1;">تعديل</button>';
-        modalHtml += '<button class="btn btn-secondary" onclick="closeModal(\'patientDetailsModal\'); showTreatmentModal(\'' + patient._id + '\')" style="flex:1;">إضافة معالجة</button>';
-        modalHtml += '<button class="btn btn-whatsapp" onclick="sharePatientWithoutImages(\'' + patient._id + '\')" style="flex:1;"><i class="fab fa-whatsapp"></i> مشاركة</button>';
-        modalHtml += '</div></div></div>';
+modalHtml += '<button class="btn" onclick="closeModal(\'patientDetailsModal\'); editPatient(\'' + patient._id + '\')" style="flex:1;">تعديل</button>';
+modalHtml += '<button class="btn btn-success" onclick="openPaymentOnlyModalFirst()" style="background:#10b981; flex:1;"><i class="fas fa-money-bill-wave"></i> إضافة دفعة</button>';
+modalHtml += '<button class="btn btn-secondary" onclick="closeModal(\'patientDetailsModal\'); showTreatmentModal(\'' + patient._id + '\')" style="flex:1;">إضافة معالجة</button>';
+modalHtml += '<button class="btn btn-whatsapp" onclick="sharePatientWithoutImages(\'' + patient._id + '\')" style="flex:1;"><i class="fab fa-whatsapp"></i> مشاركة</button>';
+modalHtml += '</div></div></div>';
         
         var modal = document.getElementById('patientDetailsModal');
         if (!modal) {
