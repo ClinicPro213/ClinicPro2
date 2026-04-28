@@ -254,6 +254,80 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
+
+// ============ API لإدارة الدفعات ============
+
+// نموذج الدفعة (أضفه مع النماذج الأخرى)
+const PaymentSchema = new mongoose.Schema({
+    treatmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Treatment', required: true },
+    patientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Patient', required: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    amount: { type: Number, required: true },
+    date: { type: Date, default: Date.now },
+    note: { type: String },
+    createdAt: { type: Date, default: Date.now }
+});
+
+const Payment = mongoose.model('Payment', PaymentSchema);
+
+// إضافة دفعة جديدة
+app.post('/api/payments', async (req, res) => {
+    try {
+        const { treatmentId, patientId, userId, amount, date, note } = req.body;
+        
+        const payment = new Payment({
+            treatmentId,
+            patientId,
+            userId,
+            amount,
+            date: date || new Date(),
+            note
+        });
+        
+        await payment.save();
+        
+        // تحديث المعالجة بإضافة الـ payment وإعادة حساب المدفوع
+        const treatment = await Treatment.findById(treatmentId);
+        if (treatment) {
+            if (!treatment.payments) treatment.payments = [];
+            treatment.payments.push(payment._id);
+            
+            // حساب إجمالي المدفوع
+            const allPayments = await Payment.find({ treatmentId });
+            let totalPaid = 0;
+            for (let p of allPayments) totalPaid += p.amount;
+            treatment.paid = totalPaid;
+            
+            await treatment.save();
+        }
+        
+        res.status(201).json({ success: true, payment });
+    } catch (error) {
+        console.error('Error adding payment:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// جلب دفعات معالجة معينة
+app.get('/api/payments/treatment/:treatmentId', async (req, res) => {
+    try {
+        const payments = await Payment.find({ treatmentId: req.params.treatmentId }).sort({ date: -1 });
+        res.json({ success: true, payments });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// جلب دفعات مريض معين
+app.get('/api/payments/patient/:patientId', async (req, res) => {
+    try {
+        const payments = await Payment.find({ patientId: req.params.patientId }).sort({ date: -1 });
+        res.json({ success: true, payments });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 app.get('/api/user/:userId', async (req, res) => {
     try {
         const userId = req.params.userId;
