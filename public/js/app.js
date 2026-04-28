@@ -2219,7 +2219,7 @@ var shareTreatmentBtn = '<button class="share-treatment-btn" onclick="event.stop
             treatmentsHtml += '<div style="margin-top:5px;"><span style="font-size:13px;">💰 ' + cost + ' ريال</span> | <span style="color:#10b981; font-size:13px;">💵 ' + paid + ' ريال</span> | <span style="color:' + remainingColor + '; font-size:13px;">⚠️ ' + remaining + ' ريال</span></div>';
             treatmentsHtml += paymentHistoryHtml;
             treatmentsHtml += followUpsHtml;
-            treatmentsHtml += '<div style="display:flex; gap:5px; flex-wrap:wrap; margin-top:8px;">' + addPaymentBtn + addFollowUpBtn + '</div>';
+            
             treatmentsHtml += '<div style="display:flex; gap:5px; flex-wrap:wrap; margin-top:8px;">' + addPaymentBtn + addFollowUpBtn + shareTreatmentBtn + '</div>';
             treatmentsHtml += '</div>';
         }
