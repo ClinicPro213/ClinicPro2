@@ -3444,6 +3444,8 @@ async function syncPatientImagesToServer() {
 }
 
 // ============ مشاركة التقرير بدون صور ============
+
+            // مشاركة تقرير كامل للمريض
 async function sharePatientWithoutImages(patientId) {
     var patient = null;
     for (var i = 0; i < allPatients.length; i++) {
@@ -3488,13 +3490,21 @@ async function sharePatientWithoutImages(patientId) {
         } catch(e) {}
     }
     
+    // ترتيب المعالجات حسب التاريخ
+    treatments.sort(function(a, b) {
+        return new Date(b.treatmentDate) - new Date(a.treatmentDate);
+    });
+    
     // حساب الإجماليات
     var totalCost = 0;
     var totalPaid = 0;
     var treatmentsText = '';
     
     if (treatments.length > 0) {
-        treatmentsText = '\n\n🦷 *سجل المعالجات:*\n━━━━━━━━━━━━━━━━━━━━\n';
+        treatmentsText = '\n\n━━━━━━━━━━━━━━━━━━━━\n';
+        treatmentsText += '🦷 *سجل المعالجات*\n';
+        treatmentsText += '━━━━━━━━━━━━━━━━━━━━\n\n';
+        
         for (var i = 0; i < treatments.length; i++) {
             var t = treatments[i];
             var cost = t.cost || 0;
@@ -3512,34 +3522,73 @@ async function sharePatientWithoutImages(patientId) {
             var remaining = cost - paid;
             var remainingText = remaining > 0 ? '⚠️ متبقي: ' + remaining + ' ريال' : '✅ مدفوع بالكامل';
             
-            treatmentsText += `\n📌 *المعالجة ${i+1}:*\n`;
+            treatmentsText += `📌 *المعالجة ${i+1}:*\n`;
             treatmentsText += `   🦷 السن: ${t.toothNumber || 'غير محدد'}\n`;
             treatmentsText += `   💊 النوع: ${t.treatmentType || 'غير محدد'}\n`;
+            treatmentsText += `   📅 التاريخ: ${date}\n`;
             treatmentsText += `   💰 التكلفة: ${cost} ريال\n`;
             treatmentsText += `   💵 المدفوع: ${paid} ريال\n`;
-            treatmentsText += `   ${remainingText}\n`;
-            treatmentsText += `   📅 التاريخ: ${date}\n`;
+            treatmentsText += `   ${remainingText}\n\n`;
+            
+            // إضافة سجل الدفعات
+            if (t.payments && t.payments.length > 0) {
+                treatmentsText += `   💳 *سجل الدفعات:*\n`;
+                for (var p = 0; p < t.payments.length; p++) {
+                    var pay = t.payments[p];
+                    var payDate = pay.date ? new Date(pay.date).toLocaleDateString('ar-EG') : 'تاريخ غير محدد';
+                    treatmentsText += `      • ${payDate}: ${pay.amount} ريال`;
+                    if (pay.note) treatmentsText += ` (${pay.note.substring(0, 40)})`;
+                    treatmentsText += `\n`;
+                }
+                treatmentsText += `\n`;
+            }
+            
+            // إضافة سجل العوائد
+            if (t.followUps && t.followUps.length > 0) {
+                treatmentsText += `   🔄 *سجل العوائد:*\n`;
+                for (var f = 0; f < t.followUps.length; f++) {
+                    var fu = t.followUps[f];
+                    var fuDate = fu.date ? new Date(fu.date).toLocaleDateString('ar-EG') : 'تاريخ غير محدد';
+                    treatmentsText += `      • ${fuDate}: ${fu.notes || 'بدون ملاحظات'}`;
+                    if (fu.amountPaid > 0) treatmentsText += ` (دفع: ${fu.amountPaid} ريال)`;
+                    treatmentsText += `\n`;
+                }
+                treatmentsText += `\n`;
+            }
+            
+            treatmentsText += '   ─────────────────────\n\n';
         }
         
         var remainingTotal = totalCost - totalPaid;
-        treatmentsText += `\n📊 *الإجمالي:*\n`;
-        treatmentsText += `   💰 إجمالي التكلفة: ${totalCost} ريال\n`;
-        treatmentsText += `   💵 إجمالي المدفوع: ${totalPaid} ريال\n`;
-        treatmentsText += `   ⚠️ المتبقي: ${remainingTotal} ريال\n`;
+        treatmentsText += `━━━━━━━━━━━━━━━━━━━━\n`;
+        treatmentsText += `📊 *ملخص الحساب*\n`;
+        treatmentsText += `━━━━━━━━━━━━━━━━━━━━\n`;
+        treatmentsText += `💰 إجمالي التكلفة: ${totalCost} ريال\n`;
+        treatmentsText += `💵 إجمالي المدفوع: ${totalPaid} ريال\n`;
+        treatmentsText += `⚠️ المتبقي: ${remainingTotal} ريال\n`;
     } else {
-        treatmentsText = '\n\n🦷 *سجل المعالجات:*\n━━━━━━━━━━━━━━━━━━━━\nلا توجد معالجات مسجلة\n';
+        treatmentsText = '\n\n━━━━━━━━━━━━━━━━━━━━\n';
+        treatmentsText += '🦷 *سجل المعالجات*\n';
+        treatmentsText += '━━━━━━━━━━━━━━━━━━━━\n';
+        treatmentsText += 'لا توجد معالجات مسجلة\n';
     }
     
-    // بناء الرسالة
-    var message = '*🦷 تقرير المريض - ' + patient.name + '*\n';
+    // بناء الرسالة النهائية
+    var message = '*🦷 مرحباً، هذا تقرير حالتك الصحية*\n';
     message += '━━━━━━━━━━━━━━━━━━━━\n\n';
-    message += '👤 *الاسم:* ' + patient.name + '\n';
-    message += '📞 *الهاتف:* ' + (patient.phone || 'غير مسجل') + '\n';
-    message += '📅 *العمر:* ' + patient.age + ' سنة\n';
-    message += '📍 *العنوان:* ' + (patient.address || 'غير مسجل') + '\n';
+    message += '👤 *بيانات المريض:*\n';
+    message += `   • الاسم: ${patient.name}\n`;
+    message += `   • العمر: ${patient.age} سنة\n`;
+    if (patient.phone) message += `   • الهاتف: ${patient.phone}\n`;
+    if (patient.address) message += `   • العنوان: ${patient.address}\n`;
+    message += '\n👨‍⚕️ *بيانات العيادة:*\n';
+    message += `   • اسم الطبيب: ${currentUser.fullName || currentUser.username}\n`;
+    message += `   • اسم العيادة: ${currentUser.clinicName || 'عيادة الأسنان'}\n`;
+    if (currentUser.phone) message += `   • هاتف العيادة: ${currentUser.phone}\n`;
     message += treatmentsText;
     message += '\n━━━━━━━━━━━━━━━━━━━━\n';
-    message += '\n🦷 *ClinicPro - نظام إدارة عيادات الأسنان*';
+    message += '🦷 *ClinicPro - نظام إدارة عيادات الأسنان*\n';
+    message += '🌸 *نتمنى لكم دوام الصحة والعافية*\n';
     
     // إرسال الرسالة عبر واتساب
     var phoneNumber = patient.phone || '967773041464';
