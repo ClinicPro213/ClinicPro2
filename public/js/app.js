@@ -2207,7 +2207,9 @@ async function showPatientFullDetails(pid) {
             
             // الأزرار
             var addPaymentBtn = '<button class="add-payment-btn" onclick="event.stopPropagation(); showAddPaymentModal(\'' + t._id + '\', \'' + pid + '\')" style="background:#10b981; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px;"><i class="fas fa-plus-circle"></i> إضافة دفعة</button>';
-            var addFollowUpBtn = '<button class="add-followup-btn" onclick="event.stopPropagation(); openFollowUpModal(\'' + t._id + '\', \'' + pid + '\')" style="background:#f59e0b; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px; margin-right:5px;"><i class="fas fa-undo-alt"></i> إضافة عودة</button>';
+var addFollowUpBtn = '<button class="add-followup-btn" onclick="event.stopPropagation(); openFollowUpModal(\'' + t._id + '\', \'' + pid + '\')" style="background:#f59e0b; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px; margin-right:5px;"><i class="fas fa-undo-alt"></i> إضافة عودة</button>';
+var shareTreatmentBtn = '<button class="share-treatment-btn" onclick="event.stopPropagation(); shareSingleTreatment(\'' + t._id + '\', \'' + pid + '\')" style="background:#25d366; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px; margin-right:5px;"><i class="fab fa-whatsapp"></i> مشاركة</button>';
+
             
             treatmentsHtml += '<div style="padding:12px; border-bottom:1px solid #e2e8f0; ' + bgStyle + '">';
             treatmentsHtml += '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">';
@@ -2218,6 +2220,7 @@ async function showPatientFullDetails(pid) {
             treatmentsHtml += paymentHistoryHtml;
             treatmentsHtml += followUpsHtml;
             treatmentsHtml += '<div style="display:flex; gap:5px; flex-wrap:wrap; margin-top:8px;">' + addPaymentBtn + addFollowUpBtn + '</div>';
+            treatmentsHtml += '<div style="display:flex; gap:5px; flex-wrap:wrap; margin-top:8px;">' + addPaymentBtn + addFollowUpBtn + shareTreatmentBtn + '</div>';
             treatmentsHtml += '</div>';
         }
         
@@ -2241,8 +2244,7 @@ async function showPatientFullDetails(pid) {
         modalHtml += '</div>';
         modalHtml += '<div style="display:flex; gap:10px; flex-wrap:wrap;">';
         modalHtml += '<button class="btn" onclick="closeModal(\'patientDetailsModal\'); editPatient(\'' + patient._id + '\')" style="flex:1;">تعديل</button>';
-        modalHtml += '<button class="btn btn-success" onclick="openPaymentOnlyModalFirst()" style="background:#10b981; flex:1;"><i class="fas fa-money-bill-wave"></i> إضافة دفعة</button>';
-        modalHtml += '<button class="btn btn-secondary" onclick="closeModal(\'patientDetailsModal\'); showTreatmentModal(\'' + patient._id + '\')" style="flex:1;">إضافة معالجة</button>';
+                modalHtml += '<button class="btn btn-secondary" onclick="closeModal(\'patientDetailsModal\'); showTreatmentModal(\'' + patient._id + '\')" style="flex:1;">إضافة معالجة</button>';
         modalHtml += '<button class="btn btn-whatsapp" onclick="sharePatientWithoutImages(\'' + patient._id + '\')" style="flex:1;"><i class="fab fa-whatsapp"></i> مشاركة</button>';
         modalHtml += '</div></div></div>';
         
@@ -4084,3 +4086,75 @@ async function syncTreatmentsToLocal() {
         console.log('⚠️ فشل مزامنة المعالجات:', e);
     }
 }
+// مشاركة معالجة واحدة مع عوائدها ودفعاتها
+window.shareSingleTreatment = function(treatmentId, patientId) {
+    // جلب المريض
+    let patient = allPatients.find(p => p._id === patientId);
+    if (!patient) {
+        alert('⚠️ لم يتم العثور على المريض');
+        return;
+    }
+    
+    // جلب المعالجة
+    let treatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+    let treatment = treatments.find(t => t._id === treatmentId);
+    if (!treatment) {
+        alert('⚠️ لم يتم العثور على المعالجة');
+        return;
+    }
+    
+    // حساب البيانات
+    let cost = treatment.cost || 0;
+    let paid = treatment.paid || 0;
+    let remaining = cost - paid;
+    
+    // بناء سجل الدفعات
+    let paymentsText = '';
+    if (treatment.payments && treatment.payments.length > 0) {
+        paymentsText = '\n\n💵 *سجل الدفعات:*\n';
+        for (let p of treatment.payments) {
+            let payDate = p.date ? new Date(p.date).toLocaleDateString('ar-EG') : 'تاريخ غير محدد';
+            paymentsText += `   📅 ${payDate}: ${p.amount} ريال`;
+            if (p.note) paymentsText += ` (${p.note.substring(0, 30)})`;
+            paymentsText += '\n';
+        }
+    }
+    
+    // بناء سجل العوائد
+    let followUpsText = '';
+    if (treatment.followUps && treatment.followUps.length > 0) {
+        followUpsText = '\n\n🔄 *سجل العوائد:*\n';
+        for (let fu of treatment.followUps) {
+            let fuDate = fu.date ? new Date(fu.date).toLocaleDateString('ar-EG') : 'تاريخ غير محدد';
+            followUpsText += `   📅 ${fuDate}: ${fu.notes || 'بدون ملاحظات'}`;
+            if (fu.amountPaid > 0) followUpsText += ` (دفع: ${fu.amountPaid} ريال)`;
+            followUpsText += '\n';
+        }
+    }
+    
+    // بناء الرسالة النهائية
+    let message = '*🦷 تقرير المعالجة*\n';
+    message += '━━━━━━━━━━━━━━━━━━━━\n';
+    message += `👤 *المريض:* ${patient.name}\n`;
+    message += `🦷 *السن:* ${treatment.toothNumber}\n`;
+    message += `💊 *نوع المعالجة:* ${treatment.treatmentType}\n`;
+    message += `📅 *تاريخ المعالجة:* ${new Date(treatment.treatmentDate).toLocaleDateString('ar-EG')}\n`;
+    message += '━━━━━━━━━━━━━━━━━━━━\n';
+    message += `💰 *التكلفة:* ${cost} ريال\n`;
+    message += `💵 *المدفوع:* ${paid} ريال\n`;
+    message += `⚠️ *المتبقي:* ${remaining} ريال\n`;
+    message += paymentsText;
+    message += followUpsText;
+    message += '\n━━━━━━━━━━━━━━━━━━━━\n';
+    message += '🦷 *ClinicPro - نظام إدارة عيادات الأسنان*';
+    
+    // إرسال عبر واتساب
+    let phoneNumber = patient.phone || '967773041464';
+    phoneNumber = phoneNumber.replace(/[^0-9]/g, '');
+    if (phoneNumber.startsWith('7') && phoneNumber.length === 9) {
+        phoneNumber = '967' + phoneNumber;
+    }
+    
+    window.open('https://wa.me/' + phoneNumber + '?text=' + encodeURIComponent(message), '_blank');
+    showAlert('dashboardAlert', '✅ تم فتح واتساب لمشاركة تقرير المعالجة', 'success');
+};
