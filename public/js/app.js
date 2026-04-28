@@ -1309,19 +1309,20 @@ async function saveTreatmentNow() {
             
             if (!isDuplicate) {
                 var treatmentData = {
-                    patientId: currentPatientId,
-                    userId: currentUser.id,
-                    toothNumber: parseInt(tooth),
-                    treatmentType: type,
-                    cost: cost,
-                    paid: paid,
-                    notes: 'التكلفة: ' + cost + ' | المدفوع: ' + paid + ' | المتبقي: ' + (cost-paid) + '\n' + notes,
-                    treatmentDate: new Date().toISOString(),
-                    patientName: patient ? patient.name : 'غير معروف',
-                    offline: true,
-                    pendingSync: true,
-                    _id: 'offline_tx_' + Date.now() + '_' + Math.random()
-                };
+    patientId: currentPatientId,
+    userId: currentUser.id,
+    toothNumber: parseInt(tooth),
+    treatmentType: type,
+    cost: cost,
+    paid: paid,
+    payments: [],  // 👈 أضف هذا السطر
+    notes: 'التكلفة: ' + cost + ' | المدفوع: ' + paid + ' | المتبقي: ' + (cost-paid) + '\n' + notes,
+    treatmentDate: new Date().toISOString(),
+    patientName: patient ? patient.name : 'غير معروف',
+    offline: true,
+    pendingSync: true,
+    _id: 'offline_tx_' + Date.now() + '_' + Math.random()
+};
                 
                 offlineTx.push(treatmentData);
                 localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(offlineTx));
