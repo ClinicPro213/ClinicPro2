@@ -1702,8 +1702,25 @@ async function saveTreatmentNow() {
                 });
                 
                 if (response.ok) {
-                    serverSaved = true;
-                    showAlert('dashboardAlert', '✅ تم حفظ المعالجة على السيرفر', 'success');
+    serverSaved = true;
+    const result = await response.json();
+    
+    // ✅ حفظ المعالجة في localStorage
+    let offlineTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+    
+    // التحقق من عدم وجودها مسبقاً
+    const exists = offlineTreatments.some(t => t._id === result.treatment._id);
+    if (!exists) {
+        offlineTreatments.push({
+            ...result.treatment,
+            offline: false,
+            pendingSync: false,
+            payments: []
+        });
+        localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(offlineTreatments));
+    }
+    
+    showAlert('dashboardAlert', '✅ تم حفظ المعالجة على السيرفر', 'success');
                 } else {
                     showAlert('dashboardAlert', '📴 فشل الحفظ على السيرفر، سيتم الحفظ محلياً', 'warning');
                 }
