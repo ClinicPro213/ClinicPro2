@@ -29,51 +29,7 @@ window.showAddPaymentModal = function(treatmentId, patientId) {
     window.currentPayPatientId = patientId;
 };
 
-window.savePayment = function() {
-    let amount = document.getElementById('payAmount').value;
-    let date = document.getElementById('payDate').value;
-    let note = document.getElementById('payNote').value;
-    
-    if (!amount || parseFloat(amount) <= 0) {
-        alert('⚠️ الرجاء إدخال مبلغ صحيح');
-        return;
-    }
-    
-    // جلب المعالجات من localStorage
-    let treatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
-    let treatmentIndex = treatments.findIndex(t => t._id === window.currentPayTreatmentId);
-    
-    if (treatmentIndex === -1) {
-        alert('⚠️ لم يتم العثور على المعالجة');
-        return;
-    }
-    
-    let treatment = treatments[treatmentIndex];
-    
-    // إضافة الدفعة
-    if (!treatment.payments) treatment.payments = [];
-    treatment.payments.push({
-        id: 'pay_' + Date.now(),
-        amount: parseFloat(amount),
-        date: date || new Date().toISOString().split('T')[0],
-        note: note || '',
-        createdAt: new Date().toISOString()
-    });
-    
-    // تحديث إجمالي المدفوع
-    let totalPaid = 0;
-    for (let p of treatment.payments) totalPaid += p.amount;
-    treatment.paid = totalPaid;
-    
-    // حفظ
-    treatments[treatmentIndex] = treatment;
-    localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(treatments));
-    
-    // إغلاق المودال وتحديث الصفحة
-    document.getElementById('paymentModal').remove();
-    alert(`✅ تم إضافة دفعة بقيمة ${amount} ريال بنجاح`);
-    showPatientFullDetails(window.currentPayPatientId);
-};
+
 // ============ كشف الأخطاء (مبسط لـ iOS) ============
 window.onerror = function(message, source, lineno, colno, error) {
     console.error('Error:', message, source, lineno, colno, error);
@@ -156,137 +112,103 @@ window.onerror = function(message, source, lineno, colno, error) {
         });
     }
 })();
-window.openPaymentOnlyModalFirst = function() {
-    // الحصول على patientId من النافذة المفتوحة
-    let patientId = currentPatientId;
-    
-    // إذا لم يكن موجود، حاول استخراجه من DOM
-    if (!patientId) {
-        let modal = document.getElementById('patientDetailsModal');
-        if (modal && modal.style.display === 'flex') {
-            let match = modal.innerHTML.match(/editPatient\('([^']+)'\)/);
-            if (match) patientId = match[1];
-        }
-    }
-    
-    if (!patientId) {
-        alert('⚠️ الرجاء فتح ملف مريض أولاً (اضغط على اسم المريض)');
-        return;
-    }
-    
-    currentPatientId = patientId; // تعيين المتغير
-    
-    let treatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
-    let patientTreatments = treatments.filter(t => t.patientId === patientId);
-    
-    if (patientTreatments.length === 0) {
-        alert('⚠️ لا توجد معالجات مسجلة لهذا المريض');
-        return;
-    }
-    
-    // باقي الكود كما هو...
-    let optionsHtml = '<option value="">-- اختر معالجة --</option>';
-    for (let t of patientTreatments) {
-        let remaining = (t.cost || 0) - (t.paid || 0);
-        optionsHtml += `<option value="${t._id}" data-cost="${t.cost || 0}" data-paid="${t.paid || 0}" data-remaining="${remaining}" data-name="السن ${t.toothNumber} - ${t.treatmentType}">السن ${t.toothNumber} - ${t.treatmentType} (متبقي: ${remaining} ريال)</option>`;
-    }
-    
-    let modalHtml = `
-        <div id="paymentOnlyModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; justify-content:center; align-items:center; z-index:100000;">
-            <div style="background:white; border-radius:20px; max-width:450px; width:90%;">
-                <div style="padding:15px; background:#10b981; color:white; border-radius:20px 20px 0 0; display:flex; justify-content:space-between;">
-                    <h3><i class="fas fa-money-bill-wave"></i> إضافة دفعة لمعالجة سابقة</h3>
-                    <button onclick="document.getElementById('paymentOnlyModal').remove()" style="background:none; border:none; color:white; font-size:24px;">&times;</button>
-                </div>
-                <div style="padding:20px;">
-                    <select id="payOnlyTreatmentSelect" style="width:100%; padding:10px; margin-bottom:15px; border:1px solid #ccc; border-radius:8px;">${optionsHtml}</select>
-                    <div id="payOnlyDetails" style="background:#f1f5f9; padding:12px; border-radius:12px; margin-bottom:15px; display:none;"></div>
-                    <input type="number" id="payOnlyAmount" placeholder="المبلغ" style="width:100%; padding:10px; margin-bottom:15px; border:1px solid #ccc; border-radius:8px;">
-                    <input type="date" id="payOnlyDate" style="width:100%; padding:10px; margin-bottom:15px; border:1px solid #ccc; border-radius:8px;">
-                    <textarea id="payOnlyNote" rows="2" placeholder="ملاحظات" style="width:100%; padding:10px; margin-bottom:15px; border:1px solid #ccc; border-radius:8px;"></textarea>
-                    <button onclick="savePaymentOnlyData2()" style="width:100%; background:#10b981; color:white; border:none; padding:12px; border-radius:8px;">حفظ</button>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    document.getElementById('payOnlyDate').value = new Date().toISOString().split('T')[0];
-    
-    document.getElementById('payOnlyTreatmentSelect').onchange = function() {
-        let opt = this.options[this.selectedIndex];
-        let div = document.getElementById('payOnlyDetails');
-        if (opt.value) {
-            div.style.display = 'block';
-            div.innerHTML = `<div>🦷 ${opt.getAttribute('data-name')}</div>
-                            <div>💰 التكلفة: ${opt.getAttribute('data-cost')} ريال</div>
-                            <div>💵 مدفوع: ${opt.getAttribute('data-paid')} ريال</div>
-                            <div>⚠️ متبقي: ${opt.getAttribute('data-remaining')} ريال</div>`;
-        } else {
-            div.style.display = 'none';
-        }
-    };
-};
 
-function savePaymentOnlyData2() {
-    let treatmentId = document.getElementById('payOnlyTreatmentSelect').value;
-    if (!treatmentId) {
-        alert('⚠️ اختر معالجة');
+
+            
+// ============================================
+// دوال الدفع والعودة - النسخة النهائية المتكاملة
+// ============================================
+
+// ============ 1. دالة إضافة دفعة (بجانب المعالجة) ============
+window.savePayment = function() {
+    let amount = document.getElementById('payAmount').value;
+    let date = document.getElementById('payDate').value;
+    let note = document.getElementById('payNote').value;
+    
+    if (!amount || parseFloat(amount) <= 0) {
+        alert('⚠️ الرجاء إدخال مبلغ صحيح');
         return;
     }
     
-    let amount = parseFloat(document.getElementById('payOnlyAmount').value);
-    if (isNaN(amount) || amount <= 0) {
-        alert('⚠️ مبلغ صحيح');
-        return;
-    }
+    // 🔍 تشخيص
+    console.log('حفظ دفعة للمعالجة:', window.currentPayTreatmentId);
     
-    let date = document.getElementById('payOnlyDate').value;
-    let note = document.getElementById('payOnlyNote').value;
-    
+    // جلب المعالجات من localStorage
     let treatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
-    let index = treatments.findIndex(t => t._id === treatmentId);
+    console.log('عدد المعالجات في localStorage:', treatments.length);
     
-    if (index === -1) {
-        alert('⚠️ لم يتم العثور على المعالجة');
+    // البحث عن المعالجة (محاولة بطرق مختلفة)
+    let treatmentIndex = -1;
+    for (let i = 0; i < treatments.length; i++) {
+        if (treatments[i]._id === window.currentPayTreatmentId || 
+            treatments[i].id === window.currentPayTreatmentId) {
+            treatmentIndex = i;
+            break;
+        }
+    }
+    
+    if (treatmentIndex === -1) {
+        console.error('لم يتم العثور على المعالجة:', window.currentPayTreatmentId);
+        alert('⚠️ لم يتم العثور على المعالجة. يرجى تحديث الصفحة والمحاولة مرة أخرى');
         return;
     }
     
-    if (!treatments[index].payments) treatments[index].payments = [];
-    treatments[index].payments.push({
+    let treatment = treatments[treatmentIndex];
+    
+    // إضافة الدفعة
+    if (!treatment.payments) treatment.payments = [];
+    treatment.payments.push({
         id: 'pay_' + Date.now(),
-        amount: amount,
-        date: date,
-        note: note
+        amount: parseFloat(amount),
+        date: date || new Date().toISOString().split('T')[0],
+        note: note || '',
+        createdAt: new Date().toISOString()
     });
     
+    // تحديث إجمالي المدفوع
     let totalPaid = 0;
-    for (let p of treatments[index].payments) totalPaid += p.amount;
-    treatments[index].paid = totalPaid;
+    for (let p of treatment.payments) totalPaid += p.amount;
+    treatment.paid = totalPaid;
     
+    // حفظ
+    treatments[treatmentIndex] = treatment;
     localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(treatments));
     
-    let modal = document.getElementById('paymentOnlyModal');
+    // إغلاق المودال
+    let modal = document.getElementById('paymentModal');
     if (modal) modal.remove();
     
-    alert(`✅ تم إضافة دفعة بقيمة ${amount} ريال`);
-    showPatientFullDetails(currentPatientId);
-}
-// ============ دوال العودة (المراجعة) ============
+    alert(`✅ تم إضافة دفعة بقيمة ${amount} ريال بنجاح`);
+    showPatientFullDetails(window.currentPayPatientId);
+};
 
-
+// ============ 2. دالة إضافة عودة (بجانب المعالجة) ============
 function openFollowUpModal(treatmentId, patientId) {
-    currentFollowUpTreatmentId = treatmentId;
-    currentFollowUpPatientId = patientId;
+    console.log('فتح عودة للمعالجة:', treatmentId);
     
-    // جلب المعالجة مباشرة (بدون قائمة اختيار)
+    // جلب المعالجة مباشرة
     let treatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
-    let treatment = treatments.find(t => t._id === treatmentId);
+    console.log('عدد المعالجات:', treatments.length);
+    
+    // البحث باستخدام _id أو id
+    let treatment = null;
+    for (let t of treatments) {
+        if (t._id === treatmentId || t.id === treatmentId) {
+            treatment = t;
+            break;
+        }
+    }
     
     if (!treatment) {
-        alert('لم يتم العثور على المعالجة');
+        console.error('لم يتم العثور على المعالجة:', treatmentId);
+        alert('⚠️ لم يتم العثور على المعالجة. يرجى تحديث الصفحة');
         return;
     }
+    
+    console.log('تم العثور على المعالجة:', treatment);
+    
+    currentFollowUpTreatmentId = treatmentId;
+    currentFollowUpPatientId = patientId;
     
     let remaining = (treatment.cost || 0) - (treatment.paid || 0);
     
@@ -317,7 +239,7 @@ function openFollowUpModal(treatmentId, patientId) {
                         <label>📅 تاريخ العودة</label>
                         <input type="date" id="followUpDateDirect" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px;">
                     </div>
-                    <button onclick="saveFollowUpDirect()" style="width:100%; background:#f59e0b; color:white; border:none; padding:12px; border-radius:8px;">حفظ العودة</button>
+                    <button onclick="saveFollowUpDirect()" style="width:100%; background:#f59e0b; color:white; border:none; padding:12px; border-radius:8px;">💾 حفظ العودة</button>
                 </div>
             </div>
         </div>
@@ -338,7 +260,14 @@ function saveFollowUpDirect() {
     let date = document.getElementById('followUpDateDirect').value;
     
     let treatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
-    let treatmentIndex = treatments.findIndex(t => t._id === currentFollowUpTreatmentId);
+    let treatmentIndex = -1;
+    for (let i = 0; i < treatments.length; i++) {
+        if (treatments[i]._id === currentFollowUpTreatmentId || 
+            treatments[i].id === currentFollowUpTreatmentId) {
+            treatmentIndex = i;
+            break;
+        }
+    }
     
     if (treatmentIndex === -1) {
         alert('⚠️ لم يتم العثور على المعالجة');
@@ -379,7 +308,116 @@ function saveFollowUpDirect() {
     showPatientFullDetails(currentFollowUpPatientId);
 }
 
-            
+// ============ 3. دالة إضافة دفعة من زر تعديل المريض ============
+window.openPaymentOnlyModalFirst = function() {
+    // الحصول على patientId من النافذة المفتوحة
+    let patientId = currentPatientId;
+    
+    if (!patientId) {
+        alert('⚠️ الرجاء فتح ملف مريض أولاً (اضغط على اسم المريض)');
+        return;
+    }
+    
+    let treatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+    let patientTreatments = treatments.filter(t => t.patientId === patientId);
+    
+    console.log('معالجات المريض:', patientTreatments.length);
+    
+    if (patientTreatments.length === 0) {
+        alert('⚠️ لا توجد معالجات مسجلة لهذا المريض');
+        return;
+    }
+    
+    let optionsHtml = '<option value="">-- اختر معالجة --</option>';
+    for (let t of patientTreatments) {
+        let remaining = (t.cost || 0) - (t.paid || 0);
+        optionsHtml += `<option value="${t._id}" data-cost="${t.cost || 0}" data-paid="${t.paid || 0}" data-remaining="${remaining}" data-name="السن ${t.toothNumber} - ${t.treatmentType}">السن ${t.toothNumber} - ${t.treatmentType} (متبقي: ${remaining} ريال)</option>`;
+    }
+    
+    let modalHtml = `
+        <div id="paymentOnlyModal2" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; justify-content:center; align-items:center; z-index:100000;">
+            <div style="background:white; border-radius:20px; max-width:450px; width:90%;">
+                <div style="padding:15px; background:#10b981; color:white; border-radius:20px 20px 0 0; display:flex; justify-content:space-between;">
+                    <h3><i class="fas fa-money-bill-wave"></i> إضافة دفعة لمعالجة سابقة</h3>
+                    <button onclick="document.getElementById('paymentOnlyModal2').remove()" style="background:none; border:none; color:white; font-size:24px;">&times;</button>
+                </div>
+                <div style="padding:20px;">
+                    <select id="payOnlyTreatmentSelect2" style="width:100%; padding:10px; margin-bottom:15px; border:1px solid #ccc; border-radius:8px;">${optionsHtml}</select>
+                    <div id="payOnlyDetails2" style="background:#f1f5f9; padding:12px; border-radius:12px; margin-bottom:15px; display:none;"></div>
+                    <input type="number" id="payOnlyAmount2" placeholder="المبلغ" style="width:100%; padding:10px; margin-bottom:15px; border:1px solid #ccc; border-radius:8px;">
+                    <input type="date" id="payOnlyDate2" style="width:100%; padding:10px; margin-bottom:15px; border:1px solid #ccc; border-radius:8px;">
+                    <textarea id="payOnlyNote2" rows="2" placeholder="ملاحظات" style="width:100%; padding:10px; margin-bottom:15px; border:1px solid #ccc; border-radius:8px;"></textarea>
+                    <button onclick="savePaymentOnlyDataNew()" style="width:100%; background:#10b981; color:white; border:none; padding:12px; border-radius:8px;">💾 حفظ</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    document.getElementById('payOnlyDate2').value = new Date().toISOString().split('T')[0];
+    
+    document.getElementById('payOnlyTreatmentSelect2').onchange = function() {
+        let opt = this.options[this.selectedIndex];
+        let div = document.getElementById('payOnlyDetails2');
+        if (opt.value) {
+            div.style.display = 'block';
+            div.innerHTML = `<div>🦷 ${opt.getAttribute('data-name')}</div>
+                            <div>💰 التكلفة: ${opt.getAttribute('data-cost')} ريال</div>
+                            <div>💵 مدفوع: ${opt.getAttribute('data-paid')} ريال</div>
+                            <div>⚠️ متبقي: ${opt.getAttribute('data-remaining')} ريال</div>`;
+        } else {
+            div.style.display = 'none';
+        }
+    };
+};
+
+function savePaymentOnlyDataNew() {
+    let treatmentId = document.getElementById('payOnlyTreatmentSelect2').value;
+    if (!treatmentId) {
+        alert('⚠️ اختر معالجة');
+        return;
+    }
+    
+    let amount = parseFloat(document.getElementById('payOnlyAmount2').value);
+    if (isNaN(amount) || amount <= 0) {
+        alert('⚠️ الرجاء إدخال مبلغ صحيح');
+        return;
+    }
+    
+    let date = document.getElementById('payOnlyDate2').value;
+    let note = document.getElementById('payOnlyNote2').value;
+    
+    let treatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+    let index = treatments.findIndex(t => t._id === treatmentId);
+    
+    if (index === -1) {
+        alert('⚠️ لم يتم العثور على المعالجة');
+        return;
+    }
+    
+    if (!treatments[index].payments) treatments[index].payments = [];
+    treatments[index].payments.push({
+        id: 'pay_' + Date.now(),
+        amount: amount,
+        date: date,
+        note: note
+    });
+    
+    let totalPaid = 0;
+    for (let p of treatments[index].payments) totalPaid += p.amount;
+    treatments[index].paid = totalPaid;
+    
+    localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(treatments));
+    
+    let modal = document.getElementById('paymentOnlyModal2');
+    if (modal) modal.remove();
+    
+    alert(`✅ تم إضافة دفعة بقيمة ${amount} ريال بنجاح`);
+    showPatientFullDetails(currentPatientId);
+}
+
+console.log('✅ جميع دوال الدفع والعودة جاهزة');
+
 
 // ============ إضافة دفعة لمعالجة سابقة فقط (بدون عودة) ============
 
@@ -2058,43 +2096,51 @@ async function showPatientFullDetails(pid) {
         }
         var isOfflinePatient = (patient.pendingSync === true || patient.offline === true);
         
+        // ✅ جلب المعالجات من localStorage أولاً (بدون انتظار السيرفر)
         var localTreatments = [];
         try {
             localTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+            console.log('📦 المعالجات من localStorage:', localTreatments.length);
         } catch(e) { console.log('Parse error:', e); }
         
+        // ✅ البحث عن معالجات هذا المريض
         var treatments = [];
         for (var i = 0; i < localTreatments.length; i++) {
-            // ✅ البحث بـ patientId أو باسم المريض
             if (localTreatments[i].patientId === pid || localTreatments[i].patientName === patient.name) {
                 treatments.push(localTreatments[i]);
             }
         }
         
+        // ✅ محاولة جلب المعالجات من السيرفر (إذا كان متصلاً) ودمجها
         var serverTreatments = [];
         if (navigator.onLine) {
             try {
                 var r = await fetch('/api/treatments/patient/' + pid);
-                if (r.ok) serverTreatments = await r.json();
+                if (r.ok) {
+                    serverTreatments = await r.json();
+                    console.log('🌐 المعالجات من السيرفر:', serverTreatments.length);
+                    
+                    // دمج معالجات السيرفر مع المحلية (تجنب التكرار)
+                    for (var s = 0; s < serverTreatments.length; s++) {
+                        var exists = false;
+                        for (var l = 0; l < treatments.length; l++) {
+                            if (treatments[l]._id === serverTreatments[s]._id) {
+                                exists = true;
+                                break;
+                            }
+                        }
+                        if (!exists) {
+                            treatments.push(serverTreatments[s]);
+                        }
+                    }
+                }
             } catch (e) { console.log('Fetch treatments error:', e); }
         }
         
-        // دمج المعالجات
-        var allTreatmentsMap = {};
-        for (var i = 0; i < treatments.length; i++) {
-            allTreatmentsMap[treatments[i]._id] = treatments[i];
-        }
-        for (var i = 0; i < serverTreatments.length; i++) {
-            if (!allTreatmentsMap[serverTreatments[i]._id]) {
-                allTreatmentsMap[serverTreatments[i]._id] = serverTreatments[i];
-            }
-        }
+        console.log('📋 إجمالي المعالجات للمريض:', treatments.length);
         
-        var allTreatments = [];
-        for (var key in allTreatmentsMap) {
-            allTreatments.push(allTreatmentsMap[key]);
-        }
-        allTreatments.sort(function(a, b) {
+        // ترتيب المعالجات حسب التاريخ
+        treatments.sort(function(a, b) {
             return new Date(b.treatmentDate) - new Date(a.treatmentDate);
         });
         
@@ -2102,82 +2148,78 @@ async function showPatientFullDetails(pid) {
         var totalPaid = 0;
         var treatmentsHtml = '';
         
+        for (var i = 0; i < treatments.length; i++) {
+            var t = treatments[i];
+            var cost = t.cost || 0;
             
-             
+            // حساب المدفوع
+            var paid = 0;
+            if (t.payments && t.payments.length > 0) {
+                for (var p = 0; p < t.payments.length; p++) {
+                    paid += t.payments[p].amount || 0;
+                }
+            } else if (t.paid) {
+                paid = t.paid;
+            } else if (t.notes && !t.paid) {
+                var match = t.notes.match(/المدفوع:\s*([\d.]+)/);
+                if (match) paid = parseFloat(match[1]);
+            }
             
-
-for (var i = 0; i < allTreatments.length; i++) {
-    var t = allTreatments[i];
-    var cost = t.cost || 0;
-    
-    // حساب المدفوع
-    var paid = 0;
-    if (t.payments && t.payments.length > 0) {
-        for (var p = 0; p < t.payments.length; p++) {
-            paid += t.payments[p].amount || 0;
+            totalCost += cost;
+            totalPaid += paid;
+            var isOffline = (t.offline === true || t.pendingSync === true);
+            var offlineBadge = isOffline ? '<span style="background:#f59e0b; font-size:10px; padding:2px 6px; border-radius:20px; margin-right:8px;">📴 مؤقت</span>' : '';
+            var bgStyle = isOffline ? 'background:#fef3c7;' : '';
+            var remaining = cost - paid;
+            var remainingColor = remaining > 0 ? '#ef4444' : '#10b981';
+            
+            // عرض سجل الدفعات
+            var paymentHistoryHtml = '';
+            if (t.payments && t.payments.length > 0) {
+                paymentHistoryHtml = '<div style="background:#f1f5f9; border-radius:10px; padding:8px; margin-top:8px;">';
+                paymentHistoryHtml += '<div style="font-size:11px; color:#1e40af; font-weight:bold; margin-bottom:5px;"><i class="fas fa-history"></i> سجل الدفعات:</div>';
+                for (var p = 0; p < t.payments.length; p++) {
+                    var pay = t.payments[p];
+                    var payDate = pay.date ? new Date(pay.date).toLocaleDateString('ar-EG') : 'تاريخ غير محدد';
+                    paymentHistoryHtml += '<div style="font-size:11px; padding:3px 0; border-bottom:1px solid #e2e8f0;">';
+                    paymentHistoryHtml += '💵 ' + (pay.amount || 0) + ' ريال - 📅 ' + payDate;
+                    if (pay.note) paymentHistoryHtml += ' - 📝 ' + escapeHtml(pay.note);
+                    paymentHistoryHtml += '</div>';
+                }
+                paymentHistoryHtml += '</div>';
+            }
+            
+            // عرض سجل العوائد
+            var followUpsHtml = '';
+            if (t.followUps && t.followUps.length > 0) {
+                followUpsHtml = '<div style="background:#fef3c7; border-radius:10px; padding:8px; margin-top:8px;">';
+                followUpsHtml += '<div style="font-size:11px; color:#d97706; font-weight:bold; margin-bottom:5px;"><i class="fas fa-undo-alt"></i> سجل العوائد:</div>';
+                for (var f = 0; f < t.followUps.length; f++) {
+                    var fu = t.followUps[f];
+                    var fuDate = fu.date ? new Date(fu.date).toLocaleDateString('ar-EG') : 'تاريخ غير محدد';
+                    followUpsHtml += '<div style="font-size:11px; padding:3px 0; border-bottom:1px solid #fde68a;">';
+                    followUpsHtml += '📅 ' + fuDate + ': ' + escapeHtml(fu.notes.substring(0, 50));
+                    if (fu.amountPaid > 0) followUpsHtml += ' | 💵 دفع: ' + fu.amountPaid + ' ريال';
+                    followUpsHtml += '</div>';
+                }
+                followUpsHtml += '</div>';
+            }
+            
+            // الأزرار
+            var addPaymentBtn = '<button class="add-payment-btn" onclick="event.stopPropagation(); showAddPaymentModal(\'' + t._id + '\', \'' + pid + '\')" style="background:#10b981; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px;"><i class="fas fa-plus-circle"></i> إضافة دفعة</button>';
+            var addFollowUpBtn = '<button class="add-followup-btn" onclick="event.stopPropagation(); openFollowUpModal(\'' + t._id + '\', \'' + pid + '\')" style="background:#f59e0b; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px; margin-right:5px;"><i class="fas fa-undo-alt"></i> إضافة عودة</button>';
+            
+            treatmentsHtml += '<div style="padding:12px; border-bottom:1px solid #e2e8f0; ' + bgStyle + '">';
+            treatmentsHtml += '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">';
+            treatmentsHtml += '<div><strong>🦷 السن ' + t.toothNumber + '</strong> - ' + t.treatmentType + offlineBadge + '</div>';
+            treatmentsHtml += '<div style="font-size:11px; color:#64748b;">📅 ' + new Date(t.treatmentDate).toLocaleDateString('ar-EG') + '</div>';
+            treatmentsHtml += '</div>';
+            treatmentsHtml += '<div style="margin-top:5px;"><span style="font-size:13px;">💰 ' + cost + ' ريال</span> | <span style="color:#10b981; font-size:13px;">💵 ' + paid + ' ريال</span> | <span style="color:' + remainingColor + '; font-size:13px;">⚠️ ' + remaining + ' ريال</span></div>';
+            treatmentsHtml += paymentHistoryHtml;
+            treatmentsHtml += followUpsHtml;
+            treatmentsHtml += '<div style="display:flex; gap:5px; flex-wrap:wrap; margin-top:8px;">' + addPaymentBtn + addFollowUpBtn + '</div>';
+            treatmentsHtml += '</div>';
         }
-    } else if (t.paid) {
-        paid = t.paid;
-    } else if (t.notes && !t.paid) {
-        var match = t.notes.match(/المدفوع:\s*([\d.]+)/);
-        if (match) paid = parseFloat(match[1]);
-    }
-    
-    totalCost += cost;
-    totalPaid += paid;
-    var isOffline = (t.offline === true || t.pendingSync === true);
-    var offlineBadge = isOffline ? '<span style="background:#f59e0b; font-size:10px; padding:2px 6px; border-radius:20px; margin-right:8px;">📴 مؤقت</span>' : '';
-    var bgStyle = isOffline ? 'background:#fef3c7;' : '';
-    var remaining = cost - paid;
-    var remainingColor = remaining > 0 ? '#ef4444' : '#10b981';
-    
-    // عرض سجل الدفعات
-    var paymentHistoryHtml = '';
-    if (t.payments && t.payments.length > 0) {
-        paymentHistoryHtml = '<div style="background:#f1f5f9; border-radius:10px; padding:8px; margin-top:8px;">';
-        paymentHistoryHtml += '<div style="font-size:11px; color:#1e40af; font-weight:bold; margin-bottom:5px;"><i class="fas fa-history"></i> سجل الدفعات:</div>';
-        for (var p = 0; p < t.payments.length; p++) {
-            var pay = t.payments[p];
-            var payDate = pay.date ? new Date(pay.date).toLocaleDateString('ar-EG') : 'تاريخ غير محدد';
-            paymentHistoryHtml += '<div style="font-size:11px; padding:3px 0; border-bottom:1px solid #e2e8f0;">';
-            paymentHistoryHtml += '💵 ' + (pay.amount || 0) + ' ريال - 📅 ' + payDate;
-            if (pay.note) paymentHistoryHtml += ' - 📝 ' + escapeHtml(pay.note);
-            paymentHistoryHtml += '</div>';
-        }
-        paymentHistoryHtml += '</div>';
-    }
-    
-    // عرض سجل العوائد
-    var followUpsHtml = '';
-    if (t.followUps && t.followUps.length > 0) {
-        followUpsHtml = '<div style="background:#fef3c7; border-radius:10px; padding:8px; margin-top:8px;">';
-        followUpsHtml += '<div style="font-size:11px; color:#d97706; font-weight:bold; margin-bottom:5px;"><i class="fas fa-undo-alt"></i> سجل العوائد:</div>';
-        for (var f = 0; f < t.followUps.length; f++) {
-            var fu = t.followUps[f];
-            var fuDate = fu.date ? new Date(fu.date).toLocaleDateString('ar-EG') : 'تاريخ غير محدد';
-            followUpsHtml += '<div style="font-size:11px; padding:3px 0; border-bottom:1px solid #fde68a;">';
-            followUpsHtml += '📅 ' + fuDate + ': ' + escapeHtml(fu.notes.substring(0, 50));
-            if (fu.amountPaid > 0) followUpsHtml += ' | 💵 دفع: ' + fu.amountPaid + ' ريال';
-            followUpsHtml += '</div>';
-        }
-        followUpsHtml += '</div>';
-    }
-    
-    // الأزرار
-    var addPaymentBtn = '<button class="add-payment-btn" onclick="event.stopPropagation(); showAddPaymentModal(\'' + t._id + '\', \'' + pid + '\')" style="background:#10b981; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px;"><i class="fas fa-plus-circle"></i> إضافة دفعة</button>';
-    var addFollowUpBtn = '<button class="add-followup-btn" onclick="event.stopPropagation(); openFollowUpModal(\'' + t._id + '\', \'' + pid + '\')" style="background:#f59e0b; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px; margin-right:5px;"><i class="fas fa-undo-alt"></i> إضافة عودة</button>';
-    
-    treatmentsHtml += '<div style="padding:12px; border-bottom:1px solid #e2e8f0; ' + bgStyle + '">';
-    treatmentsHtml += '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">';
-    treatmentsHtml += '<div><strong>🦷 السن ' + t.toothNumber + '</strong> - ' + t.treatmentType + offlineBadge + '</div>';
-    treatmentsHtml += '<div style="font-size:11px; color:#64748b;">📅 ' + new Date(t.treatmentDate).toLocaleDateString('ar-EG') + '</div>';
-    treatmentsHtml += '</div>';
-    treatmentsHtml += '<div style="margin-top:5px;"><span style="font-size:13px;">💰 ' + cost + ' ريال</span> | <span style="color:#10b981; font-size:13px;">💵 ' + paid + ' ريال</span> | <span style="color:' + remainingColor + '; font-size:13px;">⚠️ ' + remaining + ' ريال</span></div>';
-    treatmentsHtml += paymentHistoryHtml;
-    treatmentsHtml += followUpsHtml;
-    treatmentsHtml += '<div style="display:flex; gap:5px; flex-wrap:wrap; margin-top:8px;">' + addPaymentBtn + addFollowUpBtn + '</div>';
-    treatmentsHtml += '</div>';
-}
         
         var remaining = totalCost - totalPaid;
         var remainingColor = remaining > 0 ? '#ef4444' : '#10b981';
@@ -2190,7 +2232,7 @@ for (var i = 0; i < allTreatments.length; i++) {
         modalHtml += '<p><strong>📅 العمر:</strong> ' + patient.age + ' سنة</p>';
         modalHtml += '<p><strong>📍 العنوان:</strong> ' + escapeHtml(patient.address || 'غير محدد') + '</p>';
         modalHtml += '</div>';
-        modalHtml += '<h4>🦷 سجل المعالجات (' + allTreatments.length + ')</h4>';
+        modalHtml += '<h4>🦷 سجل المعالجات (' + treatments.length + ')</h4>';
         modalHtml += '<div style="max-height:300px; overflow-y:auto; margin-bottom:20px;">' + (treatmentsHtml || '<p style="text-align:center;padding:20px;">لا توجد معالجات مسجلة</p>') + '</div>';
         modalHtml += '<div style="background:#e0f2fe; padding:15px; border-radius:15px; margin-bottom:20px;">';
         modalHtml += '<p><strong>💰 إجمالي التكلفة:</strong> ' + totalCost + ' ريال</p>';
@@ -2198,11 +2240,11 @@ for (var i = 0; i < allTreatments.length; i++) {
         modalHtml += '<p><strong style="color:' + remainingColor + ';">⚠️ المتبقي:</strong> ' + remaining + ' ريال</p>';
         modalHtml += '</div>';
         modalHtml += '<div style="display:flex; gap:10px; flex-wrap:wrap;">';
-modalHtml += '<button class="btn" onclick="closeModal(\'patientDetailsModal\'); editPatient(\'' + patient._id + '\')" style="flex:1;">تعديل</button>';
-modalHtml += '<button class="btn btn-success" onclick="openPaymentOnlyModalFirst()" style="background:#10b981; flex:1;"><i class="fas fa-money-bill-wave"></i> إضافة دفعة</button>';
-modalHtml += '<button class="btn btn-secondary" onclick="closeModal(\'patientDetailsModal\'); showTreatmentModal(\'' + patient._id + '\')" style="flex:1;">إضافة معالجة</button>';
-modalHtml += '<button class="btn btn-whatsapp" onclick="sharePatientWithoutImages(\'' + patient._id + '\')" style="flex:1;"><i class="fab fa-whatsapp"></i> مشاركة</button>';
-modalHtml += '</div></div></div>';
+        modalHtml += '<button class="btn" onclick="closeModal(\'patientDetailsModal\'); editPatient(\'' + patient._id + '\')" style="flex:1;">تعديل</button>';
+        modalHtml += '<button class="btn btn-success" onclick="openPaymentOnlyModalFirst()" style="background:#10b981; flex:1;"><i class="fas fa-money-bill-wave"></i> إضافة دفعة</button>';
+        modalHtml += '<button class="btn btn-secondary" onclick="closeModal(\'patientDetailsModal\'); showTreatmentModal(\'' + patient._id + '\')" style="flex:1;">إضافة معالجة</button>';
+        modalHtml += '<button class="btn btn-whatsapp" onclick="sharePatientWithoutImages(\'' + patient._id + '\')" style="flex:1;"><i class="fab fa-whatsapp"></i> مشاركة</button>';
+        modalHtml += '</div></div></div>';
         
         var modal = document.getElementById('patientDetailsModal');
         if (!modal) {
@@ -2219,6 +2261,9 @@ modalHtml += '</div></div></div>';
         showAlert('dashboardAlert', 'خطأ في جلب بيانات المريض', 'error');
     }
 }
+    
+        
+
 // ============ صفحة الادمن ============
 async function loadAdminUsers() {
     try {
