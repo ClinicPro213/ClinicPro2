@@ -3125,6 +3125,11 @@ function closePaymentModal() {
 
 // إضافة دفعة جديدة لمعالجة محددة
 async function addPaymentToTreatment() {
+    // ✅ أضف هذا السطر
+    if (!currentUser) {
+        showAlert('dashboardAlert', '⚠️ يرجى تسجيل الدخول أولاً', 'error');
+        return;
+    }
     let amount = parseFloat(document.getElementById('paymentAmount').value);
     if (isNaN(amount) || amount <= 0) {
         showAlert('dashboardAlert', '⚠️ الرجاء إدخال مبلغ صحيح', 'error');
