@@ -2826,7 +2826,7 @@ async function loadDashboard() {
                     document.getElementById('totalPatients').textContent = allPatients.length;
                     saveAllDataToLocal();
                     
-await syncTreatmentsToLocal();
+ syncTreatmentsToLocal();
                 }
                 if (typeof syncPatientImagesToServer === 'function') await syncPatientImagesToServer();
             } catch (e) {
@@ -3188,7 +3188,7 @@ async function clearOldCaches() {
 window.addEventListener('online', function() {
     console.log('🔄 Connection restored');
     // في دالة syncAllDataWithServer، بعد تحميل المرضى
-await syncTreatmentsToLocal();
+ syncTreatmentsToLocal();
     var offlineDiv = document.getElementById('offlineNotification');
     if (offlineDiv) offlineDiv.remove();
     if (typeof syncAllDataWithServer === 'function') syncAllDataWithServer();
@@ -3279,7 +3279,7 @@ window.syncAllDataWithServer = async function() {
             document.getElementById('totalPatients').textContent = allPatients.length;
             saveAllDataToLocal();
             
-await syncTreatmentsToLocal();
+ syncTreatmentsToLocal();
         }
     } catch (e) {
         console.log('⚠️ خطأ في تحديث المرضى:', e);
@@ -3736,7 +3736,7 @@ window.addEventListener('online', async function() {
     await new Promise(resolve => setTimeout(resolve, 2000));
     
     // المزامنة التلقائية
-    await syncAllDataWithServer();
+     syncAllDataWithServer();
     
     // تحديث واجهة المريض الحالية إذا كانت مفتوحة
     if (currentPatientId) {
