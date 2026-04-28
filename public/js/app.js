@@ -3836,28 +3836,27 @@ window.openFollowUpModal = function(treatmentId, patientId) {
     document.getElementById('followUpDate').value = new Date().toISOString().split('T')[0];
 };
 
-// حفظ بيانات العودة - الملاحظات اختيارية
+
+    // حفظ بيانات العودة - مع إضافة المبلغ إلى سجل الدفعات
 window.saveFollowUpData = function() {
-    // محاولة الحصول على الملاحظات من المعرف الصحيح
+    console.log('بدء حفظ العودة...');
+    
+    // محاولة الحصول على البيانات من المعرفات الصحيحة
     let notesInput = document.getElementById('followUpNotes');
     if (!notesInput) notesInput = document.getElementById('followUpNotesDirect');
-    
     let notesValue = notesInput ? notesInput.value : '';
-    // ✅ تم إزالة التحقق الإجباري للملاحظات
     
-    // محاولة الحصول على المبلغ
     let amountInput = document.getElementById('followUpAmount');
     if (!amountInput) amountInput = document.getElementById('followUpAmountDirect');
     let amount = amountInput ? parseFloat(amountInput.value) || 0 : 0;
     
-    // محاولة الحصول على التاريخ
     let dateInput = document.getElementById('followUpDate');
     if (!dateInput) dateInput = document.getElementById('followUpDateDirect');
     let date = dateInput ? dateInput.value : new Date().toISOString().split('T')[0];
     
-    console.log('حفظ العودة:', { notesValue, amount, date });
+    console.log('بيانات العودة:', { notesValue, amount, date });
     
-    // جلب المعالجات من localStorage
+    // جلب المعالجات
     let treatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
     let treatmentIndex = treatments.findIndex(t => t._id === currentFollowUpTreatmentId);
     
@@ -3868,7 +3867,7 @@ window.saveFollowUpData = function() {
     
     let treatment = treatments[treatmentIndex];
     
-    // إضافة سجل العودة
+    // 1. إضافة سجل العودة
     if (!treatment.followUps) treatment.followUps = [];
     treatment.followUps.push({
         id: 'fu_' + Date.now(),
@@ -3878,41 +3877,41 @@ window.saveFollowUpData = function() {
         createdAt: new Date().toISOString()
     });
     
-    // إذا تم دفع مبلغ، أضفه كدفعة أيضاً
+    // 2. ✅ إذا تم دفع مبلغ، أضفه إلى سجل الدفعات
     if (amount > 0) {
         if (!treatment.payments) treatment.payments = [];
         treatment.payments.push({
-            id: 'pay_' + Date.now(),
+            id: 'pay_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
             amount: amount,
             date: date,
-            note: 'دفعة من عودة' + (notesValue ? ': ' + notesValue.substring(0, 50) : ''),
+            note: 'دفعة من عودة: ' + (notesValue ? notesValue.substring(0, 50) : 'بدون ملاحظات'),
             fromFollowUp: true,
             createdAt: new Date().toISOString()
         });
         
-        // تحديث إجمالي المدفوع
+        // تحديث إجمالي المدفوع في المعالجة
         let totalPaid = 0;
         for (let p of treatment.payments) totalPaid += p.amount;
         treatment.paid = totalPaid;
-        console.log('تم إضافة دفعة بمبلغ:', amount, 'الإجمالي الجديد:', totalPaid);
+        
+        console.log('✅ تم إضافة دفعة بقيمة', amount, 'الإجمالي الجديد:', totalPaid);
     }
     
-    // حفظ المعالجة المحدثة
+    // حفظ التغييرات
     treatments[treatmentIndex] = treatment;
     localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(treatments));
     
-    // إغلاق المودال (كلا النسختين)
-    let modal1 = document.getElementById('followUpModal');
-    if (modal1) modal1.remove();
-    let modal2 = document.getElementById('followUpModalDirect');
-    if (modal2) modal2.remove();
+    // إغلاق المودال
+    let modal = document.getElementById('followUpModal');
+    if (modal) modal.remove();
+    modal = document.getElementById('followUpModalDirect');
+    if (modal) modal.remove();
     
-    alert('✅ تم إضافة العودة بنجاح');
+    alert('✅ تم إضافة العودة والدفعة بنجاح');
     
-    // تحديث عرض تفاصيل المريض
+    // تحديث العرض
     showPatientFullDetails(currentFollowUpPatientId);
 };
-
 
 
 // ============================================
