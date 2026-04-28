@@ -114,6 +114,52 @@ app.use((req, res, next) => {
     next();
 });
 
+// ============ API للعوائد (Follow-ups) ============
+
+const FollowUpSchema = new mongoose.Schema({
+    treatmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Treatment', required: true },
+    patientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Patient', required: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    notes: { type: String, required: true },
+    amountPaid: { type: Number, default: 0 },
+    date: { type: Date, default: Date.now },
+    createdAt: { type: Date, default: Date.now }
+});
+
+const FollowUp = mongoose.model('FollowUp', FollowUpSchema);
+
+// إضافة عودة جديدة
+app.post('/api/followups', async (req, res) => {
+    try {
+        const { treatmentId, patientId, userId, notes, amountPaid, date } = req.body;
+        
+        const followUp = new FollowUp({
+            treatmentId, patientId, userId, notes, amountPaid, date
+        });
+        
+        await followUp.save();
+        
+        // تحديث المعالجة بإضافة العودة
+        await Treatment.findByIdAndUpdate(treatmentId, {
+            $push: { followUps: followUp._id }
+        });
+        
+        res.status(201).json({ success: true, followUp });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// جلب عوائد معالجة معينة
+app.get('/api/followups/treatment/:treatmentId', async (req, res) => {
+    try {
+        const followUps = await FollowUp.find({ treatmentId: req.params.treatmentId }).sort({ date: -1 });
+        res.json({ success: true, followUps });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 // أضف هذا التعبير المنتظم في بداية الملف (بعد الـ requires)
 const usernameRegex = /^[a-zA-Z0-9]+$/;
 
