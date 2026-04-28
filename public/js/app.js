@@ -3839,10 +3839,7 @@ window.openFollowUpModal = function(treatmentId, patientId) {
 // حفظ بيانات العودة
 window.saveFollowUpData = function() {
     let notes = document.getElementById('followUpNotes').value;
-    if (!notes.trim()) {
-        alert('⚠️ الرجاء إدخال ملاحظات عن العودة');
-        return;
-    }
+    
     
     let amount = parseFloat(document.getElementById('followUpAmount').value) || 0;
     let date = document.getElementById('followUpDate').value;
