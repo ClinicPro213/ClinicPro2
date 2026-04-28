@@ -1,5 +1,40 @@
 
 
+// تعريف الدوال في النطاق العام
+window.showAddPaymentModal = function(treatmentId, patientId) {
+    console.log('✅ showAddPaymentModal تم استدعاؤها', treatmentId, patientId);
+    alert('تم الضغط على زر الدفع!');
+    
+    // كود النافذة المنبثقة
+    let modalHtml = `
+        <div id="paymentModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; justify-content:center; align-items:center; z-index:99999;">
+            <div style="background:white; border-radius:20px; max-width:400px; width:90%;">
+                <div style="padding:15px; background:#1e40af; color:white; border-radius:20px 20px 0 0; display:flex; justify-content:space-between;">
+                    <h3>إضافة دفعة جديدة</h3>
+                    <button onclick="document.getElementById('paymentModal').remove()" style="background:none; border:none; color:white; font-size:24px;">&times;</button>
+                </div>
+                <div style="padding:20px;">
+                    <input type="number" id="payAmount" placeholder="المبلغ" style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ccc; border-radius:8px;">
+                    <input type="date" id="payDate" style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ccc; border-radius:8px;">
+                    <textarea id="payNote" rows="2" placeholder="ملاحظات" style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ccc; border-radius:8px;"></textarea>
+                    <button onclick="window.savePayment()" style="width:100%; background:#10b981; color:white; padding:10px; border:none; border-radius:8px;">حفظ الدفعة</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    document.getElementById('payDate').value = new Date().toISOString().split('T')[0];
+    
+    window.currentPayTreatmentId = treatmentId;
+    window.currentPayPatientId = patientId;
+};
+
+window.savePayment = function() {
+    let amount = document.getElementById('payAmount').value;
+    alert('تم حفظ دفعة بقيمة: ' + amount);
+    document.getElementById('paymentModal').remove();
+    location.reload();
+};
 // ============ كشف الأخطاء (مبسط لـ iOS) ============
 window.onerror = function(message, source, lineno, colno, error) {
     console.error('Error:', message, source, lineno, colno, error);
