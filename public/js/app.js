@@ -2825,7 +2825,7 @@ async function loadDashboard() {
                     renderPatients(allPatients);
                     document.getElementById('totalPatients').textContent = allPatients.length;
                     saveAllDataToLocal();
-                    // في دالة syncAllDataWithServer، بعد تحميل المرضى
+                    
 await syncTreatmentsToLocal();
                 }
                 if (typeof syncPatientImagesToServer === 'function') await syncPatientImagesToServer();
@@ -3278,7 +3278,7 @@ window.syncAllDataWithServer = async function() {
             renderPatients(allPatients);
             document.getElementById('totalPatients').textContent = allPatients.length;
             saveAllDataToLocal();
-            // في دالة syncAllDataWithServer، بعد تحميل المرضى
+            
 await syncTreatmentsToLocal();
         }
     } catch (e) {
