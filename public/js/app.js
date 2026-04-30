@@ -258,7 +258,7 @@ function openFollowUpModal(treatmentId, patientId) {
     if (dateField && !dateField.value) {
         dateField.value = today;
     }
-}
+
 function saveFollowUpDirect() {
     console.log('=== بدء حفظ العودة ===');
     console.log('treatmentId للمعالجة:', currentFollowUpTreatmentId);
