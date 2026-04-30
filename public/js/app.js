@@ -249,64 +249,7 @@ function openFollowUpModal(treatmentId, patientId) {
     document.getElementById('followUpDateDirect').value = new Date().toISOString().split('T')[0];
 }
 
-function saveFollowUpDirect() {
-    let notes = document.getElementById('followUpNotesDirect').value;
-    if (!notes.trim()) {
-        alert('⚠️ الرجاء إدخال ملاحظات عن العودة');
-        return;
-    }
-    
-    let amount = parseFloat(document.getElementById('followUpAmountDirect').value) || 0;
-    let date = document.getElementById('followUpDateDirect').value;
-    
-    let treatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
-    let treatmentIndex = -1;
-    for (let i = 0; i < treatments.length; i++) {
-        if (treatments[i]._id === currentFollowUpTreatmentId || 
-            treatments[i].id === currentFollowUpTreatmentId) {
-            treatmentIndex = i;
-            break;
-        }
-    }
-    
-    if (treatmentIndex === -1) {
-        alert('⚠️ لم يتم العثور على المعالجة');
-        return;
-    }
-    
-    let treatment = treatments[treatmentIndex];
-    
-    if (!treatment.followUps) treatment.followUps = [];
-    treatment.followUps.push({
-        id: 'fu_' + Date.now(),
-        date: date,
-        notes: notes,
-        amountPaid: amount
-    });
-    
-    if (amount > 0) {
-        if (!treatment.payments) treatment.payments = [];
-        treatment.payments.push({
-            id: 'pay_' + Date.now(),
-            amount: amount,
-            date: date,
-            note: 'دفعة من عودة: ' + notes.substring(0, 50)
-        });
-        
-        let totalPaid = 0;
-        for (let p of treatment.payments) totalPaid += p.amount;
-        treatment.paid = totalPaid;
-    }
-    
-    treatments[treatmentIndex] = treatment;
-    localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(treatments));
-    
-    let modal = document.getElementById('followUpModalDirect');
-    if (modal) modal.remove();
-    
-    alert('✅ تم إضافة العودة بنجاح');
-    showPatientFullDetails(currentFollowUpPatientId);
-}
+
 
 // ============ 3. دالة إضافة دفعة من زر تعديل المريض ============
 window.openPaymentOnlyModalFirst = function() {
