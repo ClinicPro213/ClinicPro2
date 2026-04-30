@@ -2522,20 +2522,7 @@ async function loadAdminUsers() {
     } catch (e) { console.log('Load admin users error:', e); }
 }
 
-function renderAdminUsers(users) {
-    var c = document.getElementById('adminUsersList');
-    if (!c) return;
-    if (!users || !users.length) {
-        c.innerHTML = '<div style="padding:50px">لا يوجد مستخدمين</div>';
-        return;
-    }
-    var html = '';
-    for (var i = 0; i < users.length; i++) {
-        var u = users[i];
-        html += '<div class="patient-card"><div class="patient-header"><h3>' + escapeHtml(u.fullName) + '</h3><div class="patient-actions"><button onclick="toggleUserSubscription(\'' + u._id + '\',' + (!u.isSubscribed) + ')" style="background:' + (u.isSubscribed ? '#ef4444' : '#10b981') + '">' + (u.isSubscribed ? 'تعطيل' : 'تفعيل') + '</button></div></div><div class="patient-body"><p>@' + u.username + '</p><p>' + u.clinicName + '</p><p>المرضى: ' + (u.patientCount || 0) + '</p><p>الحالة: ' + (u.isSubscribed ? '✅ مشترك' : '📊 مجاني') + '</p></div></div>';
-    }
-    c.innerHTML = html;
-}
+
 
 async function loadAllPatients() {
     try {
@@ -2568,14 +2555,7 @@ async function showAdminPatientDetails(pid) {
     } catch (e) { console.log('Show admin patient error:', e); }
 }
 
-async function toggleUserSubscription(uid, act) {
-    await fetch('/api/admin/users/' + uid + '/subscription', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isSubscribed: act })
-    });
-    await loadAdminUsers();
-}
+
 
 function searchAdminUsers() {
     var q = document.getElementById('adminUserSearch').value.toLowerCase();
