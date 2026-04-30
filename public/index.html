@@ -278,10 +278,7 @@
     
                 
                 
-                
-                
-
-     <!-- Subscription Page - نظام اشتراكات جديد -->
+                   <!-- Subscription Page - نظام اشتراكات جديد -->
 <div id="subscriptionPage" class="dashboard" style="display: none;">
     <div class="navbar">
         <div class="logo">
@@ -329,13 +326,15 @@
             </div>
 
             <!-- باقة دكتور طالب -->
-            <div class="plan-card popular">
+            <div class="plan-card popular" id="planStudent">
                 <div class="plan-badge"><i class="fas fa-star"></i> الأكثر طلباً</div>
                 <div class="plan-header">
                     <div class="plan-icon"><i class="fas fa-user-graduate"></i></div>
                     <h3>دكتور طالب</h3>
-                    <div class="plan-price"><span class="amount">3,000</span> <span class="period">ريال/شهر</span></div>
-                    <div class="plan-price" style="margin-top:5px"><span class="amount">30,000</span> <span class="period">ريال/سنة</span></div>
+                    <div class="plan-prices">
+                        <button class="duration-btn" onclick="selectPlanWithDuration('student', 'monthly')">شهرياً 3,000 ريال</button>
+                        <button class="duration-btn" onclick="selectPlanWithDuration('student', 'yearly')">سنوياً 30,000 ريال</button>
+                    </div>
                 </div>
                 <div class="plan-features">
                     <div class="plan-feature"><i class="fas fa-check-circle"></i> <span><strong>غير محدود</strong> من المرضى</span></div>
@@ -346,18 +345,17 @@
                     <div class="plan-feature"><i class="fas fa-times-circle"></i> <span>❌ لا تظهر أزرار إضافة عودة ودفعة</span></div>
                     <div class="plan-feature"><i class="fas fa-check-circle"></i> <span>دعم فني أساسي</span></div>
                 </div>
-                <div class="plan-footer">
-                    <button class="plan-btn plan-btn-popular" onclick="selectSubscriptionPlan('student')">اختر الباقة</button>
-                </div>
             </div>
 
             <!-- باقة دكتور عيادة -->
-            <div class="plan-card">
+            <div class="plan-card" id="planClinic">
                 <div class="plan-header">
                     <div class="plan-icon"><i class="fas fa-hospital-user"></i></div>
                     <h3>دكتور عيادة</h3>
-                    <div class="plan-price"><span class="amount">5,000</span> <span class="period">ريال/شهر</span></div>
-                    <div class="plan-price" style="margin-top:5px"><span class="amount">50,000</span> <span class="period">ريال/سنة</span></div>
+                    <div class="plan-prices">
+                        <button class="duration-btn" onclick="selectPlanWithDuration('clinic', 'monthly')">شهرياً 5,000 ريال</button>
+                        <button class="duration-btn" onclick="selectPlanWithDuration('clinic', 'yearly')">سنوياً 50,000 ريال</button>
+                    </div>
                 </div>
                 <div class="plan-features">
                     <div class="plan-feature"><i class="fas fa-check-circle"></i> <span><strong>غير محدود</strong> من المرضى</span></div>
@@ -368,65 +366,66 @@
                     <div class="plan-feature"><i class="fas fa-check-circle"></i> <span>➕ إضافة عوائد ودفعات</span></div>
                     <div class="plan-feature"><i class="fas fa-check-circle"></i> <span>دعم فني أولوية 24/7</span></div>
                 </div>
-                <div class="plan-footer">
-                    <button class="plan-btn plan-btn-primary" onclick="selectSubscriptionPlan('clinic')">اختر الباقة</button>
-                </div>
             </div>
         </div>
 
-        <!-- طرق الدفع -->
-<!-- طريقة الدفع الجديدة - بدون رفع صورة -->
-<div id="paymentUploadSection" class="payment-section" style="margin-top:20px; display:none;">
-    <h3><i class="fas fa-credit-card"></i> تأكيد عملية الدفع</h3>
-    <p>يرجى اختيار طريقة الدفع المناسبة</p>
-    
-    <div style="display:flex; gap:15px; flex-wrap:wrap; margin-bottom:20px;">
-        <button class="payment-select-btn" onclick="selectPaymentMethod('whatsapp')" id="whatsappPayBtn" style="flex:1; background:#25d366; color:white; border:none; padding:15px; border-radius:12px; cursor:pointer;">
-            <i class="fab fa-whatsapp"></i> دفع عبر واتساب
-        </button>
-        <button class="payment-select-btn" onclick="selectPaymentMethod('telegram')" id="telegramPayBtn" style="flex:1; background:#0088cc; color:white; border:none; padding:15px; border-radius:12px; cursor:pointer;">
-            <i class="fab fa-telegram"></i> دفع عبر تيليجرام
-        </button>
-    </div>
-    
-    <div id="paymentDetails" style="display:none;">
-        <!-- أرقام الدفع -->
-        <div style="background:#f8fafc; padding:15px; border-radius:12px; margin-bottom:15px;">
-            <h4><i class="fas fa-money-bill-wave"></i> أرقام التحويل:</h4>
-            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
-                <div style="background:white; padding:10px; border-radius:8px; flex:1;">
-                    <strong>جيب / محفظة كاش</strong><br>
-                    <span style="font-size:18px; direction:ltr; display:inline-block;">773 041 464</span>
-                    <button onclick="copyToClipboard('773041464', 'جيب')" style="background:#0f766e; color:white; border:none; padding:5px 10px; border-radius:5px; margin-top:5px; cursor:pointer;">نسخ</button>
+        <!-- قسم معلومات الدفع - يظهر بعد اختيار الباقة -->
+        <div id="paymentInfoSection" style="display:none;">
+            <!-- أرقام الدفع -->
+            <div class="payment-section" style="margin-top:30px;">
+                <h3><i class="fas fa-money-bill-wave"></i> طرق الدفع المتاحة</h3>
+                <p>اختر طريقة الدفع المناسبة لك</p>
+                
+                <div class="payment-methods-grid">
+                    <div class="payment-method-card" onclick="copyToClipboard('773041464', 'جيب / محفظة كاش')">
+                        <div class="payment-icon"><i class="fas fa-money-bill-wave"></i></div>
+                        <h4>جيب / محفظة كاش</h4>
+                        <div class="payment-number">773 041 464</div>
+                        <div class="payment-copy-hint"><i class="fas fa-copy"></i> انقر لنسخ الرقم</div>
+                    </div>
+                    <div class="payment-method-card" onclick="copyToClipboard('3015418876', 'كريمي')">
+                        <div class="payment-icon"><i class="fas fa-university"></i></div>
+                        <h4>كريمي</h4>
+                        <div class="payment-number">301 541 8876</div>
+                        <div class="payment-copy-hint"><i class="fas fa-copy"></i> انقر لنسخ الرقم</div>
+                    </div>
                 </div>
-                <div style="background:white; padding:10px; border-radius:8px; flex:1;">
-                    <strong>كريمي</strong><br>
-                    <span style="font-size:18px; direction:ltr; display:inline-block;">301 541 8876</span>
-                    <button onclick="copyToClipboard('3015418876', 'كريمي')" style="background:#0f766e; color:white; border:none; padding:5px 10px; border-radius:5px; margin-top:5px; cursor:pointer;">نسخ</button>
+            </div>
+
+            <!-- تفاصيل الاشتراك المختار -->
+            <div id="selectedPlanDetails" class="payment-section" style="margin-top:20px; background:#e0f2fe;">
+                <h3><i class="fas fa-check-circle"></i> تفاصيل اشتراكك</h3>
+                <div id="selectedPlanInfo" style="padding:10px 0;"></div>
+            </div>
+
+            <!-- أزرار التواصل -->
+            <div class="payment-section" style="margin-top:20px;">
+                <h3><i class="fas fa-headset"></i> تأكيد الدفع وإرسال الإيصال</h3>
+                <p>بعد التحويل، اضغط على أحد الأزرار أدناه لإرسال إيصال الدفع</p>
+                
+                <div style="display:flex; gap:15px; flex-wrap:wrap; margin-top:20px;">
+                    <button class="submit-payment-btn whatsapp-payment" onclick="sendSubscriptionRequestViaWhatsApp()" style="flex:1;">
+                        <i class="fab fa-whatsapp"></i> إرسال عبر واتساب
+                    </button>
+                    <button class="submit-payment-btn telegram-payment" onclick="sendSubscriptionRequestViaTelegram()" style="flex:1;">
+                        <i class="fab fa-telegram"></i> إرسال عبر تيليجرام
+                    </button>
+                </div>
+                
+                <div style="margin-top:15px; padding:12px; background:#fef3c7; border-radius:8px; text-align:center;">
+                    <i class="fas fa-info-circle"></i> 
+                    <strong>ملاحظة:</strong> سيتم فتح محادثة مع الدعم. يرجى إرسال صورة الإيداع مع ذكر اسم المستخدم: <strong id="userNameDisplayForPayment"></strong>
                 </div>
             </div>
         </div>
-        
-        <div style="margin-bottom:15px;">
-            <label style="display:block; margin-bottom:8px;">📝 ملاحظات (رقم العملية، تاريخ التحويل)</label>
-            <textarea id="paymentNotes" rows="2" placeholder="مثال: رقم العملية: 123456، تاريخ التحويل: 15/1/2024" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px;"></textarea>
-        </div>
-        
-        <button class="btn" onclick="sendPaymentRequest()" style="width:100%; background:#10b981;">
-            <i class="fab fa-whatsapp"></i> إرسال طلب الاشتراك
-        </button>
-        
-        <div style="margin-top:15px; padding:12px; background:#fef3c7; border-radius:8px; text-align:center;">
-            <i class="fas fa-info-circle"></i> 
-            <strong>ملاحظة:</strong> بعد التحويل، سيتم فتح محادثة واتساب. 
-            يرجى إرسال صورة الإيداع يدوياً مع ذكر اسم المستخدم: <strong id="userNameForPayment"></strong>
-        </div>
-    </div>
-</div>
 
         <div id="copyNotification" class="copy-notification"></div>
     </div>
-</div>
+</div>  
+                
+
+     
+            
 
     <!-- Subscription Alert -->
     <div id="subscriptionAlert" class="subscription-alert">
