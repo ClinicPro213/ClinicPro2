@@ -182,15 +182,19 @@ window.savePayment = function() {
     showPatientFullDetails(window.currentPayPatientId);
 };
 
-// ============ 2. دالة إضافة عودة (بجانب المعالجة) ============
+// فتح نافذة إضافة عودة - النسخة التي تعمل مع saveFollowUpDirect
 function openFollowUpModal(treatmentId, patientId) {
     console.log('فتح عودة للمعالجة:', treatmentId);
     
+    // التأكد من تخزين المعرفات بشكل صحيح
+    currentFollowUpTreatmentId = treatmentId;
+    currentFollowUpPatientId = patientId;
+    
     // جلب المعالجة مباشرة
     let treatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
-    console.log('عدد المعالجات:', treatments.length);
+    console.log('عدد المعالجات في localStorage:', treatments.length);
     
-    // البحث باستخدام _id أو id
+    // البحث عن المعالجة
     let treatment = null;
     for (let t of treatments) {
         if (t._id === treatmentId || t.id === treatmentId) {
@@ -207,10 +211,12 @@ function openFollowUpModal(treatmentId, patientId) {
     
     console.log('تم العثور على المعالجة:', treatment);
     
-    currentFollowUpTreatmentId = treatmentId;
-    currentFollowUpPatientId = patientId;
-    
     let remaining = (treatment.cost || 0) - (treatment.paid || 0);
+    let today = new Date().toISOString().split('T')[0];
+    
+    // إزالة أي مودال قديم
+    let oldModal = document.getElementById('followUpModalDirect');
+    if (oldModal) oldModal.remove();
     
     let modalHtml = `
         <div id="followUpModalDirect" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; justify-content:center; align-items:center; z-index:100000;">
@@ -228,7 +234,7 @@ function openFollowUpModal(treatmentId, patientId) {
                         <div><strong>⚠️ المتبقي:</strong> ${remaining} ريال</div>
                     </div>
                     <div style="margin-bottom:15px;">
-                        <label>📝 ملاحظات العودة *</label>
+                        <label>📝 ملاحظات العودة (اختياري)</label>
                         <textarea id="followUpNotesDirect" rows="3" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px;"></textarea>
                     </div>
                     <div style="margin-bottom:15px;">
@@ -237,7 +243,7 @@ function openFollowUpModal(treatmentId, patientId) {
                     </div>
                     <div style="margin-bottom:15px;">
                         <label>📅 تاريخ العودة</label>
-                        <input type="date" id="followUpDateDirect" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px;">
+                        <input type="date" id="followUpDateDirect" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px;" value="${today}">
                     </div>
                     <button onclick="saveFollowUpDirect()" style="width:100%; background:#f59e0b; color:white; border:none; padding:12px; border-radius:8px;">💾 حفظ العودة</button>
                 </div>
@@ -246,10 +252,93 @@ function openFollowUpModal(treatmentId, patientId) {
     `;
     
     document.body.insertAdjacentHTML('beforeend', modalHtml);
-    document.getElementById('followUpDateDirect').value = new Date().toISOString().split('T')[0];
 }
-
-
+    // التأكد من تعيين التاريخ (مرة أخرى للتأكيد)
+    let dateField = document.getElementById('followUpDateDirect');
+    if (dateField && !dateField.value) {
+        dateField.value = today;
+    }
+}
+function saveFollowUpDirect() {
+    console.log('=== بدء حفظ العودة ===');
+    console.log('treatmentId للمعالجة:', currentFollowUpTreatmentId);
+    
+    // جلب البيانات
+    let notesValue = document.getElementById('followUpNotesDirect').value || '';
+    let amount = parseFloat(document.getElementById('followUpAmountDirect').value) || 0;
+    let date = document.getElementById('followUpDateDirect').value;
+    
+    // إذا لم يتم إدخال تاريخ، استخدم تاريخ اليوم
+    if (!date) {
+        date = new Date().toISOString().split('T')[0];
+    }
+    
+    console.log('البيانات المدخلة:', { notesValue, amount, date });
+    
+    // التأكد من وجود treatmentId
+    if (!currentFollowUpTreatmentId) {
+        console.error('⚠️ currentFollowUpTreatmentId غير موجود!');
+        alert('خطأ: لم يتم العثور على معرف المعالجة. يرجى إعادة فتح النافذة.');
+        return;
+    }
+    
+    // جلب المعالجات
+    let treatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+    console.log('عدد المعالجات:', treatments.length);
+    
+    // البحث عن المعالجة
+    let treatmentIndex = treatments.findIndex(t => t._id === currentFollowUpTreatmentId);
+    
+    if (treatmentIndex === -1) {
+        console.error('لم يتم العثور على المعالجة:', currentFollowUpTreatmentId);
+        alert('⚠️ لم يتم العثور على المعالجة');
+        return;
+    }
+    
+    let treatment = treatments[treatmentIndex];
+    console.log('تم العثور على المعالجة:', treatment);
+    
+    // إضافة سجل العودة
+    if (!treatment.followUps) treatment.followUps = [];
+    treatment.followUps.push({
+        id: 'fu_' + Date.now(),
+        date: date,
+        notes: notesValue || '(بدون ملاحظات)',
+        amountPaid: amount,
+        createdAt: new Date().toISOString()
+    });
+    
+    // إذا تم دفع مبلغ، أضفه كدفعة
+    if (amount > 0) {
+        if (!treatment.payments) treatment.payments = [];
+        treatment.payments.push({
+            id: 'pay_' + Date.now(),
+            amount: amount,
+            date: date,
+            note: 'دفعة من عودة: ' + (notesValue ? notesValue.substring(0, 50) : 'بدون ملاحظات'),
+            fromFollowUp: true,
+            createdAt: new Date().toISOString()
+        });
+        
+        let totalPaid = 0;
+        for (let p of treatment.payments) totalPaid += p.amount;
+        treatment.paid = totalPaid;
+        console.log('✅ تم إضافة دفعة. الإجمالي الجديد:', totalPaid);
+    }
+    
+    // حفظ
+    treatments[treatmentIndex] = treatment;
+    localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(treatments));
+    
+    // إغلاق المودال
+    let modal = document.getElementById('followUpModalDirect');
+    if (modal) modal.remove();
+    
+    alert('✅ تم إضافة العودة بنجاح');
+    
+    // تحديث عرض المريض
+    showPatientFullDetails(currentFollowUpPatientId);
+}
 
 // ============ 3. دالة إضافة دفعة من زر تعديل المريض ============
 window.openPaymentOnlyModalFirst = function() {
