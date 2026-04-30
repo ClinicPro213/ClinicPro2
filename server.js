@@ -299,6 +299,20 @@ app.post('/api/login', async (req, res) => {
         res.status(500).json({ message: 'خطأ في تسجيل الدخول' });
     }
 });
+// تغيير نوع اشتراك المستخدم
+app.put('/api/admin/users/:userId/subscription-type', async (req, res) => {
+    try {
+        const { subscriptionType } = req.body;
+        const user = await User.findByIdAndUpdate(
+            req.params.userId,
+            { subscriptionType: subscriptionType, isSubscribed: subscriptionType !== 'free' },
+            { new: true }
+        );
+        res.json({ success: true, user });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
 
 // حذف معالجة
 app.delete('/api/treatments/:id', async (req, res) => {
