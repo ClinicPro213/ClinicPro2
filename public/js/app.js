@@ -2,6 +2,135 @@
 // نظام الاشتراكات الجديد
 // ============================================
 
+// ============================================
+// نظام الدفع - إرسال طلب عبر واتساب/تيليجرام
+// ============================================
+
+let selectedPaymentPlan = null;
+let selectedPaymentAmount = null;
+let selectedPaymentDuration = null;
+let selectedPaymentMethod = null;
+
+function selectSubscriptionPlan(plan) {
+    selectedPaymentPlan = plan;
+    
+    let amount = 0;
+    let duration = confirm('هل تريد الاشتراك السنوي؟\n(اضغط OK للسنوي، Cancel للشهري)');
+    
+    if (plan === 'student') {
+        amount = duration ? 30000 : 3000;
+        selectedPaymentDuration = duration ? 'yearly' : 'monthly';
+    } else if (plan === 'clinic') {
+        amount = duration ? 50000 : 5000;
+        selectedPaymentDuration = duration ? 'yearly' : 'monthly';
+    }
+    
+    selectedPaymentAmount = amount;
+    
+    let durationText = duration ? 'سنوياً' : 'شهرياً';
+    if (confirm(`✅ تم اختيار باقة ${plan === 'student' ? 'دكتور طالب' : 'دكتور عيادة'} - ${durationText}\n💰 المبلغ: ${amount} ريال\n\nهل تريد متابعة عملية الدفع؟`)) {
+        // إظهار خيارات الدفع
+        document.getElementById('paymentUploadSection').style.display = 'block';
+        document.getElementById('paymentSection').scrollIntoView({ behavior: 'smooth' });
+        document.getElementById('userNameForPayment').textContent = currentUser.username;
+    }
+}
+
+function selectPaymentMethod(method) {
+    selectedPaymentMethod = method;
+    
+    // تحديث لون الأزرار
+    let whatsappBtn = document.getElementById('whatsappPayBtn');
+    let telegramBtn = document.getElementById('telegramPayBtn');
+    
+    if (method === 'whatsapp') {
+        whatsappBtn.style.background = '#075e54';
+        telegramBtn.style.background = '#0088cc';
+    } else {
+        telegramBtn.style.background = '#004c66';
+        whatsappBtn.style.background = '#25d366';
+    }
+    
+    document.getElementById('paymentDetails').style.display = 'block';
+}
+
+function sendPaymentRequest() {
+    let notes = document.getElementById('paymentNotes').value;
+    
+    if (!selectedPaymentMethod) {
+        alert('⚠️ الرجاء اختيار طريقة الدفع أولاً');
+        return;
+    }
+    
+    // بناء الرسالة
+    let message = `📋 *طلب اشتراك جديد - ClinicPro*\n\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `👤 *بيانات المستخدم*\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `• الاسم: ${currentUser.fullName || currentUser.username}\n`;
+    message += `• اسم المستخدم: ${currentUser.username}\n`;
+    message += `• العيادة: ${currentUser.clinicName || 'غير محدد'}\n`;
+    message += `• الهاتف: ${currentUser.phone || 'غير مسجل'}\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `🎓 *تفاصيل الاشتراك*\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `• الباقة: ${selectedPaymentPlan === 'student' ? '🎓 دكتور طالب' : '🏥 دكتور عيادة'}\n`;
+    message += `• المدة: ${selectedPaymentDuration === 'yearly' ? 'سنوية' : 'شهرية'}\n`;
+    message += `💰 المبلغ: ${selectedPaymentAmount} ريال\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━\n`;
+    
+    if (notes) {
+        message += `📝 *ملاحظات:*\n${notes}\n`;
+        message += `━━━━━━━━━━━━━━━━━━━━\n`;
+    }
+    
+    message += `✅ تم تحويل المبلغ بنجاح\n`;
+    message += `📸 سيتم إرسال صورة الإيداع فوراً\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `🦷 *ClinicPro - نظام إدارة عيادات الأسنان*\n`;
+    message += `🌸 نشكركم على ثقتكم`;
+    
+    // حفظ طلب الاشتراك
+    localStorage.setItem('pendingSubscription_' + currentUser.id, JSON.stringify({
+        plan: selectedPaymentPlan,
+        duration: selectedPaymentDuration,
+        amount: selectedPaymentAmount,
+        method: selectedPaymentMethod,
+        notes: notes,
+        requestedAt: new Date().toISOString(),
+        status: 'pending',
+        username: currentUser.username,
+        fullName: currentUser.fullName,
+        clinicName: currentUser.clinicName,
+        phone: currentUser.phone
+    }));
+    
+    // فتح واتساب أو تيليجرام
+    let phoneNumber = '967773041464';
+    let url = '';
+    
+    if (selectedPaymentMethod === 'whatsapp') {
+        url = 'https://wa.me/' + phoneNumber + '?text=' + encodeURIComponent(message);
+    } else {
+        url = 'https://t.me/moatazdent?text=' + encodeURIComponent(message);
+    }
+    
+    window.open(url, '_blank');
+    
+    alert('✅ تم إرسال طلب الاشتراك بنجاح!\n\n📸 يرجى إرسال صورة الإيداع عبر المحادثة المفتوحة\n📝 لا تنسى ذكر اسم المستخدم: ' + currentUser.username);
+    
+    // إعادة تعيين النموذج
+    document.getElementById('paymentUploadSection').style.display = 'none';
+    document.getElementById('paymentDetails').style.display = 'none';
+    document.getElementById('paymentNotes').value = '';
+    selectedPaymentMethod = null;
+    
+    // العودة للصفحة الرئيسية
+    setTimeout(() => {
+        closeSubscriptionPage();
+    }, 3000);
+}
+
 let selectedPlan = null;
 let selectedDuration = null;
 
