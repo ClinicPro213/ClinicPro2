@@ -375,26 +375,54 @@
         </div>
 
         <!-- طرق الدفع -->
-        <div id="paymentSection" class="payment-section">
-            <h3><i class="fas fa-credit-card"></i> طرق الدفع</h3>
-            <div class="payment-methods-grid">
-                <div class="payment-method-card" onclick="copyToClipboard('773041464', 'جيب')">
-                    <div class="payment-icon"><i class="fas fa-money-bill-wave"></i></div>
-                    <h4>جيب</h4>
-                    <div class="payment-number">773 041 464</div>
+<!-- طريقة الدفع الجديدة - بدون رفع صورة -->
+<div id="paymentUploadSection" class="payment-section" style="margin-top:20px; display:none;">
+    <h3><i class="fas fa-credit-card"></i> تأكيد عملية الدفع</h3>
+    <p>يرجى اختيار طريقة الدفع المناسبة</p>
+    
+    <div style="display:flex; gap:15px; flex-wrap:wrap; margin-bottom:20px;">
+        <button class="payment-select-btn" onclick="selectPaymentMethod('whatsapp')" id="whatsappPayBtn" style="flex:1; background:#25d366; color:white; border:none; padding:15px; border-radius:12px; cursor:pointer;">
+            <i class="fab fa-whatsapp"></i> دفع عبر واتساب
+        </button>
+        <button class="payment-select-btn" onclick="selectPaymentMethod('telegram')" id="telegramPayBtn" style="flex:1; background:#0088cc; color:white; border:none; padding:15px; border-radius:12px; cursor:pointer;">
+            <i class="fab fa-telegram"></i> دفع عبر تيليجرام
+        </button>
+    </div>
+    
+    <div id="paymentDetails" style="display:none;">
+        <!-- أرقام الدفع -->
+        <div style="background:#f8fafc; padding:15px; border-radius:12px; margin-bottom:15px;">
+            <h4><i class="fas fa-money-bill-wave"></i> أرقام التحويل:</h4>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+                <div style="background:white; padding:10px; border-radius:8px; flex:1;">
+                    <strong>جيب / محفظة كاش</strong><br>
+                    <span style="font-size:18px; direction:ltr; display:inline-block;">773 041 464</span>
+                    <button onclick="copyToClipboard('773041464', 'جيب')" style="background:#0f766e; color:white; border:none; padding:5px 10px; border-radius:5px; margin-top:5px; cursor:pointer;">نسخ</button>
                 </div>
-                <div class="payment-method-card" onclick="copyToClipboard('773041464', 'محفظة كاش')">
-                    <div class="payment-icon"><i class="fas fa-wallet"></i></div>
-                    <h4>محفظة كاش</h4>
-                    <div class="payment-number">773 041 464</div>
-                </div>
-                <div class="payment-method-card" onclick="copyToClipboard('3015418876', 'كريمي')">
-                    <div class="payment-icon"><i class="fas fa-university"></i></div>
-                    <h4>كريمي</h4>
-                    <div class="payment-number">301 541 8876</div>
+                <div style="background:white; padding:10px; border-radius:8px; flex:1;">
+                    <strong>كريمي</strong><br>
+                    <span style="font-size:18px; direction:ltr; display:inline-block;">301 541 8876</span>
+                    <button onclick="copyToClipboard('3015418876', 'كريمي')" style="background:#0f766e; color:white; border:none; padding:5px 10px; border-radius:5px; margin-top:5px; cursor:pointer;">نسخ</button>
                 </div>
             </div>
         </div>
+        
+        <div style="margin-bottom:15px;">
+            <label style="display:block; margin-bottom:8px;">📝 ملاحظات (رقم العملية، تاريخ التحويل)</label>
+            <textarea id="paymentNotes" rows="2" placeholder="مثال: رقم العملية: 123456، تاريخ التحويل: 15/1/2024" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px;"></textarea>
+        </div>
+        
+        <button class="btn" onclick="sendPaymentRequest()" style="width:100%; background:#10b981;">
+            <i class="fab fa-whatsapp"></i> إرسال طلب الاشتراك
+        </button>
+        
+        <div style="margin-top:15px; padding:12px; background:#fef3c7; border-radius:8px; text-align:center;">
+            <i class="fas fa-info-circle"></i> 
+            <strong>ملاحظة:</strong> بعد التحويل، سيتم فتح محادثة واتساب. 
+            يرجى إرسال صورة الإيداع يدوياً مع ذكر اسم المستخدم: <strong id="userNameForPayment"></strong>
+        </div>
+    </div>
+</div>
 
         <div id="copyNotification" class="copy-notification"></div>
     </div>
