@@ -2931,6 +2931,14 @@ async function login() {
             
             if (response.ok && result.success) {
                 currentUser = result.user;
+// ✅ تأكد من وجود clinicName و phone
+if (!currentUser.clinicName) currentUser.clinicName = '';
+if (!currentUser.phone) currentUser.phone = '';
+console.log('✅ تم تحديث بيانات المستخدم:', {
+    username: currentUser.username,
+    clinicName: currentUser.clinicName,
+    phone: currentUser.phone
+});
                 try {
                     localStorage.setItem('userId', currentUser.id);
                     saveOfflineAuth(currentUser, password);
@@ -3080,6 +3088,9 @@ async function loadDashboard() {
                 if (r.ok) {
                     var userData = await r.json();
                     currentUser = userData.user;
+                    // ✅ تحديث بيانات العيادة والهاتف
+if (!currentUser.clinicName) currentUser.clinicName = '';
+if (!currentUser.phone) currentUser.phone = '';
                     try {
                         localStorage.setItem('offline_data_' + uid, JSON.stringify({ user: currentUser, patients: allPatients, savedAt: new Date().toISOString() }));
                     } catch(e) { console.log('Save error:', e); }
