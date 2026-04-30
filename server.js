@@ -38,7 +38,7 @@ mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://ClinicPro:admin8899@clu
 const userSchema = new mongoose.Schema({
     fullName: { type: String, required: true },
     username: { type: String, unique: true, required: true },
-    originalUsername: { type: String, default: '' }, // ✅ حفظ الاسم الأصلي
+    originalUsername: { type: String, default: '' },
     password: { type: String, required: true },
     phone: { type: String, default: '' },
     age: { type: Number, default: 0 },
@@ -46,6 +46,7 @@ const userSchema = new mongoose.Schema({
     address: { type: String, default: '' },
     role: { type: String, default: 'user' },
     isSubscribed: { type: Boolean, default: false },
+    subscriptionType: { type: String, enum: ['free', 'student', 'clinic'], default: 'free' }, // ✅ أضف هذا السطر
     subscriptionExpiry: Date,
     createdAt: { type: Date, default: Date.now }
 });
@@ -290,6 +291,7 @@ app.post('/api/login', async (req, res) => {
                 fullName: user.fullName,
                 username: user.username,
                 role: user.role,
+                subscriptionType: user.subscriptionType || 'free',
                 isSubscribed: user.isSubscribed,
                 subscriptionExpiry: user.subscriptionExpiry
             }
@@ -299,17 +301,40 @@ app.post('/api/login', async (req, res) => {
         res.status(500).json({ message: 'خطأ في تسجيل الدخول' });
     }
 });
-// تغيير نوع اشتراك المستخدم
+// تغيير نوع اشتراك المستخدم (تحديث)
 app.put('/api/admin/users/:userId/subscription-type', async (req, res) => {
     try {
-        const { subscriptionType } = req.body;
+        const { subscriptionType, duration } = req.body; // duration: 'monthly' or 'yearly'
+        const userId = req.params.userId;
+        
+        // حساب تاريخ انتهاء الاشتراك
+        let subscriptionExpiry = null;
+        let isSubscribed = subscriptionType !== 'free';
+        
+        if (isSubscribed) {
+            subscriptionExpiry = new Date();
+            if (duration === 'yearly') {
+                subscriptionExpiry.setFullYear(subscriptionExpiry.getFullYear() + 1);
+            } else {
+                subscriptionExpiry.setMonth(subscriptionExpiry.getMonth() + 1);
+            }
+        }
+        
         const user = await User.findByIdAndUpdate(
-            req.params.userId,
-            { subscriptionType: subscriptionType, isSubscribed: subscriptionType !== 'free' },
+            userId,
+            { 
+                subscriptionType: subscriptionType, 
+                isSubscribed: isSubscribed,
+                subscriptionExpiry: subscriptionExpiry
+            },
             { new: true }
         );
+        
+        console.log(`✅ تم تحديث اشتراك ${user.username} إلى: ${subscriptionType}`);
+        
         res.json({ success: true, user });
     } catch (error) {
+        console.error('Error updating subscription type:', error);
         res.status(500).json({ success: false, message: error.message });
     }
 });
@@ -410,6 +435,55 @@ app.get('/api/payments/patient/:patientId', async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 });
+// تفعيل اشتراك المستخدم بعد الدفع (للمدير)
+app.post('/api/admin/activate-subscription', async (req, res) => {
+    try {
+        const { userId, subscriptionType, duration, transactionId } = req.body;
+        
+        if (!userId || !subscriptionType) {
+            return res.status(400).json({ success: false, message: 'بيانات ناقصة' });
+        }
+        
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
+        }
+        
+        // حساب تاريخ الانتهاء
+        let subscriptionExpiry = new Date();
+        if (duration === 'yearly') {
+            subscriptionExpiry.setFullYear(subscriptionExpiry.getFullYear() + 1);
+        } else {
+            subscriptionExpiry.setMonth(subscriptionExpiry.getMonth() + 1);
+        }
+        
+        // تحديث بيانات المستخدم
+        user.subscriptionType = subscriptionType;
+        user.isSubscribed = true;
+        user.subscriptionExpiry = subscriptionExpiry;
+        
+        await user.save();
+        
+        console.log(`✅ تم تفعيل اشتراك ${user.username} - النوع: ${subscriptionType}, حتى: ${subscriptionExpiry}`);
+        
+        res.json({ 
+            success: true, 
+            message: 'تم تفعيل الاشتراك بنجاح',
+            user: {
+                id: user._id,
+                fullName: user.fullName,
+                username: user.username,
+                subscriptionType: user.subscriptionType,
+                isSubscribed: user.isSubscribed,
+                subscriptionExpiry: user.subscriptionExpiry
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error activating subscription:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
 
 app.get('/api/user/:userId', async (req, res) => {
     try {
@@ -446,6 +520,7 @@ app.get('/api/user/:userId', async (req, res) => {
             if (now > user.subscriptionExpiry) {
                 isSubscribed = false;
                 user.isSubscribed = false;
+                user.subscriptionType = 'free';
                 await user.save();
                 subscriptionExpiry = null;
                 console.log('⚠️ Subscription expired for user:', user.username);
@@ -471,6 +546,7 @@ app.get('/api/user/:userId', async (req, res) => {
                 username: user.username,
                 role: user.role,
                 isSubscribed: isSubscribed,
+                subscriptionType: user.subscriptionType || 'free',
                 subscriptionExpiry: subscriptionExpiry
             },
             patientCount,
