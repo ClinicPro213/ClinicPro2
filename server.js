@@ -240,15 +240,17 @@ app.post('/api/register', async (req, res) => {
         console.log('✅ User created:', normalizedUsername, 'with ID:', user._id);
         
         res.json({
-            success: true,
-            user: {
-                id: user._id.toString(),
-                fullName: user.fullName,
-                username: user.username,
-                role: user.role,
-                isSubscribed: user.isSubscribed
-            }
-        });
+    success: true,
+    user: {
+        id: user._id.toString(),
+        fullName: user.fullName,
+        username: user.username,
+        role: user.role,
+        isSubscribed: user.isSubscribed,
+        clinicName: user.clinicName || '',      // ✅ أضف هذا
+        phone: user.phone || ''                 // ✅ أضف هذا
+    }
+});
     } catch (error) {
         console.error('Registration error:', error);
         
@@ -285,17 +287,19 @@ app.post('/api/login', async (req, res) => {
         console.log('✅ Login successful:', user.username, 'ID:', user._id);
         
         res.json({
-            success: true,
-            user: {
-                id: user._id.toString(),
-                fullName: user.fullName,
-                username: user.username,
-                role: user.role,
-                subscriptionType: user.subscriptionType || 'free',
-                isSubscribed: user.isSubscribed,
-                subscriptionExpiry: user.subscriptionExpiry
-            }
-        });
+    success: true,
+    user: {
+        id: user._id.toString(),
+        fullName: user.fullName,
+        username: user.username,
+        role: user.role,
+        isSubscribed: user.isSubscribed,
+        subscriptionType: user.subscriptionType || 'free',
+        subscriptionExpiry: user.subscriptionExpiry,
+        clinicName: user.clinicName || '',      // ✅ أضف هذا
+        phone: user.phone || ''                 // ✅ أضف هذا
+    }
+});
     } catch (error) {
         console.error('Login error:', error);
         res.status(500).json({ message: 'خطأ في تسجيل الدخول' });
@@ -540,18 +544,20 @@ app.get('/api/user/:userId', async (req, res) => {
         console.log('✅ User data sent:', user.username, 'Patients:', patientCount);
         
         res.json({
-            user: {
-                id: user._id.toString(),
-                fullName: user.fullName,
-                username: user.username,
-                role: user.role,
-                isSubscribed: isSubscribed,
-                subscriptionType: user.subscriptionType || 'free',
-                subscriptionExpiry: subscriptionExpiry
-            },
-            patientCount,
-            remainingSlots
-        });
+    user: {
+        id: user._id.toString(),
+        fullName: user.fullName,
+        username: user.username,
+        role: user.role,
+        isSubscribed: isSubscribed,
+        subscriptionType: user.subscriptionType || 'free',
+        subscriptionExpiry: subscriptionExpiry,
+        clinicName: user.clinicName || '',      // ✅ أضف هذا
+        phone: user.phone || ''                 // ✅ أضف هذا
+    },
+    patientCount,
+    remainingSlots
+});
     } catch (error) {
         console.error('Error fetching user:', error);
         res.status(500).json({ message: 'خطأ في جلب بيانات المستخدم: ' + error.message });
