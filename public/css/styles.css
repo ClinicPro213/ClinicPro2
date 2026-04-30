@@ -93,6 +93,40 @@ body::before {
 .image-viewer {
     display: none !important;
 }
+/* أزرار اختيار المدة */
+.plan-prices {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 15px;
+    flex-wrap: wrap;
+}
+
+.duration-btn {
+    background: linear-gradient(135deg, #0f766e, #14b8a6);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 30px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.duration-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(15,118,110,0.3);
+}
+
+.plan-card.popular .duration-btn {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+/* تمرير سلس */
+html {
+    scroll-behavior: smooth;
+}
 
 /* ============ القائمة العلوية حسب الطلب ============ */
 
