@@ -1,4 +1,153 @@
+// ============================================
+// نظام الاشتراكات الجديد
+// ============================================
 
+let selectedPlan = null;
+let selectedDuration = null;
+
+function selectSubscriptionPlan(plan) {
+    selectedPlan = plan;
+    
+    let amount = 0;
+    let duration = confirm('هل تريد الاشتراك السنوي؟\n(اضغط OK للسنوي، Cancel للشهري)');
+    
+    if (plan === 'student') {
+        amount = duration ? 30000 : 3000;
+        selectedDuration = duration ? 'yearly' : 'monthly';
+    } else if (plan === 'clinic') {
+        amount = duration ? 50000 : 5000;
+        selectedDuration = duration ? 'yearly' : 'monthly';
+    }
+    
+    let durationText = duration ? 'سنوياً' : 'شهرياً';
+    if (confirm(`✅ تم اختيار باقة ${plan === 'student' ? 'دكتور طالب' : 'دكتور عيادة'} - ${durationText}\n💰 المبلغ: ${amount} ريال\n\nهل تريد متابعة عملية الدفع؟`)) {
+        showPaymentMethods(plan, amount, duration);
+    }
+}
+
+function showPaymentMethods(plan, amount, isYearly) {
+    let message = `*طلب اشتراك ClinicPro*\n\n` +
+                  `👤 *المستخدم:* ${currentUser.fullName || currentUser.username}\n` +
+                  `👨‍⚕️ *العيادة:* ${currentUser.clinicName || 'غير محدد'}\n` +
+                  `📞 *الهاتف:* ${currentUser.phone || 'غير مسجل'}\n` +
+                  `🏷️ *الباقة:* ${plan === 'student' ? 'دكتور طالب' : 'دكتور عيادة'}\n` +
+                  `📅 *المدة:* ${isYearly ? 'سنوية' : 'شهرية'}\n` +
+                  `💰 *المبلغ:* ${amount} ريال\n\n` +
+                  `تم إيداع المبلغ وسأرفق صورة الإيداع`;
+    
+    window.open('https://wa.me/967773041464?text=' + encodeURIComponent(message), '_blank');
+    
+    // تخزين طلب الاشتراك
+    localStorage.setItem('pendingSubscription_' + currentUser.id, JSON.stringify({
+        plan: plan,
+        duration: isYearly ? 'yearly' : 'monthly',
+        amount: amount,
+        requestedAt: new Date().toISOString(),
+        status: 'pending'
+    }));
+    
+    alert('✅ تم إرسال طلب الاشتراك.\nسيتم تفعيل حسابك خلال 24 ساعة');
+}
+
+// تحديث الصلاحيات بناءً على نوع الاشتراك
+function updateUserPermissions() {
+    if (!currentUser) return;
+    
+    // مجاني: لا شيء إضافي
+    if (!currentUser.subscriptionType || currentUser.subscriptionType === 'free') {
+        currentUser.canSeePrices = false;
+        currentUser.canSeeStats = false;
+        currentUser.canAddFollowUp = false;
+        currentUser.canAddPayment = false;
+    }
+    // دكتور طالب
+    else if (currentUser.subscriptionType === 'student') {
+        currentUser.canSeePrices = false;      // لا يرى الأسعار
+        currentUser.canSeeStats = false;       // لا يرى إحصائيات المدفوع والمتبقي
+        currentUser.canAddFollowUp = false;    // لا يضيف عوائد
+        currentUser.canAddPayment = false;     // لا يضيف دفعات
+        currentUser.unlimitedPatients = true;   // مرضى غير محدودين
+    }
+    // دكتور عيادة
+    else if (currentUser.subscriptionType === 'clinic') {
+        currentUser.canSeePrices = true;       // يرى الأسعار
+        currentUser.canSeeStats = true;        // يرى الإحصائيات
+        currentUser.canAddFollowUp = true;     // يضيف عوائد
+        currentUser.canAddPayment = true;      // يضيف دفعات
+        currentUser.unlimitedPatients = true;  // مرضى غير محدودين
+    }
+    
+    // حفظ التغييرات
+    localStorage.setItem('offline_data_' + currentUser.id, JSON.stringify({
+        user: currentUser,
+        patients: allPatients,
+        savedAt: new Date().toISOString()
+    }));
+}
+
+
+// عرض قائمة المستخدمين مع نوع الاشتراك (تعديل دالة renderAdminUsers)
+function renderAdminUsers(users) {
+    var c = document.getElementById('adminUsersList');
+    if (!c) return;
+    if (!users || !users.length) {
+        c.innerHTML = '<div style="padding:50px">لا يوجد مستخدمين</div>';
+        return;
+    }
+    var html = '';
+    for (var i = 0; i < users.length; i++) {
+        var u = users[i];
+        var subscriptionBadge = '';
+        var subscriptionType = u.subscriptionType || 'free';
+        
+        if (subscriptionType === 'free') {
+            subscriptionBadge = '<span style="background:#64748b; padding:2px 8px; border-radius:20px;">📊 مجاني</span>';
+        } else if (subscriptionType === 'student') {
+            subscriptionBadge = '<span style="background:#f59e0b; padding:2px 8px; border-radius:20px;">🎓 دكتور طالب</span>';
+        } else if (subscriptionType === 'clinic') {
+            subscriptionBadge = '<span style="background:#10b981; padding:2px 8px; border-radius:20px;">🏥 دكتور عيادة</span>';
+        }
+        
+        html += '<div class="patient-card">';
+        html += '<div class="patient-header"><h3>' + escapeHtml(u.fullName) + '</h3></div>';
+        html += '<div class="patient-body">';
+        html += '<p>@' + u.username + '</p>';
+        html += '<p>' + u.clinicName + '</p>';
+        html += '<p>المرضى: ' + (u.patientCount || 0) + '</p>';
+        html += '<p>الحالة: ' + subscriptionBadge + '</p>';
+        html += '<div style="display:flex; gap:10px; margin-top:10px;">';
+        html += '<button onclick="changeUserSubscription(\'' + u._id + '\', \'free\')" style="background:#64748b; color:white; border:none; padding:5px 10px; border-radius:8px;">مجاني</button>';
+        html += '<button onclick="changeUserSubscription(\'' + u._id + '\', \'student\')" style="background:#f59e0b; color:white; border:none; padding:5px 10px; border-radius:8px;">دكتور طالب</button>';
+        html += '<button onclick="changeUserSubscription(\'' + u._id + '\', \'clinic\')" style="background:#10b981; color:white; border:none; padding:5px 10px; border-radius:8px;">دكتور عيادة</button>';
+        html += '</div></div></div>';
+    }
+    c.innerHTML = html;
+}
+
+// تغيير نوع اشتراك المستخدم
+async function changeUserSubscription(userId, type) {
+    if (!confirm(`⚠️ هل أنت متأكد من تغيير نوع الاشتراك إلى ${type === 'free' ? 'مجاني' : type === 'student' ? 'دكتور طالب' : 'دكتور عيادة'}؟`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/admin/users/' + userId + '/subscription-type', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ subscriptionType: type })
+        });
+        
+        if (response.ok) {
+            alert('✅ تم تغيير نوع الاشتراك بنجاح');
+            loadAdminUsers();
+        } else {
+            alert('❌ فشل تغيير نوع الاشتراك');
+        }
+    } catch (e) {
+        console.error('Error:', e);
+        alert('خطأ في الاتصال بالخادم');
+    }
+}
 
 // تعريف الدوال في النطاق العام
 window.showAddPaymentModal = function(treatmentId, patientId) {
