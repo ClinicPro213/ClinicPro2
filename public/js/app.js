@@ -214,6 +214,12 @@ async function changeUserSubscription(userId, type) {
 
 // تعريف الدوال في النطاق العام
 window.showAddPaymentModal = function(treatmentId, patientId) {
+    // ✅ منع مستخدم دكتور طالب من إضافة دفعة
+    if (currentUser.subscriptionType === 'student') {
+        showAlert('dashboardAlert', '⚠️ غير مسموح لك بإضافة دفعات. هذه الميزة متاحة فقط لباقة دكتور عيادة.', 'error');
+        return;
+    }
+    
     console.log('✅ showAddPaymentModal تم استدعاؤها', treatmentId, patientId);
     alert('تم الضغط على زر الدفع!');
     
@@ -396,7 +402,15 @@ window.savePayment = function() {
 
 // فتح نافذة إضافة عودة - النسخة التي تعمل مع saveFollowUpDirect
 function openFollowUpModal(treatmentId, patientId) {
+    // ✅ منع مستخدم دكتور طالب من إضافة عودة
+    if (currentUser.subscriptionType === 'student') {
+        showAlert('dashboardAlert', '⚠️ غير مسموح لك بإضافة عوائد. هذه الميزة متاحة فقط لباقة دكتور عيادة.', 'error');
+        return;
+    }
+    
     console.log('فتح عودة للمعالجة:', treatmentId);
+    
+    
     
     // التأكد من تخزين المعرفات بشكل صحيح
     currentFollowUpTreatmentId = treatmentId;
@@ -554,8 +568,15 @@ function saveFollowUpDirect() {
 
 // ============ 3. دالة إضافة دفعة من زر تعديل المريض ============
 window.openPaymentOnlyModalFirst = function() {
+    // ✅ منع مستخدم دكتور طالب
+    if (currentUser.subscriptionType === 'student') {
+        showAlert('dashboardAlert', '⚠️ غير مسموح لك بإضافة دفعات. هذه الميزة متاحة فقط لباقة دكتور عيادة.', 'error');
+        return;
+    }
+    
     // الحصول على patientId من النافذة المفتوحة
     let patientId = currentPatientId;
+    
     
     if (!patientId) {
         alert('⚠️ الرجاء فتح ملف مريض أولاً (اضغط على اسم المريض)');
