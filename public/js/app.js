@@ -2493,11 +2493,19 @@ async function showPatientFullDetails(pid) {
                 followUpsHtml += '</div>';
             }
             
-            // الأزرار
-var addPaymentBtn = '<button class="add-payment-btn" onclick="event.stopPropagation(); showAddPaymentModal(\'' + t._id + '\', \'' + pid + '\')" style="background:#10b981; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px;"><i class="fas fa-plus-circle"></i> إضافة دفعة</button>';
-var addFollowUpBtn = '<button class="add-followup-btn" onclick="event.stopPropagation(); openFollowUpModal(\'' + t._id + '\', \'' + pid + '\')" style="background:#f59e0b; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px; margin-right:5px;"><i class="fas fa-undo-alt"></i> إضافة عودة</button>';
+// الأزرار - مع التحقق من الصلاحيات
+var addPaymentBtn = '';
+var addFollowUpBtn = '';
+
+// فقط دكتور عيادة أو مدير يمكنهم إضافة دفعة وعودة
+if (currentUser.subscriptionType === 'clinic' || currentUser.role === 'admin') {
+    addPaymentBtn = '<button class="add-payment-btn" onclick="event.stopPropagation(); showAddPaymentModal(\'' + t._id + '\', \'' + pid + '\')" style="background:#10b981; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px;"><i class="fas fa-plus-circle"></i> إضافة دفعة</button>';
+    
+    addFollowUpBtn = '<button class="add-followup-btn" onclick="event.stopPropagation(); openFollowUpModal(\'' + t._id + '\', \'' + pid + '\')" style="background:#f59e0b; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px; margin-right:5px;"><i class="fas fa-undo-alt"></i> إضافة عودة</button>';
+}
+
+// زر المشاركة والحذف متاحان للجميع
 var shareTreatmentBtn = '<button class="share-treatment-btn" onclick="event.stopPropagation(); shareSingleTreatment(\'' + t._id + '\', \'' + pid + '\')" style="background:#25d366; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px; margin-right:5px;"><i class="fab fa-whatsapp"></i> مشاركة</button>';
-// ✅ أضف زر حذف المعالجة
 var deleteTreatmentBtn = '<button class="delete-treatment-btn" onclick="event.stopPropagation(); deleteTreatment(\'' + t._id + '\', \'' + pid + '\')" style="background:#ef4444; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px; margin-right:5px;"><i class="fas fa-trash-alt"></i> حذف</button>';
             
             treatmentsHtml += '<div style="padding:12px; border-bottom:1px solid #e2e8f0; ' + bgStyle + '">';
