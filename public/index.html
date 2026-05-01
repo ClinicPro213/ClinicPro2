@@ -28,49 +28,45 @@
 </head>
 <body>
 <script>
-    // تسجيل Service Worker
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js')
-                .then(registration => {
-                    console.log('✅ Service Worker تم تسجيله بنجاح');
+// تسجيل Service Worker
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .then(reg => {
+                console.log('✅ Service Worker تم تسجيله بنجاح');
+                
+                // التحقق من الحالة
+                if (reg.active) {
+                    console.log('✅ Service Worker نشط');
+                }
+                
+                // مراقبة التحديثات
+                reg.addEventListener('updatefound', () => {
+                    const newWorker = reg.installing;
+                    console.log('🔄 جاري تثبيت تحديث جديد');
                     
-                    // التحقق من حالة SW
-                    if (registration.active) {
-                        console.log('✅ Service Worker نشط ويجيب على الطلبات');
-                    }
-                    
-                    // مراقبة التحديثات
-                    registration.addEventListener('updatefound', () => {
-                        console.log('🔄 تحديث جديد لـ Service Worker');
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'activated') {
+                            console.log('✅ تم تحديث Service Worker');
+                        }
                     });
-                })
-                .catch(error => {
-                    console.error('❌ فشل تسجيل Service Worker:', error);
                 });
-            
-            // التأكد من أن الصفحة تحت سيطرة Service Worker
-            if (navigator.serviceWorker.controller) {
-                console.log('✅ الصفحة تحت سيطرة Service Worker');
-            } else {
-                console.log('⚠️ الصفحة ليست تحت سيطرة Service Worker، سيتم إعادة التحميل');
-                // إعادة تحميل الصفحة لتطبيق SW
-                setTimeout(() => location.reload(), 100);
-            }
-        });
-    } else {
-        console.warn('⚠️ المتصفح لا يدعم Service Worker');
-        document.body.innerHTML += '<div style="background:red;color:white;padding:10px">⚠️ متصفحك لا يدعم العمل بدون إنترنت</div>';
-    }
-    
-    // اختبار عمل SW (للتأكد)
-    async function testSW() {
+            })
+            .catch(err => {
+                console.error('❌ فشل التسجيل:', err);
+            });
+        
+        // التأكد من السيطرة على الصفحة
         if (navigator.serviceWorker.controller) {
-            const response = await fetch('/');
-            console.log('✅ الصفحة تخدم من:', response.headers.get('service-worker') ? 'Service Worker' : 'Network');
+            console.log('✅ الصفحة تحت سيطرة Service Worker');
+        } else {
+            console.log('⚠️ سيتم تحديث الصفحة ليطبق Service Worker');
+            setTimeout(() => location.reload(), 100);
         }
-    }
-    testSW();
+    });
+} else {
+    console.warn('⚠️ المتصفح لا يدعم Service Worker');
+}
 </script>
     
 <div class="container">
