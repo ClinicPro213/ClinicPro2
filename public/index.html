@@ -71,6 +71,46 @@
 </head>
 <body>
     <script>
+        
+// تسجيل Service Worker
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+        .then(reg => {
+            console.log('✅ Service Worker registered:', reg);
+            
+            // التحقق من جاهزيته
+            if (reg.installing) {
+                console.log('Service Worker installing');
+            } else if (reg.waiting) {
+                console.log('Service Worker waiting');
+            } else if (reg.active) {
+                console.log('Service Worker active');
+            }
+        })
+        .catch(err => {
+            console.error('❌ Service Worker registration failed:', err);
+            // عرض رسالة للمستخدم
+            document.body.innerHTML += '<div style="position:fixed;bottom:0;background:red;color:white;padding:10px;">⚠️ التطبيق لن يعمل بدون نت، يرجى تحديث الصفحة</div>';
+        });
+    
+    // مراقبة حالة الاتصال
+    window.addEventListener('online', () => {
+        console.log('🟢 Online - Syncing...');
+        location.reload();
+    });
+    
+    window.addEventListener('offline', () => {
+        console.log('🔴 Offline - Using cached version');
+    });
+}
+
+// تحقق مما إذا كان SW يتحكم بالصفحة
+if (navigator.serviceWorker.controller) {
+    console.log('✅ Page controlled by Service Worker');
+} else {
+    console.log('⚠️ Page NOT controlled by Service Worker - refresh may fail offline');
+}
+
     // كشف الأخطاء وعرضها على الشاشة
     window.onerror = function(message, source, lineno, colno, error) {
         var errorDiv = document.getElementById('errorDisplay') || (function() {
