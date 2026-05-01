@@ -711,5 +711,129 @@ if (navigator.serviceWorker.controller) {
 
 </div>
     <script src="js/app.js"></script>
+    <script>
+// التحكم في تحديث Service Worker
+let newWorker;
+
+// تسجيل Service Worker
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+        .then(reg => {
+            console.log('✅ SW registered');
+            
+            // مراقبة حالة SW
+            if (reg.waiting) {
+                console.log('SW waiting to activate');
+                showUpdateNotification();
+            }
+            
+            // مراقبة التحديثات
+            reg.addEventListener('updatefound', () => {
+                newWorker = reg.installing;
+                console.log('New SW found, installing...');
+                
+                newWorker.addEventListener('statechange', () => {
+                    console.log('SW state:', newWorker.state);
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        console.log('New SW ready, waiting to activate');
+                        showUpdateNotification();
+                    }
+                });
+            });
+        })
+        .catch(err => console.error('SW registration failed:', err));
+    
+    // مراقبة السيطرة على الصفحة
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        console.log('SW controller changed, reloading...');
+        window.location.reload();
+    });
+}
+
+// إظهار إشعار التحديث
+function showUpdateNotification() {
+    const notification = document.createElement('div');
+    notification.id = 'updateNotification';
+    notification.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        right: 20px;
+        background: #1e40af;
+        color: white;
+        padding: 15px;
+        border-radius: 12px;
+        text-align: center;
+        z-index: 10000;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    `;
+    notification.innerHTML = `
+        <span>🔄 تحديث جديد متاح!</span>
+        <button onclick="updateNow()" style="background:white; color:#1e40af; border:none; padding:8px 16px; border-radius:8px; cursor:pointer;">تحديث الآن</button>
+    `;
+    document.body.appendChild(notification);
+}
+
+function updateNow() {
+    const notification = document.getElementById('updateNotification');
+    if (notification) notification.remove();
+    
+    if (newWorker) {
+        newWorker.postMessage('SKIP_WAITING');
+    } else {
+        window.location.reload();
+    }
+}
+
+// مراقبة حالة الاتصال
+let wasOffline = false;
+
+window.addEventListener('online', () => {
+    console.log('🟢 Online - Refreshing...');
+    if (wasOffline) {
+        // إذا كنا في وضع عدم الاتصال ثم عاد الإنترنت، نحدث الصفحة
+        setTimeout(() => window.location.reload(), 1000);
+    }
+    wasOffline = false;
+});
+
+window.addEventListener('offline', () => {
+    console.log('🔴 Offline');
+    wasOffline = true;
+});
+
+// عرض حالة الاتصال للمستخدم
+function showConnectionStatus() {
+    if (!navigator.onLine) {
+        const statusDiv = document.createElement('div');
+        statusDiv.id = 'offlineStatus';
+        statusDiv.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #f59e0b;
+            color: white;
+            padding: 8px;
+            text-align: center;
+            font-size: 14px;
+            z-index: 9999;
+        `;
+        statusDiv.innerHTML = '⚠️ أنت غير متصل بالإنترنت - البيانات معروضة من النسخة المحفوظة مؤقتاً';
+        document.body.prepend(statusDiv);
+    } else {
+        const existing = document.getElementById('offlineStatus');
+        if (existing) existing.remove();
+    }
+}
+
+setInterval(showConnectionStatus, 1000);
+showConnectionStatus();
+    </script>
 </body>
 </html>
