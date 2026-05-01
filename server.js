@@ -306,6 +306,7 @@ app.post('/api/login', async (req, res) => {
     }
 });
 // تغيير نوع اشتراك المستخدم (تحديث)
+// تغيير نوع اشتراك المستخدم مع تحديد المدة
 app.put('/api/admin/users/:userId/subscription-type', async (req, res) => {
     try {
         const { subscriptionType, duration } = req.body; // duration: 'monthly' or 'yearly'
@@ -335,10 +336,45 @@ app.put('/api/admin/users/:userId/subscription-type', async (req, res) => {
         );
         
         console.log(`✅ تم تحديث اشتراك ${user.username} إلى: ${subscriptionType}`);
+        console.log(`📅 ينتهي في: ${subscriptionExpiry}`);
         
         res.json({ success: true, user });
     } catch (error) {
         console.error('Error updating subscription type:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+
+// تجديد اشتراك المستخدم
+app.post('/api/admin/renew-subscription', async (req, res) => {
+    try {
+        const { userId, subscriptionType, duration } = req.body;
+        
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
+        }
+        
+        let subscriptionExpiry = new Date();
+        if (duration === 'yearly') {
+            subscriptionExpiry.setFullYear(subscriptionExpiry.getFullYear() + 1);
+        } else {
+            subscriptionExpiry.setMonth(subscriptionExpiry.getMonth() + 1);
+        }
+        
+        user.subscriptionType = subscriptionType;
+        user.isSubscribed = true;
+        user.subscriptionExpiry = subscriptionExpiry;
+        
+        await user.save();
+        
+        res.json({ 
+            success: true, 
+            message: 'تم تجديد الاشتراك بنجاح',
+            subscriptionExpiry: subscriptionExpiry
+        });
+    } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
 });
@@ -515,19 +551,35 @@ app.get('/api/user/:userId', async (req, res) => {
         
         const patientCount = await Patient.countDocuments({ userId: user._id });
         
-        // Check if subscription is expired
+        // ✅ التحقق من انتهاء صلاحية الاشتراك
         let isSubscribed = user.isSubscribed;
         let subscriptionExpiry = user.subscriptionExpiry;
+        let subscriptionType = user.subscriptionType || 'free';
         
         if (user.isSubscribed && user.subscriptionExpiry) {
             const now = new Date();
-            if (now > user.subscriptionExpiry) {
+            const expiryDate = new Date(user.subscriptionExpiry);
+            
+            if (now > expiryDate) {
+                // الاشتراك انتهى - تحويل إلى مجاني
                 isSubscribed = false;
+                subscriptionType = 'free';
+                subscriptionExpiry = null;
+                
+                // تحديث قاعدة البيانات
                 user.isSubscribed = false;
                 user.subscriptionType = 'free';
+                user.subscriptionExpiry = null;
                 await user.save();
-                subscriptionExpiry = null;
-                console.log('⚠️ Subscription expired for user:', user.username);
+                
+                console.log(`⚠️ انتهى اشتراك المستخدم: ${user.username} في ${expiryDate.toLocaleDateString()}`);
+            } else {
+                // ✅ حساب الأيام المتبقية (للإشعارات)
+                const daysLeft = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+                console.log(`📅 متبقي ${daysLeft} يوم على انتهاء اشتراك ${user.username}`);
+                
+                // إرسال الأيام المتبقية مع الرد (اختياري)
+                // يمكن إضافتها في الرد إذا أردت
             }
         }
         
@@ -541,23 +593,23 @@ app.get('/api/user/:userId', async (req, res) => {
             remainingSlots = Math.max(0, 5 - patientCount);
         }
         
-        console.log('✅ User data sent:', user.username, 'Patients:', patientCount);
+        console.log('✅ User data sent:', user.username, 'Patients:', patientCount, 'Subscription:', subscriptionType);
         
         res.json({
-    user: {
-        id: user._id.toString(),
-        fullName: user.fullName,
-        username: user.username,
-        role: user.role,
-        isSubscribed: isSubscribed,
-        subscriptionType: user.subscriptionType || 'free',
-        subscriptionExpiry: subscriptionExpiry,
-        clinicName: user.clinicName || '',      // ✅ أضف هذا
-        phone: user.phone || ''                 // ✅ أضف هذا
-    },
-    patientCount,
-    remainingSlots
-});
+            user: {
+                id: user._id.toString(),
+                fullName: user.fullName,
+                username: user.username,
+                role: user.role,
+                isSubscribed: isSubscribed,
+                subscriptionType: subscriptionType,
+                subscriptionExpiry: subscriptionExpiry,
+                clinicName: user.clinicName || '',
+                phone: user.phone || ''
+            },
+            patientCount,
+            remainingSlots
+        });
     } catch (error) {
         console.error('Error fetching user:', error);
         res.status(500).json({ message: 'خطأ في جلب بيانات المستخدم: ' + error.message });
