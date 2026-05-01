@@ -841,6 +841,12 @@ let allIncomeTreatments = [];
 
 // عرض صفحة الدخل
 async function showIncomePage() {
+    // ✅ منع مستخدم دكتور طالب من الوصول لصفحة الدخل
+    if (currentUser.subscriptionType === 'student') {
+        showAlert('dashboardAlert', '⚠️ غير مسموح لك بالوصول إلى صفحة الدخل. هذه الميزة متاحة فقط لباقة دكتور عيادة.', 'error');
+        return;
+    }
+    
     document.getElementById('dashboard').style.display = 'none';
     document.getElementById('incomePage').style.display = 'block';
     document.getElementById('incomeUserName').textContent = currentUser.fullName || currentUser.username;
