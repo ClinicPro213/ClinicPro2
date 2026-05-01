@@ -1,7 +1,37 @@
 // sw.js - نسخة كاملة تدعم المزامنة التلقائية
 const CACHE_NAME = 'clinicpro-v2';
 const SYNC_QUEUE_NAME = 'clinicpro-sync-queue';
+const STATIC_CACHE = 'static-v1';
+const STATIC_FILES = [
+    '/',
+    '/index.html',
+    '/offline.html',
+    '/css/styles.css',
+    '/js/app.js',
+    '/manifest.json'
+];
 
+// عند التثبيت
+self.addEventListener('install', event => {
+    event.waitUntil(
+        caches.open(STATIC_CACHE).then(cache => cache.addAll(STATIC_FILES))
+    );
+    self.skipWaiting();
+});
+
+// عند الجلب - استخدم الكاش أولاً
+self.addEventListener('fetch', event => {
+    event.respondWith(
+        caches.match(event.request)
+            .then(response => response || fetch(event.request))
+            .catch(() => {
+                if (event.request.mode === 'navigate') {
+                    return caches.match('/index.html');
+                }
+                return new Response('غير متصل', { status: 404 });
+            })
+    );
+});
 // الكشف عن نوع المتصفح
 const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
 let syncInProgress = false;
