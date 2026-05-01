@@ -27,65 +27,51 @@
 
 </head>
 <body>
-    <script>
-        
-// تسجيل Service Worker
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js')
-        .then(reg => {
-            console.log('✅ Service Worker registered:', reg);
+<script>
+    // تسجيل Service Worker
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js')
+                .then(registration => {
+                    console.log('✅ Service Worker تم تسجيله بنجاح');
+                    
+                    // التحقق من حالة SW
+                    if (registration.active) {
+                        console.log('✅ Service Worker نشط ويجيب على الطلبات');
+                    }
+                    
+                    // مراقبة التحديثات
+                    registration.addEventListener('updatefound', () => {
+                        console.log('🔄 تحديث جديد لـ Service Worker');
+                    });
+                })
+                .catch(error => {
+                    console.error('❌ فشل تسجيل Service Worker:', error);
+                });
             
-            // التحقق من جاهزيته
-            if (reg.installing) {
-                console.log('Service Worker installing');
-            } else if (reg.waiting) {
-                console.log('Service Worker waiting');
-            } else if (reg.active) {
-                console.log('Service Worker active');
+            // التأكد من أن الصفحة تحت سيطرة Service Worker
+            if (navigator.serviceWorker.controller) {
+                console.log('✅ الصفحة تحت سيطرة Service Worker');
+            } else {
+                console.log('⚠️ الصفحة ليست تحت سيطرة Service Worker، سيتم إعادة التحميل');
+                // إعادة تحميل الصفحة لتطبيق SW
+                setTimeout(() => location.reload(), 100);
             }
-        })
-        .catch(err => {
-            console.error('❌ Service Worker registration failed:', err);
-            // عرض رسالة للمستخدم
-            document.body.innerHTML += '<div style="position:fixed;bottom:0;background:red;color:white;padding:10px;">⚠️ التطبيق لن يعمل بدون نت، يرجى تحديث الصفحة</div>';
         });
+    } else {
+        console.warn('⚠️ المتصفح لا يدعم Service Worker');
+        document.body.innerHTML += '<div style="background:red;color:white;padding:10px">⚠️ متصفحك لا يدعم العمل بدون إنترنت</div>';
+    }
     
-    // مراقبة حالة الاتصال
-    window.addEventListener('online', () => {
-        console.log('🟢 Online - Syncing...');
-        location.reload();
-    });
-    
-    window.addEventListener('offline', () => {
-        console.log('🔴 Offline - Using cached version');
-    });
-}
-
-// تحقق مما إذا كان SW يتحكم بالصفحة
-if (navigator.serviceWorker.controller) {
-    console.log('✅ Page controlled by Service Worker');
-} else {
-    console.log('⚠️ Page NOT controlled by Service Worker - refresh may fail offline');
-}
-
-    // كشف الأخطاء وعرضها على الشاشة
-    window.onerror = function(message, source, lineno, colno, error) {
-        var errorDiv = document.getElementById('errorDisplay') || (function() {
-            var div = document.createElement('div');
-            div.id = 'errorDisplay';
-            div.style.cssText = 'position:fixed; top:0; left:0; right:0; background:red; color:white; padding:10px; z-index:99999; font-size:12px; white-space:pre-wrap; word-break:break-all;';
-            document.body.appendChild(div);
-            return div;
-        })();
-        errorDiv.innerHTML = '❌ خطأ: ' + message + '<br>' + (error ? error.stack : '');
-        console.error(message, source, lineno, colno, error);
-        return false;
-    };
-    
-    // عرض معلومات النظام
-    console.log('iOS Version:', navigator.userAgent);
-    console.log('Platform:', navigator.platform);
-    </script>
+    // اختبار عمل SW (للتأكد)
+    async function testSW() {
+        if (navigator.serviceWorker.controller) {
+            const response = await fetch('/');
+            console.log('✅ الصفحة تخدم من:', response.headers.get('service-worker') ? 'Service Worker' : 'Network');
+        }
+    }
+    testSW();
+</script>
     
 <div class="container">
     <!-- Login Page -->
