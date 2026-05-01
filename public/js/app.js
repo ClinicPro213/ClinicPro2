@@ -148,7 +148,39 @@ function sendSubscriptionRequestViaTelegram() {
     }, 3000);
 }
 
-
+// تغيير نوع اشتراك المستخدم مع تحديد المدة
+async function changeUserSubscriptionWithDuration(userId, type, duration) {
+    let message = '';
+    if (type === 'free') {
+        message = '⚠️ هل أنت متأكد من تغيير نوع الاشتراك إلى مجاني؟\nسيتم إلغاء جميع صلاحيات الاشتراك المدفوع.';
+    } else {
+        let durationText = duration === 'yearly' ? 'سنوي' : 'شهري';
+        let typeText = type === 'student' ? 'دكتور طالب' : 'دكتور عيادة';
+        message = `⚠️ هل أنت متأكد من تفعيل اشتراك ${typeText} (${durationText}) للمستخدم؟`;
+    }
+    
+    if (!confirm(message)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/admin/users/' + userId + '/subscription-type', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ subscriptionType: type, duration: duration })
+        });
+        
+        if (response.ok) {
+            alert('✅ تم تغيير نوع الاشتراك بنجاح');
+            loadAdminUsers();
+        } else {
+            alert('❌ فشل تغيير نوع الاشتراك');
+        }
+    } catch (e) {
+        console.error('Error:', e);
+        alert('خطأ في الاتصال بالخادم');
+    }
+}
 // عرض قائمة المستخدمين مع نوع الاشتراك (تعديل دالة renderAdminUsers)
 function renderAdminUsers(users) {
     var c = document.getElementById('adminUsersList');
@@ -160,32 +192,55 @@ function renderAdminUsers(users) {
     var html = '';
     for (var i = 0; i < users.length; i++) {
         var u = users[i];
-        var subscriptionBadge = '';
         var subscriptionType = u.subscriptionType || 'free';
+        var expiryDate = u.subscriptionExpiry ? new Date(u.subscriptionExpiry).toLocaleDateString('ar-EG') : 'غير محدد';
+        var isExpired = u.subscriptionExpiry && new Date() > new Date(u.subscriptionExpiry);
+        
+        var badgeHtml = '';
+        var expiryHtml = '';
         
         if (subscriptionType === 'free') {
-            subscriptionBadge = '<span style="background:#64748b; padding:2px 8px; border-radius:20px;">📊 مجاني</span>';
+            badgeHtml = '<span style="background:#64748b; padding:4px 12px; border-radius:20px; color:white;">📊 مجاني</span>';
         } else if (subscriptionType === 'student') {
-            subscriptionBadge = '<span style="background:#f59e0b; padding:2px 8px; border-radius:20px;">🎓 دكتور طالب</span>';
+            badgeHtml = '<span style="background:#f59e0b; padding:4px 12px; border-radius:20px; color:white;">🎓 دكتور طالب</span>';
+            expiryHtml = `<span style="font-size:12px; color:#666;">📅 ينتهي: ${expiryDate}</span>`;
+            if (isExpired) expiryHtml = '<span style="font-size:12px; color:#ef4444;">⚠️ منتهي</span>';
         } else if (subscriptionType === 'clinic') {
-            subscriptionBadge = '<span style="background:#10b981; padding:2px 8px; border-radius:20px;">🏥 دكتور عيادة</span>';
+            badgeHtml = '<span style="background:#10b981; padding:4px 12px; border-radius:20px; color:white;">🏥 دكتور عيادة</span>';
+            expiryHtml = `<span style="font-size:12px; color:#666;">📅 ينتهي: ${expiryDate}</span>`;
+            if (isExpired) expiryHtml = '<span style="font-size:12px; color:#ef4444;">⚠️ منتهي</span>';
         }
         
-        html += '<div class="patient-card">';
+        html += '<div class="patient-card" style="margin-bottom:15px;">';
         html += '<div class="patient-header"><h3>' + escapeHtml(u.fullName) + '</h3></div>';
         html += '<div class="patient-body">';
         html += '<p>@' + u.username + '</p>';
-        html += '<p>' + u.clinicName + '</p>';
-        html += '<p>المرضى: ' + (u.patientCount || 0) + '</p>';
-        html += '<p>الحالة: ' + subscriptionBadge + '</p>';
-        html += '<div style="display:flex; gap:10px; margin-top:10px;">';
-        html += '<button onclick="changeUserSubscription(\'' + u._id + '\', \'free\')" style="background:#64748b; color:white; border:none; padding:5px 10px; border-radius:8px;">مجاني</button>';
-        html += '<button onclick="changeUserSubscription(\'' + u._id + '\', \'student\')" style="background:#f59e0b; color:white; border:none; padding:5px 10px; border-radius:8px;">دكتور طالب</button>';
-        html += '<button onclick="changeUserSubscription(\'' + u._id + '\', \'clinic\')" style="background:#10b981; color:white; border:none; padding:5px 10px; border-radius:8px;">دكتور عيادة</button>';
+        html += '<p>' + (u.clinicName || 'عيادة غير مسجلة') + '</p>';
+        html += '<p>📊 عدد المرضى: ' + (u.patientCount || 0) + '</p>';
+        html += '<p>الحالة: ' + badgeHtml + '</p>';
+        html += '<p>' + expiryHtml + '</p>';
+        html += '<div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">';
+        
+        // زر مجاني
+        html += '<button onclick="changeUserSubscriptionWithDuration(\'' + u._id + '\', \'free\', \'\')" style="background:#64748b; color:white; border:none; padding:6px 12px; border-radius:8px; cursor:pointer;">📊 مجاني</button>';
+        
+        // دكتور طالب مع اختيار المدة
+        html += '<div style="display:inline-flex; gap:4px;">';
+        html += '<button onclick="changeUserSubscriptionWithDuration(\'' + u._id + '\', \'student\', \'monthly\')" style="background:#f59e0b; color:white; border:none; padding:6px 12px; border-radius:8px; cursor:pointer;">🎓 طالب (شهري)</button>';
+        html += '<button onclick="changeUserSubscriptionWithDuration(\'' + u._id + '\', \'student\', \'yearly\')" style="background:#f59e0b; color:white; border:none; padding:6px 12px; border-radius:8px; cursor:pointer;">🎓 طالب (سنوي)</button>';
+        html += '</div>';
+        
+        // دكتور عيادة مع اختيار المدة
+        html += '<div style="display:inline-flex; gap:4px;">';
+        html += '<button onclick="changeUserSubscriptionWithDuration(\'' + u._id + '\', \'clinic\', \'monthly\')" style="background:#10b981; color:white; border:none; padding:6px 12px; border-radius:8px; cursor:pointer;">🏥 عيادة (شهري)</button>';
+        html += '<button onclick="changeUserSubscriptionWithDuration(\'' + u._id + '\', \'clinic\', \'yearly\')" style="background:#10b981; color:white; border:none; padding:6px 12px; border-radius:8px; cursor:pointer;">🏥 عيادة (سنوي)</button>';
+        html += '</div>';
+        
         html += '</div></div></div>';
     }
     c.innerHTML = html;
 }
+
 
 // تغيير نوع اشتراك المستخدم
 async function changeUserSubscription(userId, type) {
@@ -1603,27 +1658,77 @@ function sendSubscriptionRequest() {
 
 function checkPatientLimit() {
     if (!currentUser) return;
+    
     var subBtn = document.getElementById('subscriptionBtn');
-    if (currentUser.role === 'admin' || currentUser.isSubscribed) {
+    
+    // ✅ التحقق من انتهاء صلاحية الاشتراك
+    let isSubscriptionValid = currentUser.isSubscribed;
+    let expiryMessage = '';
+    
+    if (currentUser.subscriptionExpiry && currentUser.subscriptionType !== 'free') {
+        const now = new Date();
+        const expiry = new Date(currentUser.subscriptionExpiry);
+        
+        if (now > expiry) {
+            // الاشتراك منتهي
+            isSubscriptionValid = false;
+            expiryMessage = '⚠️ انتهت صلاحية اشتراكك! يرجى تجديد الاشتراك.';
+            showAlert('dashboardAlert', expiryMessage, 'error');
+            
+            // تحديث حالة المستخدم محلياً
+            currentUser.isSubscribed = false;
+            currentUser.subscriptionType = 'free';
+            
+            // حفظ التغيير في localStorage
+            let savedData = localStorage.getItem('offline_data_' + currentUser.id);
+            if (savedData) {
+                let offlineData = JSON.parse(savedData);
+                offlineData.user = currentUser;
+                localStorage.setItem('offline_data_' + currentUser.id, JSON.stringify(offlineData));
+            }
+        } else {
+            // الاشتراك ساري
+            let daysLeft = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+            if (daysLeft <= 7) {
+                showAlert('dashboardAlert', `⚠️ تنبيه: متبقي ${daysLeft} يوم على انتهاء اشتراكك. يرجى التجديد.`, 'warning');
+            }
+        }
+    }
+    
+    // المدير أو المشترك (الاشتراك ساري) لديه صلاحيات كاملة
+    if (currentUser.role === 'admin' || (isSubscriptionValid && currentUser.subscriptionType !== 'free')) {
         var alertDiv = document.getElementById('subscriptionAlert');
         if (alertDiv) alertDiv.classList.remove('show');
         if (subBtn) subBtn.style.display = 'none';
+        
+        // تمكين زر إضافة مريض
+        var addBtn = document.querySelector('.search-bar button:first-child');
+        if (addBtn) {
+            addBtn.disabled = false;
+            addBtn.style.opacity = '1';
+            addBtn.title = 'إضافة مريض جديد';
+        }
         return;
     }
+    
+    // مستخدم مجاني أو اشتراك منتهي
     if (subBtn) {
         subBtn.style.display = 'flex';
         console.log('✅ زر الاشتراك ظاهر للمستخدم المجاني');
     }
+    
     var patientCount = allPatients.length;
     var remaining = Math.max(0, 5 - patientCount);
     var remainingSlots = document.getElementById('remainingSlots');
     if (remainingSlots) remainingSlots.textContent = remaining;
+    
     if (patientCount >= 5) {
         var closedTime = null;
         try {
             closedTime = localStorage.getItem('subscriptionAlertClosed');
         } catch(e) {}
         if (!closedTime || (Date.now() - parseInt(closedTime)) > 24 * 60 * 60 * 1000) showSubscriptionAlert();
+        
         var addBtn = document.querySelector('.search-bar button:first-child');
         if (addBtn) {
             addBtn.disabled = true;
@@ -1636,8 +1741,26 @@ function checkPatientLimit() {
             addBtn.disabled = false;
             addBtn.style.opacity = '1';
         }
-        if (patientCount >= 4) showAlert('dashboardAlert', '⚠️ تنبيه: لديك ' + patientCount + ' من 5 مرضى مجانيين. يمكنك إضافة ' + remaining + ' مريض آخر مجاناً.', 'warning');
+        if (patientCount >= 4) {
+            showAlert('dashboardAlert', '⚠️ تنبيه: لديك ' + patientCount + ' من 5 مرضى مجانيين. يمكنك إضافة ' + remaining + ' مريض آخر مجاناً.', 'warning');
+        }
     }
+}
+
+// التحقق من صلاحية الاشتراك ومنع الإضافات بعد انتهاء المدة
+function isSubscriptionActive() {
+    if (!currentUser) return false;
+    if (currentUser.role === 'admin') return true;
+    if (currentUser.subscriptionType === 'free') return true; // المجاني لا ينتهي
+    
+    if (currentUser.subscriptionExpiry) {
+        const now = new Date();
+        const expiry = new Date(currentUser.subscriptionExpiry);
+        if (now > expiry) {
+            return false; // الاشتراك منتهي
+        }
+    }
+    return currentUser.isSubscribed === true;
 }
 
 async function addPatientWithLimitCheck(data) {
