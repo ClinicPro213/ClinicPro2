@@ -1,5 +1,5 @@
 const CACHE_NAME = 'clinicpro-v3';
-const urlsToCache = ['/', '/index.html', '/offline.html', '/css/styles.css', '/js/app.js'];
+const urlsToCache = ['/', '/index.html', '/offline.html', '/css/styles.css', '/css/fontawesome.css', '/js/app.js'];
 
 // تثبيت Service Worker
 self.addEventListener('install', event => {
