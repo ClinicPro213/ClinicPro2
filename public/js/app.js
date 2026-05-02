@@ -1,45 +1,6 @@
 // ============================================
 
 // ============ نظام العمل بدون إنترنت - حل أكيد 100% ============
-(function() {
-    // حفظ الصفحة في localStorage
-    function savePageToLocal() {
-        try {
-            localStorage.setItem('offline_page_' + window.location.pathname, document.documentElement.outerHTML);
-            localStorage.setItem('offline_page_time', Date.now());
-            console.log('💾 تم حفظ الصفحة');
-        } catch(e) {}
-    }
-    
-    // استعادة الصفحة عند عدم وجود إنترنت
-    if (!navigator.onLine) {
-        var savedPage = localStorage.getItem('offline_page_' + window.location.pathname);
-        if (savedPage) {
-            document.open();
-            document.write(savedPage);
-            document.close();
-            console.log('📴 تم استعادة الصفحة من النسخة المحفوظة');
-        }
-    }
-    
-    // حفظ الصفحة كل دقيقة
-    setInterval(savePageToLocal, 60000);
-    window.addEventListener('beforeunload', savePageToLocal);
-})();
-
-// تسجيل Service Worker
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/sw.js').then(function(reg) {
-            console.log('✅ SW registered');
-            setTimeout(function() {
-                if (!navigator.serviceWorker.controller) window.location.reload();
-            }, 1000);
-        }).catch(function(err) {
-            console.log('❌ SW failed:', err);
-        });
-    });
-}
 
 // نظام الاشتراكات الجديد
 // ============================================
@@ -1829,22 +1790,22 @@ function drawTeeth() {
                 <div class="fdi-simple-label">🦷 الفك:</div>
                 <div class="fdi-simple-buttons">
                     <button type="button" class="simple-btn jaw-btn" data-jaw="upper" onclick="selectJawSimple('upper')">
-                        <i class="fas fa-arrow-up"></i> علوي
-                    </button>
-                    <button type="button" class="simple-btn jaw-btn" data-jaw="lower" onclick="selectJawSimple('lower')">
-                        <i class="fas fa-arrow-down"></i> سفلي
-                    </button>
+    ⬆️ علوي
+</button>
+<button type="button" class="simple-btn jaw-btn" data-jaw="lower" onclick="selectJawSimple('lower')">
+    ⬇️ سفلي
+</button>
                 </div>
             </div>
             <div class="fdi-simple-row">
                 <div class="fdi-simple-label">📍 الجهة:</div>
                 <div class="fdi-simple-buttons">
                     <button type="button" class="simple-btn side-btn" data-side="right" onclick="selectSideSimple('right')">
-                        <i class="fas fa-arrow-right"></i> يمين
-                    </button>
-                    <button type="button" class="simple-btn side-btn" data-side="left" onclick="selectSideSimple('left')">
-                        <i class="fas fa-arrow-left"></i> يسار
-                    </button>
+    ➡️ يمين
+</button>
+<button type="button" class="simple-btn side-btn" data-side="left" onclick="selectSideSimple('left')">
+    ⬅️ يسار
+</button>
                 </div>
             </div>
             <div class="fdi-simple-row">
@@ -2356,14 +2317,14 @@ function renderPatients(pts) {
         html += '<div class="patient-header">';
         html += '<h3>' + escapeHtml(p.name) + ' ' + pendingBadge + '</h3>';
         html += '<div class="patient-actions" onclick="event.stopPropagation()">';
-        html += '<button onclick="editPatient(\'' + p._id + '\')"><i class="fas fa-edit"></i></button>';
-        html += '<button onclick="showTreatmentModal(\'' + p._id + '\')"><i class="fas fa-stethoscope"></i></button>';
-        html += '<button onclick="sharePatientWithoutImages(\'' + p._id + '\')" style="background:#25d366;"><i class="fab fa-whatsapp"></i></button>';
-        html += '<button onclick="deletePatient(\'' + p._id + '\')"><i class="fas fa-trash"></i></button>';
+        html += '<button onclick="editPatient(\'' + p._id + '\')">✏️</button>';
+html += '<button onclick="showTreatmentModal(\'' + p._id + '\')">🩺</button>';
+html += '<button onclick="sharePatientWithoutImages(\'' + p._id + '\')" style="background:#25d366;">📱</button>';
+html += '<button onclick="deletePatient(\'' + p._id + '\')">🗑️</button>';
         html += '</div></div>';
         html += '<div class="patient-body">';
-        html += '<p><i class="fas fa-phone"></i> ' + escapeHtml(p.phone || 'غير محدد') + '</p>';
-        html += '<p><i class="fas fa-calendar"></i> العمر: ' + p.age + ' سنة</p>';
+        html += '<p>📞 ' + escapeHtml(p.phone || 'غير محدد') + '</p>';
+html += '<p>📅 العمر: ' + p.age + ' سنة</p>';
         if (isPending) {
             html += '<p style="color:#f59e0b;"><i class="fas fa-sync-alt"></i> في انتظار المزامنة مع الخادم</p>';
         }
@@ -2630,7 +2591,7 @@ async function showPatientFullDetails(pid) {
             var paymentHistoryHtml = '';
             if (t.payments && t.payments.length > 0) {
                 paymentHistoryHtml = '<div style="background:#f1f5f9; border-radius:10px; padding:8px; margin-top:8px;">';
-                paymentHistoryHtml += '<div style="font-size:11px; color:#1e40af; font-weight:bold; margin-bottom:5px;"><i class="fas fa-history"></i> سجل الدفعات:</div>';
+                paymentHistoryHtml += '<div style="font-size:11px; color:#1e40af; font-weight:bold; margin-bottom:5px;">🕐 سجل الدفعات:</div>';
                 for (var p = 0; p < t.payments.length; p++) {
                     var pay = t.payments[p];
                     var payDate = pay.date ? new Date(pay.date).toLocaleDateString('ar-EG') : 'تاريخ غير محدد';
@@ -2646,7 +2607,7 @@ async function showPatientFullDetails(pid) {
             var followUpsHtml = '';
             if (t.followUps && t.followUps.length > 0) {
                 followUpsHtml = '<div style="background:#fef3c7; border-radius:10px; padding:8px; margin-top:8px;">';
-                followUpsHtml += '<div style="font-size:11px; color:#d97706; font-weight:bold; margin-bottom:5px;"><i class="fas fa-undo-alt"></i> سجل العوائد:</div>';
+                followUpsHtml += '<div style="font-size:11px; color:#d97706; font-weight:bold; margin-bottom:5px;">↩️ سجل العوائد:</div>';
                 for (var f = 0; f < t.followUps.length; f++) {
                     var fu = t.followUps[f];
                     var fuDate = fu.date ? new Date(fu.date).toLocaleDateString('ar-EG') : 'تاريخ غير محدد';
@@ -3608,103 +3569,7 @@ window.onload = function() {
 };
 
 
-// ============ تفعيل Service Worker وزر تثبيت التطبيق ============
 
-// 1. تسجيل Service Worker
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/sw.js')
-            .then(function(reg) {
-                console.log('✅ Service Worker تم تسجيله بنجاح');
-                
-                // التحقق من وجود SW نشط
-                if (reg.active) {
-                    console.log('✅ Service Worker نشط وجاهز');
-                }
-                
-                // مراقبة التحديثات
-                reg.addEventListener('updatefound', function() {
-                    var newWorker = reg.installing;
-                    console.log('🔄 جاري تثبيت تحديث جديد');
-                    
-                    newWorker.addEventListener('statechange', function() {
-                        if (newWorker.state === 'activated') {
-                            console.log('✅ تم تحديث Service Worker');
-                            // إعادة تحميل الصفحة لتطبيق التحديث
-                            setTimeout(function() { window.location.reload(); }, 500);
-                        }
-                    });
-                });
-            })
-            .catch(function(err) {
-                console.error('❌ فشل تسجيل Service Worker:', err);
-            });
-        
-        // التأكد من أن الصفحة تحت سيطرة Service Worker
-        if (!navigator.serviceWorker.controller) {
-            console.log('⚠️ إعادة تحميل لتفعيل Service Worker');
-            setTimeout(function() { window.location.reload(); }, 500);
-        } else {
-            console.log('✅ الصفحة تحت سيطرة Service Worker');
-        }
-    });
-} else {
-    console.warn('⚠️ المتصفح لا يدعم Service Worker');
-}
-
-// 2. زر تثبيت التطبيق (يدعم Android فقط، iOS يستخدم الزر الأصلي)
-var deferredPrompt;
-window.addEventListener('beforeinstallprompt', function(e) {
-    var ua = navigator.userAgent;
-    var isIOS = (ua.indexOf('iPhone') > -1 || ua.indexOf('iPad') > -1 || ua.indexOf('iPod') > -1);
-    
-    // منع الظهور على iOS (لأن iOS له طريقته الخاصة)
-    if (isIOS) {
-        e.preventDefault();
-        return false;
-    }
-    
-    // منع الظهور الافتراضي ونظهر زرنا المخصص
-    e.preventDefault();
-    deferredPrompt = e;
-    console.log('✅ يمكن تثبيت التطبيق على Android');
-    
-    // إظهار زر التثبيت بعد 2 ثانية
-    setTimeout(function() {
-        if (document.getElementById('installButton')) return;
-        
-        var installBtn = document.createElement('div');
-        installBtn.id = 'installButton';
-        installBtn.innerHTML = '<button style="position: fixed; bottom: 20px; left: 20px; background: #10b981; color: white; border: none; padding: 12px 20px; border-radius: 50px; z-index: 10000; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 8px;"><i class="fas fa-download"></i>📱 تثبيت التطبيق</button>';
-        
-        installBtn.querySelector('button').onclick = async function() {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                var result = await deferredPrompt.userChoice;
-                console.log('نتيجة التثبيت:', result.outcome);
-                deferredPrompt = null;
-                installBtn.remove();
-            }
-        };
-        
-        document.body.appendChild(installBtn);
-        
-        // إخفاء الزر بعد 30 ثانية إذا لم ينقر عليه المستخدم
-        setTimeout(function() { 
-            if (installBtn && installBtn.remove) installBtn.remove(); 
-        }, 30000);
-    }, 2000);
-});
-
-// 3. عند تثبيت التطبيق بنجاح
-window.addEventListener('appinstalled', function(evt) {
-    console.log('✅ تم تثبيت التطبيق بنجاح!');
-    var installBtn = document.getElementById('installButton');
-    if (installBtn) installBtn.remove();
-    
-    // إظهار رسالة للمستخدم
-    alert('🎉 شكراً لتثبيت التطبيق!\nيمكنك الآن استخدام ClinicPro من شاشة هاتفك الرئيسية.');
-});
 
 
 function checkOnlineStatus() {
