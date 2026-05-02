@@ -3566,46 +3566,104 @@ window.onload = function() {
 };
 
 
+// ============ تفعيل Service Worker وزر تثبيت التطبيق ============
 
+// 1. تسجيل Service Worker
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/sw.js')
+            .then(function(reg) {
+                console.log('✅ Service Worker تم تسجيله بنجاح');
+                
+                // التحقق من وجود SW نشط
+                if (reg.active) {
+                    console.log('✅ Service Worker نشط وجاهز');
+                }
+                
+                // مراقبة التحديثات
+                reg.addEventListener('updatefound', function() {
+                    var newWorker = reg.installing;
+                    console.log('🔄 جاري تثبيت تحديث جديد');
+                    
+                    newWorker.addEventListener('statechange', function() {
+                        if (newWorker.state === 'activated') {
+                            console.log('✅ تم تحديث Service Worker');
+                            // إعادة تحميل الصفحة لتطبيق التحديث
+                            setTimeout(function() { window.location.reload(); }, 500);
+                        }
+                    });
+                });
+            })
+            .catch(function(err) {
+                console.error('❌ فشل تسجيل Service Worker:', err);
+            });
+        
+        // التأكد من أن الصفحة تحت سيطرة Service Worker
+        if (!navigator.serviceWorker.controller) {
+            console.log('⚠️ إعادة تحميل لتفعيل Service Worker');
+            setTimeout(function() { window.location.reload(); }, 500);
+        } else {
+            console.log('✅ الصفحة تحت سيطرة Service Worker');
+        }
+    });
+} else {
+    console.warn('⚠️ المتصفح لا يدعم Service Worker');
+}
 
-// ============ Service Worker معطل نهائياً ============
-console.log('Service Worker disabled for compatibility');
-
-// زر تثبيت التطبيق - معطل على iOS
+// 2. زر تثبيت التطبيق (يدعم Android فقط، iOS يستخدم الزر الأصلي)
 var deferredPrompt;
 window.addEventListener('beforeinstallprompt', function(e) {
     var ua = navigator.userAgent;
     var isIOS = (ua.indexOf('iPhone') > -1 || ua.indexOf('iPad') > -1 || ua.indexOf('iPod') > -1);
+    
+    // منع الظهور على iOS (لأن iOS له طريقته الخاصة)
     if (isIOS) {
         e.preventDefault();
         return false;
     }
+    
+    // منع الظهور الافتراضي ونظهر زرنا المخصص
     e.preventDefault();
     deferredPrompt = e;
-    console.log('✅ يمكن تثبيت التطبيق');
+    console.log('✅ يمكن تثبيت التطبيق على Android');
+    
+    // إظهار زر التثبيت بعد 2 ثانية
     setTimeout(function() {
         if (document.getElementById('installButton')) return;
+        
         var installBtn = document.createElement('div');
         installBtn.id = 'installButton';
-        installBtn.innerHTML = '<button style="position: fixed; bottom: 20px; left: 20px; background: #10b981; color: white; border: none; padding: 12px 20px; border-radius: 50px; z-index: 10000; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 8px;"><i class="fas fa-download"></i>تثبيت التطبيق</button>';
+        installBtn.innerHTML = '<button style="position: fixed; bottom: 20px; left: 20px; background: #10b981; color: white; border: none; padding: 12px 20px; border-radius: 50px; z-index: 10000; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 8px;"><i class="fas fa-download"></i>📱 تثبيت التطبيق</button>';
+        
         installBtn.querySelector('button').onclick = async function() {
             if (deferredPrompt) {
                 deferredPrompt.prompt();
                 var result = await deferredPrompt.userChoice;
+                console.log('نتيجة التثبيت:', result.outcome);
                 deferredPrompt = null;
                 installBtn.remove();
             }
         };
+        
         document.body.appendChild(installBtn);
-        setTimeout(function() { if (installBtn) installBtn.remove(); }, 30000);
+        
+        // إخفاء الزر بعد 30 ثانية إذا لم ينقر عليه المستخدم
+        setTimeout(function() { 
+            if (installBtn && installBtn.remove) installBtn.remove(); 
+        }, 30000);
     }, 2000);
 });
 
+// 3. عند تثبيت التطبيق بنجاح
 window.addEventListener('appinstalled', function(evt) {
-    console.log('✅ App installed successfully!');
+    console.log('✅ تم تثبيت التطبيق بنجاح!');
     var installBtn = document.getElementById('installButton');
     if (installBtn) installBtn.remove();
+    
+    // إظهار رسالة للمستخدم
+    alert('🎉 شكراً لتثبيت التطبيق!\nيمكنك الآن استخدام ClinicPro من شاشة هاتفك الرئيسية.');
 });
+
 
 function checkOnlineStatus() {
     if (navigator.onLine) {
