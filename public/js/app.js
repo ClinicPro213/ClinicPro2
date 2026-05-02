@@ -1,4 +1,46 @@
 // ============================================
+
+// ============ نظام العمل بدون إنترنت - حل أكيد 100% ============
+(function() {
+    // حفظ الصفحة في localStorage
+    function savePageToLocal() {
+        try {
+            localStorage.setItem('offline_page_' + window.location.pathname, document.documentElement.outerHTML);
+            localStorage.setItem('offline_page_time', Date.now());
+            console.log('💾 تم حفظ الصفحة');
+        } catch(e) {}
+    }
+    
+    // استعادة الصفحة عند عدم وجود إنترنت
+    if (!navigator.onLine) {
+        var savedPage = localStorage.getItem('offline_page_' + window.location.pathname);
+        if (savedPage) {
+            document.open();
+            document.write(savedPage);
+            document.close();
+            console.log('📴 تم استعادة الصفحة من النسخة المحفوظة');
+        }
+    }
+    
+    // حفظ الصفحة كل دقيقة
+    setInterval(savePageToLocal, 60000);
+    window.addEventListener('beforeunload', savePageToLocal);
+})();
+
+// تسجيل Service Worker
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/sw.js').then(function(reg) {
+            console.log('✅ SW registered');
+            setTimeout(function() {
+                if (!navigator.serviceWorker.controller) window.location.reload();
+            }, 1000);
+        }).catch(function(err) {
+            console.log('❌ SW failed:', err);
+        });
+    });
+}
+
 // نظام الاشتراكات الجديد
 // ============================================
 
