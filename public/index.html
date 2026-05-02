@@ -754,33 +754,7 @@ window.addEventListener('offline', () => {
     wasOffline = true;
 });
 
-// عرض حالة الاتصال للمستخدم
-function showConnectionStatus() {
-    if (!navigator.onLine) {
-        const statusDiv = document.createElement('div');
-        statusDiv.id = 'offlineStatus';
-        statusDiv.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background: #f59e0b;
-            color: white;
-            padding: 8px;
-            text-align: center;
-            font-size: 14px;
-            z-index: 9999;
-        `;
-        statusDiv.innerHTML = '⚠️ أنت غير متصل بالإنترنت - البيانات معروضة من النسخة المحفوظة مؤقتاً';
-        document.body.prepend(statusDiv);
-    } else {
-        const existing = document.getElementById('offlineStatus');
-        if (existing) existing.remove();
-    }
-}
 
-setInterval(showConnectionStatus, 1000);
-showConnectionStatus();
     </script>
 </body>
 </html>
