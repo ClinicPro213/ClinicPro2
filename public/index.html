@@ -651,7 +651,32 @@
     <div id="patientDetailsModal" class="modal" style="display:none"></div>
 
 </div>
-    <script src="js/app.js"></script>
+        <script src="js/app.js"></script>
     
+    <script>
+    // ============ حفظ الصفحة للعمل بدون إنترنت ============
+    (function() {
+        function savePage() {
+            try {
+                localStorage.setItem('clinicpro_backup', document.documentElement.outerHTML);
+                console.log('✅ تم حفظ نسخة احتياطية');
+            } catch(e) {}
+        }
+        
+        if (!navigator.onLine) {
+            let backup = localStorage.getItem('clinicpro_backup');
+            if (backup) {
+                document.open();
+                document.write(backup);
+                document.close();
+                console.log('📴 تم الاستعادة من النسخة المحفوظة');
+            }
+        }
+        
+        savePage();
+        setInterval(savePage, 60000);
+        window.addEventListener('beforeunload', savePage);
+    })();
+    </script>
 </body>
-    </html>
+</html>
