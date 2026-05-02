@@ -28,45 +28,10 @@
 </head>
 <body>
 <script>
-// تسجيل Service Worker
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-            .then(reg => {
-                console.log('✅ Service Worker تم تسجيله بنجاح');
-                
-                // التحقق من الحالة
-                if (reg.active) {
-                    console.log('✅ Service Worker نشط');
-                }
-                
-                // مراقبة التحديثات
-                reg.addEventListener('updatefound', () => {
-                    const newWorker = reg.installing;
-                    console.log('🔄 جاري تثبيت تحديث جديد');
-                    
-                    newWorker.addEventListener('statechange', () => {
-                        if (newWorker.state === 'activated') {
-                            console.log('✅ تم تحديث Service Worker');
-                        }
-                    });
-                });
-            })
-            .catch(err => {
-                console.error('❌ فشل التسجيل:', err);
-            });
-        
-        // التأكد من السيطرة على الصفحة
-        if (navigator.serviceWorker.controller) {
-            console.log('✅ الصفحة تحت سيطرة Service Worker');
-        } else {
-            console.log('⚠️ سيتم تحديث الصفحة ليطبق Service Worker');
-            setTimeout(() => location.reload(), 100);
-        }
-    });
-} else {
-    console.warn('⚠️ المتصفح لا يدعم Service Worker');
-}
+    // التحقق من Service Worker فقط للتأكد
+    if ('serviceWorker' in navigator) {
+        console.log('✅ المتصفح يدعم Service Worker');
+    }
 </script>
     
 <div class="container">
