@@ -2326,7 +2326,7 @@ html += '<button onclick="deletePatient(\'' + p._id + '\')">🗑️</button>';
         html += '<p>📞 ' + escapeHtml(p.phone || 'غير محدد') + '</p>';
 html += '<p>📅 العمر: ' + p.age + ' سنة</p>';
         if (isPending) {
-            html += '<p style="color:#f59e0b;"><i class="fas fa-sync-alt"></i> في انتظار المزامنة مع الخادم</p>';
+            html += '<p style="color:#f59e0b;">🔄 في انتظار المزامنة مع الخادم</p>';
         }
         html += '</div></div>';
     }
@@ -2493,6 +2493,14 @@ function editPatient(id) {
         document.getElementById('patientNotes').value = patient.notes || '';
         document.getElementById('patientModal').style.display = 'flex';
     }
+}
+
+function showAddPatientModal() {
+    console.log('✅ فتح نافذة إضافة مريض');
+    document.getElementById('modalTitle').textContent = 'إضافة مريض';
+    document.getElementById('patientForm').reset();
+    document.getElementById('patientId').value = '';
+    document.getElementById('patientModal').style.display = 'flex';
 }
 
 async function showPatientFullDetails(pid) {
