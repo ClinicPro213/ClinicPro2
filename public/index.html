@@ -677,6 +677,51 @@
         setInterval(savePage, 60000);
         window.addEventListener('beforeunload', savePage);
     })();
+        
+// ============ حل قوي لتخزين الصفحة في التطبيق ============
+(function() {
+    // حفظ الصفحة بشكل مستمر
+    function forceSavePage() {
+        try {
+            var html = document.documentElement.outerHTML;
+            localStorage.setItem('clinicpro_forced_backup', html);
+            localStorage.setItem('clinicpro_backup_time', Date.now());
+            console.log('✅ تم حفظ نسخة إجبارية للتطبيق');
+        } catch(e) {}
+    }
+    
+    // استعادة الصفحة عند فتح التطبيق بدون نت
+    var savedHtml = localStorage.getItem('clinicpro_forced_backup');
+    if (savedHtml && !navigator.onLine) {
+        // تجنب الحلقة اللانهائية
+        if (!window._restored) {
+            window._restored = true;
+            document.open();
+            document.write(savedHtml);
+            document.close();
+            console.log('📴 تم استعادة الصفحة من النسخة الإجبارية');
+        }
+    }
+    
+    // حفظ عند كل تغيير
+    forceSavePage();
+    setInterval(forceSavePage, 15000); // كل 15 ثانية
+    window.addEventListener('beforeunload', forceSavePage);
+    
+    // عند خروج التطبيق من الخلفية
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            forceSavePage();
+        } else if (!navigator.onLine) {
+            var backup = localStorage.getItem('clinicpro_forced_backup');
+            if (backup && !window._restored) {
+                window._restored = true;
+                location.reload();
+            }
+        }
+    });
+})();
+
     </script>
 </body>
 </html>
