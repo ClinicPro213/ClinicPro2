@@ -1,7 +1,52 @@
 // ============================================
 
 // ============ نظام العمل بدون إنترنت - حل أكيد 100% ============
-
+// ============ التأكد من تعريف جميع الدوال في وضع Offline ============
+(function() {
+    // إعادة تعريف الدوال إذا فقدت
+    window.showAddPatientModal = window.showAddPatientModal || function() {
+        var modal = document.getElementById('patientModal');
+        if (modal) {
+            document.getElementById('modalTitle').textContent = 'إضافة مريض';
+            document.getElementById('patientForm').reset();
+            document.getElementById('patientId').value = '';
+            modal.style.display = 'flex';
+        }
+    };
+    
+    window.showTreatmentModal = window.showTreatmentModal || function(pid) {
+        window.currentPatientId = pid;
+        var modal = document.getElementById('treatmentModal');
+        if (modal) modal.style.display = 'flex';
+        if (typeof drawTeeth === 'function') drawTeeth();
+    };
+    
+    window.editPatient = window.editPatient || function(id) {
+        var patient = (window.allPatients || []).find(p => p._id === id);
+        if (patient) {
+            document.getElementById('modalTitle').textContent = 'تعديل مريض';
+            document.getElementById('patientId').value = patient._id;
+            document.getElementById('patientName').value = patient.name;
+            document.getElementById('patientPhone').value = patient.phone || '';
+            document.getElementById('patientAge').value = patient.age;
+            document.getElementById('patientAddress').value = patient.address || '';
+            document.getElementById('patientNotes').value = patient.notes || '';
+            document.getElementById('patientModal').style.display = 'flex';
+        }
+    };
+    
+    window.deletePatient = window.deletePatient || function(id) {
+        if (confirm('هل أنت متأكد من حذف هذا المريض؟')) {
+            if (window.allPatients) {
+                window.allPatients = window.allPatients.filter(p => p._id !== id);
+                if (typeof renderPatients === 'function') renderPatients(window.allPatients);
+                if (typeof saveAllDataToLocal === 'function') saveAllDataToLocal();
+            }
+        }
+    };
+    
+    console.log('✅ تم التأكد من تعريف جميع الدوال');
+})();
 // نظام الاشتراكات الجديد
 // ============================================
 
