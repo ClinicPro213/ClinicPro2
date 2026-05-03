@@ -2540,13 +2540,7 @@ function editPatient(id) {
     }
 }
 
-function showAddPatientModal() {
-    console.log('✅ فتح نافذة إضافة مريض');
-    document.getElementById('modalTitle').textContent = 'إضافة مريض';
-    document.getElementById('patientForm').reset();
-    document.getElementById('patientId').value = '';
-    document.getElementById('patientModal').style.display = 'flex';
-}
+
 
 async function showPatientFullDetails(pid) {
     try {
