@@ -778,7 +778,286 @@
     setTimeout(fixButtons, 1000);
 })();
 
+// ============ الدوال الأساسية التي تعمل دائماً ============
+// هذه الدوال معرفة هنا لتكون متاحة حتى لو فشل تحميل app.js
 
+// إضافة مريض
+window.showAddPatientModal = function() {
+    console.log('✅ فتح نافذة إضافة مريض');
+    var modal = document.getElementById('patientModal');
+    if (modal) {
+        document.getElementById('modalTitle').innerHTML = 'إضافة مريض';
+        var form = document.getElementById('patientForm');
+        if (form) form.reset();
+        var idField = document.getElementById('patientId');
+        if (idField) idField.value = '';
+        modal.style.display = 'flex';
+    } else {
+        alert('خطأ: نافذة إضافة مريض غير موجودة');
+    }
+};
+
+// تحديث الصفحة
+window.refreshPage = function() {
+    window.location.reload();
+};
+
+// تسجيل الخروج
+window.logout = function() {
+    localStorage.clear();
+    window.location.reload();
+};
+
+// إغلاق النافذة
+window.closeModal = function(id) {
+    var m = document.getElementById(id);
+    if (m) m.style.display = 'none';
+};
+
+// مزامنة البيانات
+window.syncAllDataWithServer = function() {
+    if (navigator.onLine) {
+        alert('🔄 جاري المزامنة...');
+        if (typeof syncAllOfflineData === 'function') {
+            syncAllOfflineData();
+        } else {
+            window.location.reload();
+        }
+    } else {
+        alert('📴 لا يوجد اتصال بالإنترنت. سيتم المزامنة عند استعادة الاتصال.');
+    }
+};
+
+// عرض صفحة الدخل
+window.showIncomePage = function() {
+    alert('📊 صفحة الدخل (قيد التطوير)');
+};
+
+// عرض صفحة الاشتراك
+window.showSubscriptionPage = function() {
+    alert('👑 صفحة الاشتراك (قيد التطوير)');
+};
+
+// واتساب
+window.contactWhatsApp = function() {
+    window.open('https://wa.me/967773041464', '_blank');
+};
+
+// تيليجرام
+window.contactTelegram = function() {
+    window.open('https://t.me/moatazdent', '_blank');
+};
+
+// صفحة الإشعارات
+window.showNotificationsPage = function() {
+    alert('🔔 الإشعارات (قيد التطوير)');
+};
+
+// البحث
+window.searchPatients = function() {
+    var input = document.getElementById('searchInput');
+    if (input) {
+        var filter = input.value.toLowerCase();
+        var cards = document.querySelectorAll('.patient-card');
+        for (var i = 0; i < cards.length; i++) {
+            var name = cards[i].querySelector('h3');
+            if (name && name.innerText.toLowerCase().indexOf(filter) > -1) {
+                cards[i].style.display = '';
+            } else {
+                cards[i].style.display = 'none';
+            }
+        }
+    }
+};
+
+console.log('✅ جميع الدوال الأساسية تم تحميلها بنجاح');
+
+// عرض تفاصيل المريض
+window.showPatientFullDetails = function(patientId) {
+    var patient = null;
+    if (window.allPatients) {
+        patient = window.allPatients.find(p => p._id === patientId);
+    }
+    if (!patient) {
+        alert('⚠️ المريض غير موجود');
+        return;
+    }
+    
+    // جلب معالجات المريض
+    var treatmentsKey = 'offline_treatments_' + (window.currentUser ? window.currentUser.id : 'anonymous');
+    var treatments = [];
+    try {
+        var allTreatments = JSON.parse(localStorage.getItem(treatmentsKey) || '[]');
+        treatments = allTreatments.filter(t => t.patientId === patientId);
+    } catch(e) {}
+    
+    var message = '👤 المريض: ' + patient.name + '\n';
+    message += '📞 الهاتف: ' + (patient.phone || 'غير محدد') + '\n';
+    message += '📅 العمر: ' + patient.age + ' سنة\n';
+    message += '━━━━━━━━━━━━━━━━\n';
+    message += '🦷 المعالجات (' + treatments.length + '):\n';
+    
+    for (var i = 0; i < treatments.length; i++) {
+        var t = treatments[i];
+        message += (i+1) + '. السن ' + t.toothNumber + ' - ' + t.treatmentType;
+        message += ' (💰' + (t.cost || 0) + ' ريال)\n';
+    }
+    
+    alert(message);
+};
+// ============ دوال المعالجات ============
+
+// عرض نافذة إضافة معالجة
+window.showTreatmentModal = function(patientId) {
+    console.log('✅ فتح نافذة إضافة معالجة للمريض:', patientId);
+    window.currentPatientId = patientId;
+    
+    // عرض نافذة المعالجة
+    var modal = document.getElementById('treatmentModal');
+    if (modal) {
+        modal.style.display = 'flex';
+    } else {
+        alert('خطأ: نافذة المعالجة غير موجودة');
+    }
+    
+    // رسم الأسنان إذا كانت الدالة موجودة
+    if (typeof drawTeeth === 'function') {
+        drawTeeth();
+    }
+};
+
+// حفظ المعالجة (نسخة مبسطة للـ Offline)
+window.saveTreatmentNow = function() {
+    if (!window.currentPatientId) {
+        alert('⚠️ لم يتم تحديد المريض');
+        return;
+    }
+    
+    var tooth = document.getElementById('toothNumber').value;
+    if (!tooth) {
+        alert('⚠️ اختر السن أولاً');
+        return;
+    }
+    
+    var type = document.getElementById('treatmentTypeSelect').value;
+    if (!type) {
+        alert('⚠️ اختر نوع المعالجة');
+        return;
+    }
+    
+    var cost = parseFloat(document.getElementById('treatmentCostInput').value) || 0;
+    var paid = parseFloat(document.getElementById('treatmentPaidInput').value) || 0;
+    var notes = document.getElementById('treatmentNotesInput').value || '';
+    
+    // الحصول على اسم المريض
+    var patientName = 'غير معروف';
+    if (window.allPatients) {
+        var patient = window.allPatients.find(p => p._id === window.currentPatientId);
+        if (patient) patientName = patient.name;
+    }
+    
+    // إنشاء معالجة جديدة
+    var newTreatment = {
+        _id: 'offline_tx_' + Date.now(),
+        patientId: window.currentPatientId,
+        patientName: patientName,
+        toothNumber: parseInt(tooth),
+        treatmentType: type,
+        cost: cost,
+        paid: paid,
+        notes: notes,
+        treatmentDate: new Date().toISOString(),
+        offline: true,
+        pendingSync: true,
+        payments: []
+    };
+    
+    // حفظ في localStorage
+    var treatmentsKey = 'offline_treatments_' + (window.currentUser ? window.currentUser.id : 'anonymous');
+    var existingTreatments = [];
+    try {
+        existingTreatments = JSON.parse(localStorage.getItem(treatmentsKey) || '[]');
+    } catch(e) {}
+    
+    existingTreatments.push(newTreatment);
+    localStorage.setItem(treatmentsKey, JSON.stringify(existingTreatments));
+    
+    // إغلاق النافذة
+    closeModal('treatmentModal');
+    
+    // تفريغ الحقول
+    document.getElementById('toothNumber').value = '';
+    document.getElementById('treatmentTypeSelect').value = '';
+    document.getElementById('treatmentCostInput').value = '';
+    document.getElementById('treatmentPaidInput').value = '';
+    document.getElementById('treatmentNotesInput').value = '';
+    document.getElementById('remainingSpan').innerHTML = '0';
+    
+    alert('✅ تم حفظ المعالجة محلياً بنجاح');
+    
+    // تحديث عرض المريض إذا كانت النافذة مفتوحة
+    if (typeof showPatientFullDetails === 'function' && window.currentPatientId) {
+        showPatientFullDetails(window.currentPatientId);
+    } else if (typeof loadPatients === 'function') {
+        loadPatients();
+    }
+};
+
+// حساب المتبقي
+window.calcRemaining = function() {
+    var cost = parseFloat(document.getElementById('treatmentCostInput').value) || 0;
+    var paid = parseFloat(document.getElementById('treatmentPaidInput').value) || 0;
+    var remaining = cost - paid;
+    var span = document.getElementById('remainingSpan');
+    if (span) span.innerHTML = remaining;
+};
+
+// رسم الأسنان (نسخة مبسطة)
+window.drawTeeth = function() {
+    var container = document.getElementById('teethContainer');
+    if (!container) return;
+    
+    var html = `
+        <div style="text-align:center; padding:10px;">
+            <div style="display:flex; justify-content:center; gap:10px; margin-bottom:10px;">
+                <button type="button" onclick="selectTooth(11)" style="padding:8px 12px;">11</button>
+                <button type="button" onclick="selectTooth(12)" style="padding:8px 12px;">12</button>
+                <button type="button" onclick="selectTooth(13)" style="padding:8px 12px;">13</button>
+                <button type="button" onclick="selectTooth(14)" style="padding:8px 12px;">14</button>
+                <button type="button" onclick="selectTooth(15)" style="padding:8px 12px;">15</button>
+                <button type="button" onclick="selectTooth(16)" style="padding:8px 12px;">16</button>
+                <button type="button" onclick="selectTooth(17)" style="padding:8px 12px;">17</button>
+                <button type="button" onclick="selectTooth(18)" style="padding:8px 12px;">18</button>
+            </div>
+            <div style="display:flex; justify-content:center; gap:10px;">
+                <button type="button" onclick="selectTooth(41)" style="padding:8px 12px;">41</button>
+                <button type="button" onclick="selectTooth(42)" style="padding:8px 12px;">42</button>
+                <button type="button" onclick="selectTooth(43)" style="padding:8px 12px;">43</button>
+                <button type="button" onclick="selectTooth(44)" style="padding:8px 12px;">44</button>
+                <button type="button" onclick="selectTooth(45)" style="padding:8px 12px;">45</button>
+                <button type="button" onclick="selectTooth(46)" style="padding:8px 12px;">46</button>
+                <button type="button" onclick="selectTooth(47)" style="padding:8px 12px;">47</button>
+                <button type="button" onclick="selectTooth(48)" style="padding:8px 12px;">48</button>
+            </div>
+        </div>
+    `;
+    container.innerHTML = html;
+};
+
+// اختيار السن
+window.selectTooth = function(toothNumber) {
+    document.getElementById('toothNumber').value = toothNumber;
+    alert('🦷 تم تحديد السن: ' + toothNumber);
+};
+
+// حفظ ومشاركة
+window.saveAndShareNow = function() {
+    saveTreatmentNow();
+    setTimeout(function() {
+        alert('📱 تم حفظ المعالجة، يمكنك مشاركتها من قائمة المريض');
+    }, 500);
+};
+        
     </script>
 </body>
 </html>
