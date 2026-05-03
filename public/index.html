@@ -654,6 +654,77 @@
         <script src="js/app.js"></script>
     
     <script>
+    
+// ============ حل قوي للعمل بدون إنترنت ============
+(function() {
+    // 1. حفظ جميع بيانات التطبيق
+    function backupAllAppData() {
+        try {
+            // حفظ HTML
+            localStorage.setItem('app_backup_html', document.documentElement.outerHTML);
+            
+            // حفظ جميع المتغيرات المهمة
+            if (typeof currentUser !== 'undefined' && currentUser) {
+                localStorage.setItem('app_backup_user', JSON.stringify(currentUser));
+            }
+            if (typeof allPatients !== 'undefined' && allPatients) {
+                localStorage.setItem('app_backup_patients', JSON.stringify(allPatients));
+            }
+            
+            localStorage.setItem('app_backup_time', Date.now());
+            console.log('✅ تم حفظ نسخة احتياطية كاملة');
+        } catch(e) { console.log('خطأ في الحفظ:', e); }
+    }
+    
+    // 2. استعادة الصفحة والبيانات عند عدم وجود إنترنت
+    if (!navigator.onLine) {
+        var savedHtml = localStorage.getItem('app_backup_html');
+        var savedUser = localStorage.getItem('app_backup_user');
+        var savedPatients = localStorage.getItem('app_backup_patients');
+        
+        if (savedHtml && !window._restored) {
+            window._restored = true;
+            
+            // استعادة البيانات
+            if (savedUser) {
+                try {
+                    window.currentUser = JSON.parse(savedUser);
+                    window.allPatients = savedPatients ? JSON.parse(savedPatients) : [];
+                    localStorage.setItem('userId', window.currentUser.id);
+                } catch(e) {}
+            }
+            
+            // إعادة تحميل الصفحة من النسخة المحفوظة
+            document.open();
+            document.write(savedHtml);
+            document.close();
+            
+            console.log('📴 تم استعادة التطبيق بالكامل من النسخة الاحتياطية');
+            return;
+        }
+    }
+    
+    // 3. حفظ البيانات كل 30 ثانية
+    backupAllAppData();
+    setInterval(backupAllAppData, 30000);
+    window.addEventListener('beforeunload', backupAllAppData);
+    
+    // 4. عند عودة الإنترنت، تحديث الصفحة
+    window.addEventListener('online', function() {
+        console.log('🟢 اتصال متاح، جاري التحديث...');
+        setTimeout(function() { window.location.reload(); }, 500);
+    });
+    
+    // 5. التأكد من أن جميع الدوال تعمل
+    window.ensureFunctionsWork = function() {
+        if (typeof showAddPatientModal !== 'function') {
+            console.log('⚠️ إعادة تحميل الدوال...');
+            location.reload();
+        }
+    };
+    setTimeout(window.ensureFunctionsWork, 100);
+})();
+
     // ============ حفظ الصفحة للعمل بدون إنترنت ============
     (function() {
         function savePage() {
