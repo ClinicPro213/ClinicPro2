@@ -726,6 +726,58 @@
 })();
 
     
+// ============ إعادة تنشيط الأزرار بعد الاستعادة ============
+(function() {
+    // وظيفة لإعادة ربط الأزرار
+    function fixButtons() {
+        console.log('🔧 جاري إعادة ربط الأزرار...');
+        
+        // إعادة تعريف الدوال إذا فقدت
+        if (typeof showAddPatientModal !== 'function') {
+            window.showAddPatientModal = function() {
+                var modal = document.getElementById('patientModal');
+                if (modal) {
+                    document.getElementById('modalTitle').innerHTML = 'إضافة مريض';
+                    document.getElementById('patientForm').reset();
+                    document.getElementById('patientId').value = '';
+                    modal.style.display = 'flex';
+                }
+            };
+        }
+        
+        if (typeof syncAllDataWithServer !== 'function') {
+            window.syncAllDataWithServer = function() {
+                alert('🔄 المزامنة تحتاج اتصال بالإنترنت');
+            };
+        }
+        
+        if (typeof refreshPage !== 'function') {
+            window.refreshPage = function() {
+                window.location.reload();
+            };
+        }
+        
+        if (typeof logout !== 'function') {
+            window.logout = function() {
+                localStorage.clear();
+                window.location.reload();
+            };
+        }
+        
+        console.log('✅ تم إعادة ربط الأزرار');
+    }
+    
+    // تنفيذ بعد تحميل الصفحة مباشرة
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', fixButtons);
+    } else {
+        fixButtons();
+    }
+    
+    // تأكيد إضافي بعد 1 ثانية
+    setTimeout(fixButtons, 1000);
+})();
+
 
     </script>
 </body>
