@@ -193,10 +193,73 @@ app.post('/api/admin/convert-treatment-ids', async (req, res) => {
     }
 });
 
-// تشغيل التحويل مباشرة عند بدء السيرفر (مرة واحدة فقط)
+// تشغيل التحويل مباشرة عند بدء السيرفر مع تأخير وفحص
 mongoose.connection.once('open', async () => {
-    // تشغيل مرة واحدة فقط - علق هذا السطر بعد التشغيل
-    await convertTreatmentIdsToStrings();
+    console.log('✅ جاهز للتحويل...');
+    
+    // تأخير 3 ثواني للتأكد من اكتمال الاتصال
+    setTimeout(async () => {
+        // فحص عدد المعالجات التي تحتاج تحويل
+        const treatmentsWithObjectId = await Treatment.find({
+            $or: [
+                { patientId: { $type: 'objectId' } },
+                { userId: { $type: 'objectId' } }
+            ]
+        });
+        
+        console.log(`📋 عدد المعالجات التي تحتاج تحويل: ${treatmentsWithObjectId.length}`);
+        
+        if (treatmentsWithObjectId.length > 0) {
+            console.log('🔄 بدء التحويل التلقائي...');
+            await convertTreatmentIdsToStrings();
+            console.log('✅ اكتمل التحويل التلقائي!');
+        } else {
+            console.log('✅ جميع المعرفات بالفعل نصوص، لا حاجة للتحويل');
+        }
+    }, 3000);
+});
+// API للتحويل المباشر (يمكن استدعاؤه من المتصفح)
+app.get('/api/force-convert-now', async (req, res) => {
+    try {
+        console.log('🔄 بدء التحويل الفوري...');
+        
+        const treatments = await Treatment.find();
+        let updatedPatientId = 0;
+        let updatedUserId = 0;
+        
+        for (const treatment of treatments) {
+            let needsUpdate = false;
+            
+            if (treatment.patientId && typeof treatment.patientId === 'object') {
+                treatment.patientId = treatment.patientId.toString();
+                updatedPatientId++;
+                needsUpdate = true;
+            }
+            
+            if (treatment.userId && typeof treatment.userId === 'object') {
+                treatment.userId = treatment.userId.toString();
+                updatedUserId++;
+                needsUpdate = true;
+            }
+            
+            if (needsUpdate) {
+                await treatment.save();
+            }
+        }
+        
+        console.log(`✅ تم التحويل: patientId=${updatedPatientId}, userId=${updatedUserId}`);
+        
+        res.json({
+            success: true,
+            message: 'تم التحويل بنجاح',
+            updatedPatientId,
+            updatedUserId
+        });
+        
+    } catch (error) {
+        console.error('❌ خطأ:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // إضافة عودة جديدة
