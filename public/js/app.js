@@ -2700,12 +2700,13 @@ function editPatient(id) {
 }
 
 
-
 async function showPatientFullDetails(pid) {
     try {
+        // 1. البحث عن المريض
         var patient = null;
+        var pidStr = pid.toString();
         for (var i = 0; i < allPatients.length; i++) {
-            if (toIdString(allPatients[i]._id) === toIdString(pid)) {
+            if (allPatients[i]._id.toString() === pidStr) {
                 patient = allPatients[i];
                 break;
             }
@@ -2714,79 +2715,101 @@ async function showPatientFullDetails(pid) {
             showAlert('dashboardAlert', 'المريض غير موجود', 'error');
             return;
         }
-        var isOfflinePatient = (patient.pendingSync === true || patient.offline === true);
         
-        // ✅ التعديل هنا: جلب المعالجات من السيرفر أولاً
+        var isOfflinePatient = (patient.pendingSync === true || patient.offline === true);
+        console.log('👤 عرض تفاصيل المريض:', patient.name, 'ID:', pidStr);
+        
         var treatments = [];
         
-        // 1. محاولة جلب المعالجات من السيرفر (الأولوية القصوى)
+        // 2. جلب المعالجات من السيرفر
         if (navigator.onLine) {
-    try {
-        var r = await fetch('/api/treatments/patient/' + pid);
-        if (r.ok) {
-            treatments = await r.json();
-            console.log('🌐 تم جلب', treatments.length, 'معالجة من السيرفر');
-            
-            // ✅ التحويل: تحويل ObjectId إلى نص في المعالجات القادمة من السيرفر
-            for (var s = 0; s < treatments.length; s++) {
-                if (treatments[s].patientId && typeof treatments[s].patientId === 'object') {
-                    treatments[s].patientId = treatments[s].patientId.toString();
+            try {
+                var r = await fetch('/api/treatments/patient/' + pid);
+                if (r.ok) {
+                    var serverTreatments = await r.json();
+                    console.log('🌐 تم جلب', serverTreatments.length, 'معالجة من السيرفر');
+                    
+                    for (var s = 0; s < serverTreatments.length; s++) {
+                        var t = serverTreatments[s];
+                        // تحويل جميع المعرفات إلى نص للمقارنة
+                        var treatmentPatientId = t.patientId ? t.patientId.toString() : '';
+                        
+                        // فقط أضف المعالجات التي تخص هذا المريض
+                        if (treatmentPatientId === pidStr) {
+                            // تأكد من وجود الحقول المطلوبة
+                            if (!t.payments) t.payments = [];
+                            if (!t.followUps) t.followUps = [];
+                            treatments.push(t);
+                            console.log(`   ✅ تمت إضافة معالجة: ${t.treatmentType}`);
+                        } else {
+                            console.log(`   ⚠️ تخطي معالجة: patientId=${treatmentPatientId} != ${pidStr}`);
+                        }
+                    }
+                } else {
+                    console.log('⚠️ فشل جلب المعالجات من السيرفر');
                 }
-                if (treatments[s].userId && typeof treatments[s].userId === 'object') {
-                    treatments[s].userId = treatments[s].userId.toString();
-                }
-                if (treatments[s]._id && typeof treatments[s]._id === 'object') {
-                    treatments[s]._id = treatments[s]._id.toString();
-                }
+            } catch (e) {
+                console.log('❌ خطأ في الاتصال بالسيرفر:', e);
             }
-            
-            // حفظ معالجات السيرفر في localStorage
-            let localTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
-            for (const serverTx of treatments) {
-                const exists = localTreatments.some(localTx => toIdString(localTx._id) === toIdString(serverTx._id));
-                if (!exists) {
-                    localTreatments.push({
-                        ...serverTx,
-                        offline: false,
-                        pendingSync: false,
-                        payments: serverTx.payments || []
-                    });
-                }
-            }
-            localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(localTreatments));
-        } else {
-            console.log('⚠️ فشل جلب المعالجات من السيرفر');
-        }
-    } catch (e) {
-        console.log('❌ خطأ في الاتصال بالسيرفر:', e);
-    }
         }
         
-        // 2. إذا لم يتم جلب أي معالجات من السيرفر، جرب من localStorage
+        // 3. إذا لم يتم جلب معالجات من السيرفر، جرب من localStorage
         if (treatments.length === 0) {
+            console.log('📦 البحث في localStorage...');
             var localTreatments = [];
             try {
                 localTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
-                console.log('📦 المعالجات من localStorage:', localTreatments.length);
+                console.log('📦 المعالجات في localStorage:', localTreatments.length);
             } catch(e) { console.log('Parse error:', e); }
             
-            // البحث عن معالجات هذا المريض
-            // تطبيع pid للمقارنة
-var normalizedPid = normalizeId(pid);
-
-for (var i = 0; i < localTreatments.length; i++) {
-    var t = localTreatments[i];
-    var treatmentPatientId = normalizeId(t.patientId);
-    
-    // مقارنة بعد تطبيع كلا المعرفين
-if (toIdString(localTreatments[i].patientId) === toIdString(pid) || localTreatments[i].patientName === patient.name) {
-    treatments.push(t);
-    }
-}
+            for (var i = 0; i < localTreatments.length; i++) {
+                var t = localTreatments[i];
+                var treatmentPatientId = t.patientId ? t.patientId.toString() : '';
+                
+                if (treatmentPatientId === pidStr || t.patientName === patient.name) {
+                    if (!t.payments) t.payments = [];
+                    if (!t.followUps) t.followUps = [];
+                    treatments.push(t);
+                    console.log(`   ✅ تمت إضافة معالجة من localStorage: ${t.treatmentType}`);
+                }
+            }
             console.log('📋 تم العثور على', treatments.length, 'معالجة في localStorage');
         }
         
-        // ترتيب المعالجات حسب التاريخ (الباقي كما هو دون تغيير)
+        console.log('📋 إجمالي المعالجات للمريض:', treatments.length);
+        
+        if (treatments.length === 0) {
+            // عرض رسالة أنه لا توجد معالجات
+            var modalHtml = '<div class="modal-content" style="max-width:650px;">';
+            modalHtml += '<div class="modal-header"><h3>' + escapeHtml(patient.name) + '</h3><button class="close-btn" onclick="closeModal(\'patientDetailsModal\')">&times;</button></div>';
+            modalHtml += '<div class="modal-body">';
+            modalHtml += '<div style="background:#f1f5f9; padding:15px; border-radius:15px; margin-bottom:20px;">';
+            modalHtml += '<p><strong>📞 الهاتف:</strong> ' + escapeHtml(patient.phone || 'غير محدد') + '</p>';
+            modalHtml += '<p><strong>📅 العمر:</strong> ' + patient.age + ' سنة</p>';
+            modalHtml += '<p><strong>📍 العنوان:</strong> ' + escapeHtml(patient.address || 'غير محدد') + '</p>';
+            modalHtml += '</div>';
+            modalHtml += '<h4>🦷 سجل المعالجات (0)</h4>';
+            modalHtml += '<p style="text-align:center;padding:20px;color:#64748b;">📭 لا توجد معالجات مسجلة</p>';
+            modalHtml += '<div style="display:flex; gap:10px; flex-wrap:wrap;">';
+            modalHtml += '<button class="btn" onclick="closeModal(\'patientDetailsModal\'); editPatient(\'' + patient._id + '\')" style="flex:1;">تعديل</button>';
+            modalHtml += '<button class="btn btn-secondary" onclick="closeModal(\'patientDetailsModal\'); showTreatmentModal(\'' + patient._id + '\')" style="flex:1;">إضافة معالجة</button>';
+            modalHtml += '<button class="btn btn-whatsapp" onclick="sharePatientWithoutImages(\'' + patient._id + '\')" style="flex:1;"><i class="fab fa-whatsapp"></i> مشاركة</button>';
+            modalHtml += '</div></div></div>';
+            
+            var modal = document.getElementById('patientDetailsModal');
+            if (!modal) {
+                var d = document.createElement('div');
+                d.id = 'patientDetailsModal';
+                d.className = 'modal';
+                document.body.appendChild(d);
+                modal = d;
+            }
+            modal.innerHTML = modalHtml;
+            modal.style.display = 'flex';
+            return;
+        }
+        
+        // ترتيب المعالجات حسب التاريخ
         treatments.sort(function(a, b) {
             return new Date(b.treatmentDate) - new Date(a.treatmentDate);
         });
@@ -2799,7 +2822,6 @@ if (toIdString(localTreatments[i].patientId) === toIdString(pid) || localTreatme
             var t = treatments[i];
             var cost = t.cost || 0;
             
-            // حساب المدفوع
             var paid = 0;
             if (t.payments && t.payments.length > 0) {
                 for (var p = 0; p < t.payments.length; p++) {
@@ -2807,9 +2829,6 @@ if (toIdString(localTreatments[i].patientId) === toIdString(pid) || localTreatme
                 }
             } else if (t.paid) {
                 paid = t.paid;
-            } else if (t.notes && !t.paid) {
-                var match = t.notes.match(/المدفوع:\s*([\d.]+)/);
-                if (match) paid = parseFloat(match[1]);
             }
             
             totalCost += cost;
@@ -2845,38 +2864,34 @@ if (toIdString(localTreatments[i].patientId) === toIdString(pid) || localTreatme
                     var fu = t.followUps[f];
                     var fuDate = fu.date ? new Date(fu.date).toLocaleDateString('ar-EG') : 'تاريخ غير محدد';
                     followUpsHtml += '<div style="font-size:11px; padding:3px 0; border-bottom:1px solid #fde68a;">';
-                    followUpsHtml += '📅 ' + fuDate + ': ' + escapeHtml(fu.notes.substring(0, 50));
+                    followUpsHtml += '📅 ' + fuDate + ': ' + escapeHtml((fu.notes || '').substring(0, 50));
                     if (fu.amountPaid > 0) followUpsHtml += ' | 💵 دفع: ' + fu.amountPaid + ' ريال';
                     followUpsHtml += '</div>';
                 }
                 followUpsHtml += '</div>';
             }
             
-            // الأزرار - مع التحقق من الصلاحيات
+            // الأزرار
             var addPaymentBtn = '';
             var addFollowUpBtn = '';
             
-            // فقط دكتور عيادة أو مدير يمكنهم إضافة دفعة وعودة
             if (currentUser.subscriptionType === 'clinic' || currentUser.role === 'admin') {
-                addPaymentBtn = '<button class="add-payment-btn" onclick="event.stopPropagation(); showAddPaymentModal(\'' + t._id + '\', \'' + pid + '\')" style="background:#10b981; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px;"><i class="fas fa-plus-circle"></i> إضافة دفعة</button>';
-                
-                addFollowUpBtn = '<button class="add-followup-btn" onclick="event.stopPropagation(); openFollowUpModal(\'' + t._id + '\', \'' + pid + '\')" style="background:#f59e0b; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px; margin-right:5px;"><i class="fas fa-undo-alt"></i> إضافة عودة</button>';
+                addPaymentBtn = '<button class="add-payment-btn" onclick="event.stopPropagation(); showAddPaymentModal(\'' + t._id + '\', \'' + patient._id + '\')" style="background:#10b981; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px;"><i class="fas fa-plus-circle"></i> إضافة دفعة</button>';
+                addFollowUpBtn = '<button class="add-followup-btn" onclick="event.stopPropagation(); openFollowUpModal(\'' + t._id + '\', \'' + patient._id + '\')" style="background:#f59e0b; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px; margin-right:5px;"><i class="fas fa-undo-alt"></i> إضافة عودة</button>';
             }
             
-            // زر المشاركة والحذف متاحان للجميع
-            var shareTreatmentBtn = '<button class="share-treatment-btn" onclick="event.stopPropagation(); shareSingleTreatment(\'' + t._id + '\', \'' + pid + '\')" style="background:#25d366; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px; margin-right:5px;"><i class="fab fa-whatsapp"></i> مشاركة</button>';
-            var deleteTreatmentBtn = '<button class="delete-treatment-btn" onclick="event.stopPropagation(); deleteTreatment(\'' + t._id + '\', \'' + pid + '\')" style="background:#ef4444; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px; margin-right:5px;"><i class="fas fa-trash-alt"></i> حذف</button>';
+            var shareTreatmentBtn = '<button class="share-treatment-btn" onclick="event.stopPropagation(); shareSingleTreatment(\'' + t._id + '\', \'' + patient._id + '\')" style="background:#25d366; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px; margin-right:5px;"><i class="fab fa-whatsapp"></i> مشاركة</button>';
+            var deleteTreatmentBtn = '<button class="delete-treatment-btn" onclick="event.stopPropagation(); deleteTreatment(\'' + t._id + '\', \'' + patient._id + '\')" style="background:#ef4444; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px; margin-right:5px;"><i class="fas fa-trash-alt"></i> حذف</button>';
             
             treatmentsHtml += '<div style="padding:12px; border-bottom:1px solid #e2e8f0; ' + bgStyle + '">';
             treatmentsHtml += '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">';
-            treatmentsHtml += '<div><strong>🦷 السن ' + t.toothNumber + '</strong> - ' + t.treatmentType + offlineBadge + '</div>';
+            treatmentsHtml += '<div><strong>🦷 السن ' + (t.toothNumber || 'غير محدد') + '</strong> - ' + (t.treatmentType || 'معالجة') + offlineBadge + '</div>';
             treatmentsHtml += '<div style="font-size:11px; color:#64748b;">📅 ' + new Date(t.treatmentDate).toLocaleDateString('ar-EG') + '</div>';
             treatmentsHtml += '</div>';
             treatmentsHtml += '<div style="margin-top:5px;"><span style="font-size:13px;">💰 ' + cost + ' ريال</span> | <span style="color:#10b981; font-size:13px;">💵 ' + paid + ' ريال</span> | <span style="color:' + remainingColor + '; font-size:13px;">⚠️ ' + remaining + ' ريال</span></div>';
             treatmentsHtml += paymentHistoryHtml;
             treatmentsHtml += followUpsHtml;
-            
-            treatmentsHtml += '<div style="display:flex; gap:5px; flex-wrap:wrap; margin-top:8px;">' + addPaymentBtn + addFollowUpBtn + shareTreatmentBtn + deleteTreatmentBtn + '</div>';     
+            treatmentsHtml += '<div style="display:flex; gap:5px; flex-wrap:wrap; margin-top:8px;">' + addPaymentBtn + addFollowUpBtn + shareTreatmentBtn + deleteTreatmentBtn + '</div>';
             treatmentsHtml += '</div>';
         }
         
@@ -2892,7 +2907,7 @@ if (toIdString(localTreatments[i].patientId) === toIdString(pid) || localTreatme
         modalHtml += '<p><strong>📍 العنوان:</strong> ' + escapeHtml(patient.address || 'غير محدد') + '</p>';
         modalHtml += '</div>';
         modalHtml += '<h4>🦷 سجل المعالجات (' + treatments.length + ')</h4>';
-        modalHtml += '<div style="max-height:300px; overflow-y:auto; margin-bottom:20px;">' + (treatmentsHtml || '<p style="text-align:center;padding:20px;">لا توجد معالجات مسجلة</p>') + '</div>';
+        modalHtml += '<div style="max-height:300px; overflow-y:auto; margin-bottom:20px;">' + treatmentsHtml + '</div>';
         modalHtml += '<div style="background:#e0f2fe; padding:15px; border-radius:15px; margin-bottom:20px;">';
         modalHtml += '<p><strong>💰 إجمالي التكلفة:</strong> ' + totalCost + ' ريال</p>';
         modalHtml += '<p><strong>💵 إجمالي المدفوع:</strong> ' + totalPaid + ' ريال</p>';
@@ -2914,11 +2929,14 @@ if (toIdString(localTreatments[i].patientId) === toIdString(pid) || localTreatme
         }
         modal.innerHTML = modalHtml;
         modal.style.display = 'flex';
+        
     } catch (error) {
         console.error('Error showing patient details:', error);
         showAlert('dashboardAlert', 'خطأ في جلب بيانات المريض', 'error');
     }
-}
+    }
+            
+        
     
 
 // حذف معالجة - مع مزامنة مع السيرفر
