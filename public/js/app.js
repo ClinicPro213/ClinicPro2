@@ -3578,6 +3578,7 @@ if (!currentUser.phone) currentUser.phone = '';
     checkConnectionStatus();
     // في نهاية loadDashboard() تأكد من وجود
 checkAndShowAdminButton();
+    fixPatientIdsInTreatments()
             // بعد تحميل المرضى، قم بدمج المعالجات
 restoreAndMergeAllTreatments()
     checkPatientLimit();
@@ -5443,4 +5444,54 @@ setTimeout(function() {
         searchBar.insertBefore(diagBtn, searchBar.firstChild);
     }
 }, 2000);
-
+async function fixPatientIdsInTreatments() {
+    if (!currentUser) {
+        alert('الرجاء تسجيل الدخول');
+        return;
+    }
+    
+    console.log('🔄 جاري إصلاح patientId في المعالجات...');
+    
+    // جلب جميع المعالجات
+    const response = await fetch('/api/treatments/user/' + currentUser.id);
+    const treatments = await response.json();
+    
+    let fixedCount = 0;
+    
+    for (const treatment of treatments) {
+        // محاولة العثور على المريض عن طريق الاسم من notes
+        let patientName = null;
+        
+        // استخراج اسم المريض من notes (إذا كان موجوداً)
+        if (treatment.notes) {
+            const nameMatch = treatment.notes.match(/المريض:\s*([^\n]+)/);
+            if (nameMatch) patientName = nameMatch[1];
+        }
+        
+        // إذا وجدنا اسم المريض، ابحث عنه في allPatients
+        if (patientName) {
+            const patient = allPatients.find(p => p.name === patientName);
+            if (patient) {
+                const oldPatientId = treatment.patientId?.toString();
+                const newPatientId = patient._id.toString();
+                
+                if (oldPatientId !== newPatientId) {
+                    console.log(`🔧 تحديث patientId للمعالجة ${treatment._id}`);
+                    console.log(`   من: ${oldPatientId}`);
+                    console.log(`   إلى: ${newPatientId}`);
+                    
+                    await fetch('/api/treatments/' + treatment._id, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ patientId: newPatientId })
+                    });
+                    fixedCount++;
+                }
+            }
+        }
+    }
+    
+    console.log(`✅ تم تحديث ${fixedCount} معالجة`);
+    alert(`تم تحديث ${fixedCount} معالجة. سيتم تحديث الصفحة.`);
+    location.reload();
+}
