@@ -3432,6 +3432,7 @@ async function loadDashboard() {
             }
         }
         checkConnectionStatus();
+;
         checkPatientLimit();
     
         updateNotificationBadge();
@@ -3551,6 +3552,8 @@ if (!currentUser.phone) currentUser.phone = '';
     checkConnectionStatus();
     // في نهاية loadDashboard() تأكد من وجود
 checkAndShowAdminButton();
+            // بعد تحميل المرضى، قم بدمج المعالجات
+restoreAndMergeAllTreatments()
     checkPatientLimit();
     updateNotificationBadge();
     if (navigator.onLine && typeof syncPatientImagesToServer === 'function') await syncPatientImagesToServer();
@@ -5073,4 +5076,76 @@ function updateBridgeDisplay() {
             span.textContent = selectedBridgeList.join('، ');
         }
     }
+}
+
+// ============================================
+// دالة استعادة ودمج جميع المعالجات من جميع المصادر
+// ============================================
+async function restoreAndMergeAllTreatments() {
+    if (!currentUser) {
+        console.log('⚠️ لا يوجد مستخدم مسجل');
+        return;
+    }
+    
+    console.log('🔄 بدء استعادة ودمج جميع المعالجات...');
+    
+    // 1. جلب المعالجات من localStorage الحالية
+    let localTreatments = [];
+    try {
+        localTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+        console.log('📦 المعالجات من localStorage:', localTreatments.length);
+    } catch(e) { console.log('خطأ في قراءة localStorage:', e); }
+    
+    // 2. جلب المعالجات من السيرفر
+    let serverTreatments = [];
+    if (navigator.onLine) {
+        try {
+            const response = await fetch('/api/treatments/user/' + currentUser.id);
+            if (response.ok) {
+                serverTreatments = await response.json();
+                console.log('🌐 المعالجات من السيرفر:', serverTreatments.length);
+            }
+        } catch(e) { console.log('خطأ في جلب المعالجات من السيرفر:', e); }
+    }
+    
+    // 3. دمج جميع المعالجات في Map واحد (تجنب التكرار)
+    let allTreatmentsMap = new Map();
+    
+    // إضافة معالجات localStorage
+    for (let t of localTreatments) {
+        // التأكد من وجود الحقول الأساسية
+        if (!t.payments) t.payments = [];
+        if (!t.followUps) t.followUps = [];
+        if (t.offline === undefined) t.offline = false;
+        if (t.pendingSync === undefined) t.pendingSync = false;
+        allTreatmentsMap.set(t._id, t);
+    }
+    
+    // إضافة معالجات السيرفر (إذا لم تكن موجودة مسبقاً)
+    for (let t of serverTreatments) {
+        if (!allTreatmentsMap.has(t._id)) {
+            // تحويل معالجة السيرفر إلى الصيغة المتوافقة
+            t.payments = t.payments || [];
+            t.followUps = t.followUps || [];
+            t.offline = false;
+            t.pendingSync = false;
+            allTreatmentsMap.set(t._id, t);
+        }
+    }
+    
+    // 4. تحويل الخريطة إلى مصفوفة وحفظها
+    let mergedTreatments = Array.from(allTreatmentsMap.values());
+    localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(mergedTreatments));
+    
+    console.log('✅ تم دمج وحفظ', mergedTreatments.length, 'معالجة في localStorage');
+    
+    // 5. تحديث واجهة المريض الحالية إذا كانت مفتوحة
+    if (currentPatientId) {
+        await showPatientFullDetails(currentPatientId);
+    }
+    
+    // 6. تحديث قائمة المرضى
+    await loadPatients();
+    
+    return mergedTreatments.length;
 }
