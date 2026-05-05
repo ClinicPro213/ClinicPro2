@@ -134,46 +134,65 @@ const FollowUp = mongoose.model('FollowUp', FollowUpSchema);
 // ============================================
 // دالة لتحويل patientId و userId فقط في المعالجات
 // ============================================
+// ============================================
+// دالة تحويل بسيطة وقوية
+// ============================================
 async function convertTreatmentIdsToStrings() {
     console.log('🔄 بدء تحويل patientId و userId في المعالجات...');
     
     try {
-        const treatments = await Treatment.find();
-        let updatedCount = 0;
+        // استخدام updateMany مع شرط التحقق من النوع
+        // تحويل patientId
+        const patientResult = await Treatment.updateMany(
+            { patientId: { $type: 'objectId' } },
+            [{ $set: { patientId: { $toString: '$patientId' } } }]
+        );
         
-        for (const treatment of treatments) {
-            let needsUpdate = false;
-            const updateData = {};
-            
-            // تحويل patientId من ObjectId إلى نص
-            if (treatment.patientId && typeof treatment.patientId === 'object') {
-                updateData.patientId = treatment.patientId.toString();
-                needsUpdate = true;
-                console.log(`🔧 معالجة: ${treatment.treatmentType || treatment._id} - patientId كان ObjectId`);
-            }
-            
-            // تحويل userId من ObjectId إلى نص
-            if (treatment.userId && typeof treatment.userId === 'object') {
-                updateData.userId = treatment.userId.toString();
-                needsUpdate = true;
-                console.log(`🔧 معالجة: ${treatment.treatmentType || treatment._id} - userId كان ObjectId`);
-            }
-            
-            if (needsUpdate) {
-                await Treatment.updateOne({ _id: treatment._id }, updateData);
-                updatedCount++;
-                console.log(`✅ تم تحديث المعالجة: ${treatment.treatmentType || treatment._id}`);
-            }
-        }
+        // تحويل userId
+        const userResult = await Treatment.updateMany(
+            { userId: { $type: 'objectId' } },
+            [{ $set: { userId: { $toString: '$userId' } } }]
+        );
         
         console.log(`\n✅ اكتمل التحويل!`);
-        console.log(`📊 تم تحديث ${updatedCount} معالجة`);
+        console.log(`📊 patientId: تم تحديث ${patientResult.modifiedCount || 0} معالجة`);
+        console.log(`📊 userId: تم تحديث ${userResult.modifiedCount || 0} معالجة`);
         
-        return { updatedCount };
+        return { 
+            patientIdFixed: patientResult.modifiedCount || 0, 
+            userIdFixed: userResult.modifiedCount || 0 
+        };
         
     } catch (error) {
         console.error('❌ خطأ في التحويل:', error);
-        return { error: error.message };
+        
+        // إذا فشلت الطريقة الأولى، جرب الطريقة البديلة
+        console.log('🔄 تجربة الطريقة البديلة...');
+        
+        const treatments = await Treatment.find();
+        let updated = 0;
+        
+        for (const t of treatments) {
+            let changed = false;
+            
+            if (t.patientId && t.patientId.toString && t.patientId.toString().match(/^[a-f0-9]{24}$/i)) {
+                t.patientId = t.patientId.toString();
+                changed = true;
+            }
+            
+            if (t.userId && t.userId.toString && t.userId.toString().match(/^[a-f0-9]{24}$/i)) {
+                t.userId = t.userId.toString();
+                changed = true;
+            }
+            
+            if (changed) {
+                await t.save();
+                updated++;
+            }
+        }
+        
+        console.log(`📊 الطريقة البديلة: تم تحديث ${updated} معالجة`);
+        return { patientIdFixed: updated, userIdFixed: updated };
     }
 }
 
