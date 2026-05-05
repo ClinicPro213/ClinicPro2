@@ -2086,162 +2086,322 @@ async function saveTreatmentNow() {
         return;
     }
     
-    var tooth = document.getElementById('toothNumber').value;
-    if (!tooth) {
-        showAlert('dashboardAlert', 'اختر السن أولاً', 'error');
-        return;
-    }
+    // ✅ النظام الجديد: الحصول على البيانات من النظام المتقدم
+    let category = document.getElementById('mainCategorySelect').value;
+    let subTreatmentSelect = document.getElementById('subTreatmentSelect');
+    let treatmentValue = subTreatmentSelect.value;
+    let treatmentName = subTreatmentSelect.options[subTreatmentSelect.selectedIndex]?.text || '';
     
-    var type = document.getElementById('treatmentTypeSelect').value;
-    if (!type) {
-        showAlert('dashboardAlert', 'اختر نوع المعالجة', 'error');
-        return;
-    }
+    // ✅ إذا كان النظام القديم لا يزال مستخدماً (للتوافق مع الإصدارات السابقة)
+    let oldTooth = document.getElementById('toothNumber')?.value;
+    let oldType = document.getElementById('treatmentTypeSelect')?.value;
     
-    var notes = document.getElementById('treatmentNotesInput').value;
-    var cost = parseFloat(document.getElementById('treatmentCostInput').value) || 0;
-    var paid = parseFloat(document.getElementById('treatmentPaidInput').value) || 0;
+    let toothInfo = '';
+    let fullTreatmentName = '';
+    let useNewSystem = (category && treatmentValue);
     
-    var patient = null;
-    for (var i = 0; i < allPatients.length; i++) {
-        if (allPatients[i]._id === currentPatientId) {
-            patient = allPatients[i];
-            break;
-        }
-    }
-    
-    isSaving = true;
-    
-    try {
-        var serverSaved = false;
-        
-        // ✅ محاولة الحفظ على السيرفر أولاً
-        if (navigator.onLine) {
-            try {
-                let patientId = currentPatientId;
-                if (patientId && patientId.toString().startsWith('offline_')) {
-                    const matchedPatient = allPatients.find(p => 
-                        p.name === (patient ? patient.name : '') && !p._id.toString().startsWith('offline_')
-                    );
-                    if (matchedPatient) {
-                        patientId = matchedPatient._id;
-                    }
-                }
-                
-                const response = await fetch('/api/treatments', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        patientId: patientId,
-                        userId: currentUser.id,
-                        toothNumber: parseInt(tooth),
-                        treatmentType: type,
-                        cost: cost,
-                        paid: paid,
-                        notes: 'التكلفة: ' + cost + ' | المدفوع: ' + paid + ' | المتبقي: ' + (cost-paid) + '\n' + notes,
-                        treatmentDate: new Date().toISOString()
-                    })
-                });
-                
-                if (response.ok) {
-    serverSaved = true;
-    const result = await response.json();
-    
-    // ✅ حفظ المعالجة في localStorage
-    let offlineTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
-    
-    // التحقق من عدم وجودها مسبقاً
-    const exists = offlineTreatments.some(t => t._id === result.treatment._id);
-    if (!exists) {
-        offlineTreatments.push({
-            ...result.treatment,
-            offline: false,
-            pendingSync: false,
-            payments: []
-        });
-        localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(offlineTreatments));
-    }
-    
-    showAlert('dashboardAlert', '✅ تم حفظ المعالجة على السيرفر', 'success');
-                } else {
-                    showAlert('dashboardAlert', '📴 فشل الحفظ على السيرفر، سيتم الحفظ محلياً', 'warning');
-                }
-            } catch(e) {
-                console.log('خطأ في الاتصال بالسيرفر:', e);
-                showAlert('dashboardAlert', '📴 سيتم الحفظ محلياً', 'warning');
-            }
+    if (useNewSystem) {
+        // ✅ النظام الجديد
+        if (!category || !treatmentValue) {
+            showAlert('dashboardAlert', '⚠️ الرجاء اختيار المعالجة بالكامل', 'error');
+            return;
         }
         
-        // ✅ حفظ محلياً فقط إذا فشل الحفظ على السيرفر
-        if (!serverSaved) {
-            var offlineTx = [];
-            try {
-                offlineTx = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
-            } catch(e) { offlineTx = []; }
-            
-            // التحقق من عدم وجود معالجة مكررة
-            var isDuplicate = false;
-            for (var i = 0; i < offlineTx.length; i++) {
-                if (offlineTx[i].toothNumber === parseInt(tooth) && 
-                    offlineTx[i].treatmentType === type) {
-                    isDuplicate = true;
-                    break;
-                }
+        let notes = document.getElementById('treatmentNotesInput').value;
+        let cost = parseFloat(document.getElementById('treatmentCostInput').value) || 0;
+        let paid = parseFloat(document.getElementById('treatmentPaidInput').value) || 0;
+        
+        // بناء وصف المعالجة التفصيلي
+        let treatments = treatmentsData[category];
+        if (!treatments) {
+            showAlert('dashboardAlert', '⚠️ خطأ في بيانات المعالجة', 'error');
+            return;
+        }
+        
+        let selectionType = treatments.teethSelection;
+        
+        if (selectionType === 'jaw') {
+            let jaw = document.getElementById('jawSelect')?.value || '';
+            toothInfo = jaw;
+            if (!toothInfo) {
+                showAlert('dashboardAlert', '⚠️ الرجاء اختيار الفك', 'error');
+                return;
             }
-            
-            if (!isDuplicate) {
-                var treatmentData = {
-    patientId: currentPatientId,
-    userId: currentUser.id,
-    toothNumber: parseInt(tooth),
-    treatmentType: type,
-    cost: cost,
-    paid: paid,
-    payments: [],  // 👈 أضف هذا السطر
-    notes: 'التكلفة: ' + cost + ' | المدفوع: ' + paid + ' | المتبقي: ' + (cost-paid) + '\n' + notes,
-    treatmentDate: new Date().toISOString(),
-    patientName: patient ? patient.name : 'غير معروف',
-    offline: true,
-    pendingSync: true,
-    _id: 'offline_tx_' + Date.now() + '_' + Math.random()
-};
-                
-                offlineTx.push(treatmentData);
-                localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(offlineTx));
-                showAlert('dashboardAlert', '📴 تم حفظ المعالجة محلياً', 'warning');
-            } else {
-                showAlert('dashboardAlert', '⚠️ هذه المعالجة موجودة بالفعل', 'warning');
+        } 
+        else if (selectionType === 'single' || selectionType === 'multi') {
+            toothInfo = selectedTeethList.join('، ');
+            if (selectedTeethList.length === 0) {
+                showAlert('dashboardAlert', `⚠️ الرجاء اختيار ${selectionType === 'single' ? 'السن' : 'الأسنان'}`, 'error');
+                return;
+            }
+        }
+        else if (selectionType === 'bridge') {
+            toothInfo = `الأسنان الداعمة: ${selectedBridgeList.join('، ')}`;
+            if (selectedBridgeList.length < 2) {
+                showAlert('dashboardAlert', '⚠️ الجسر يحتاج إلى أسنان داعمة (سنين على الأقل)', 'error');
                 return;
             }
         }
         
-        closeModal('treatmentModal');
-        
-        // تحديث تفاصيل المريض
-        var detailsModal = document.getElementById('patientDetailsModal');
-        if (detailsModal && detailsModal.style.display === 'flex') {
-            await showPatientFullDetails(currentPatientId);
+        fullTreatmentName = `${category} - ${treatmentName}`;
+        if (toothInfo) {
+            fullTreatmentName += ` (${toothInfo})`;
         }
         
-        saveAllDataToLocal();
+        var patient = null;
+        for (var i = 0; i < allPatients.length; i++) {
+            if (allPatients[i]._id === currentPatientId) {
+                patient = allPatients[i];
+                break;
+            }
+        }
         
-        // تفريغ الحقول
-        document.getElementById('toothNumber').value = '';
-        document.getElementById('treatmentTypeSelect').value = '';
-        document.getElementById('treatmentNotesInput').value = '';
-        document.getElementById('treatmentCostInput').value = '';
-        document.getElementById('treatmentPaidInput').value = '';
-        document.getElementById('remainingSpan').textContent = '0';
+        isSaving = true;
         
-        resetToothSelectionSimple();
+        try {
+            var serverSaved = false;
+            
+            // ✅ محاولة الحفظ على السيرفر أولاً
+            if (navigator.onLine) {
+                try {
+                    let patientId = currentPatientId;
+                    if (patientId && patientId.toString().startsWith('offline_')) {
+                        const matchedPatient = allPatients.find(p => 
+                            p.name === (patient ? patient.name : '') && !p._id.toString().startsWith('offline_')
+                        );
+                        if (matchedPatient) {
+                            patientId = matchedPatient._id;
+                        }
+                    }
+                    
+                    const response = await fetch('/api/treatments', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            patientId: patientId,
+                            userId: currentUser.id,
+                            toothNumber: toothInfo || 'غير محدد',
+                            treatmentType: fullTreatmentName,
+                            cost: cost,
+                            paid: paid,
+                            notes: 'التكلفة: ' + cost + ' | المدفوع: ' + paid + ' | المتبقي: ' + (cost-paid) + '\n' + notes,
+                            treatmentDate: new Date().toISOString()
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        serverSaved = true;
+                        const result = await response.json();
+                        
+                        // حفظ المعالجة في localStorage
+                        let offlineTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+                        const exists = offlineTreatments.some(t => t._id === result.treatment._id);
+                        if (!exists) {
+                            offlineTreatments.push({
+                                ...result.treatment,
+                                offline: false,
+                                pendingSync: false,
+                                payments: []
+                            });
+                            localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(offlineTreatments));
+                        }
+                        
+                        showAlert('dashboardAlert', '✅ تم حفظ المعالجة على السيرفر', 'success');
+                    } else {
+                        showAlert('dashboardAlert', '📴 فشل الحفظ على السيرفر، سيتم الحفظ محلياً', 'warning');
+                    }
+                } catch(e) {
+                    console.log('خطأ في الاتصال بالسيرفر:', e);
+                    showAlert('dashboardAlert', '📴 سيتم الحفظ محلياً', 'warning');
+                }
+            }
+            
+            // ✅ حفظ محلياً فقط إذا فشل الحفظ على السيرفر
+            if (!serverSaved) {
+                var offlineTx = [];
+                try {
+                    offlineTx = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+                } catch(e) { offlineTx = []; }
+                
+                var treatmentData = {
+                    patientId: currentPatientId,
+                    userId: currentUser.id,
+                    toothNumber: toothInfo || 'غير محدد',
+                    treatmentType: fullTreatmentName,
+                    cost: cost,
+                    paid: paid,
+                    payments: [],
+                    notes: 'التكلفة: ' + cost + ' | المدفوع: ' + paid + ' | المتبقي: ' + (cost-paid) + '\n' + notes,
+                    treatmentDate: new Date().toISOString(),
+                    patientName: patient ? patient.name : 'غير معروف',
+                    offline: true,
+                    pendingSync: true,
+                    _id: 'offline_tx_' + Date.now() + '_' + Math.random()
+                };
+                
+                offlineTx.push(treatmentData);
+                localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(offlineTx));
+                showAlert('dashboardAlert', '📴 تم حفظ المعالجة محلياً', 'warning');
+            }
+            
+            closeModal('treatmentModal');
+            
+            // تحديث تفاصيل المريض
+            var detailsModal = document.getElementById('patientDetailsModal');
+            if (detailsModal && detailsModal.style.display === 'flex') {
+                await showPatientFullDetails(currentPatientId);
+            }
+            
+            saveAllDataToLocal();
+            
+            // تفريغ الحقول
+            document.getElementById('mainCategorySelect').value = '';
+            document.getElementById('subTreatmentDiv').style.display = 'none';
+            document.getElementById('teethSelectionDiv').style.display = 'none';
+            document.getElementById('treatmentNotesInput').value = '';
+            document.getElementById('treatmentCostInput').value = '';
+            document.getElementById('treatmentPaidInput').value = '';
+            document.getElementById('remainingSpan').textContent = '0';
+            selectedTeethList = [];
+            selectedBridgeList = [];
+            
+        } finally {
+            setTimeout(() => {
+                isSaving = false;
+            }, 1000);
+        }
         
-    } finally {
-        setTimeout(() => {
-            isSaving = false;
-        }, 1000);
+    } else if (oldTooth && oldType) {
+        // ✅ النظام القديم (للتوافق مع الإصدارات السابقة)
+        var tooth = oldTooth;
+        var type = oldType;
+        var notes = document.getElementById('treatmentNotesInput').value;
+        var cost = parseFloat(document.getElementById('treatmentCostInput').value) || 0;
+        var paid = parseFloat(document.getElementById('treatmentPaidInput').value) || 0;
+        
+        var patient = null;
+        for (var i = 0; i < allPatients.length; i++) {
+            if (allPatients[i]._id === currentPatientId) {
+                patient = allPatients[i];
+                break;
+            }
+        }
+        
+        isSaving = true;
+        
+        try {
+            var serverSaved = false;
+            
+            if (navigator.onLine) {
+                try {
+                    let patientId = currentPatientId;
+                    if (patientId && patientId.toString().startsWith('offline_')) {
+                        const matchedPatient = allPatients.find(p => 
+                            p.name === (patient ? patient.name : '') && !p._id.toString().startsWith('offline_')
+                        );
+                        if (matchedPatient) {
+                            patientId = matchedPatient._id;
+                        }
+                    }
+                    
+                    const response = await fetch('/api/treatments', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            patientId: patientId,
+                            userId: currentUser.id,
+                            toothNumber: parseInt(tooth),
+                            treatmentType: type,
+                            cost: cost,
+                            paid: paid,
+                            notes: 'التكلفة: ' + cost + ' | المدفوع: ' + paid + ' | المتبقي: ' + (cost-paid) + '\n' + notes,
+                            treatmentDate: new Date().toISOString()
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        serverSaved = true;
+                        const result = await response.json();
+                        
+                        let offlineTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+                        const exists = offlineTreatments.some(t => t._id === result.treatment._id);
+                        if (!exists) {
+                            offlineTreatments.push({
+                                ...result.treatment,
+                                offline: false,
+                                pendingSync: false,
+                                payments: []
+                            });
+                            localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(offlineTreatments));
+                        }
+                        
+                        showAlert('dashboardAlert', '✅ تم حفظ المعالجة على السيرفر', 'success');
+                    } else {
+                        showAlert('dashboardAlert', '📴 فشل الحفظ على السيرفر، سيتم الحفظ محلياً', 'warning');
+                    }
+                } catch(e) {
+                    console.log('خطأ في الاتصال بالسيرفر:', e);
+                    showAlert('dashboardAlert', '📴 سيتم الحفظ محلياً', 'warning');
+                }
+            }
+            
+            if (!serverSaved) {
+                var offlineTx = [];
+                try {
+                    offlineTx = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+                } catch(e) { offlineTx = []; }
+                
+                var treatmentData = {
+                    patientId: currentPatientId,
+                    userId: currentUser.id,
+                    toothNumber: parseInt(tooth),
+                    treatmentType: type,
+                    cost: cost,
+                    paid: paid,
+                    payments: [],
+                    notes: 'التكلفة: ' + cost + ' | المدفوع: ' + paid + ' | المتبقي: ' + (cost-paid) + '\n' + notes,
+                    treatmentDate: new Date().toISOString(),
+                    patientName: patient ? patient.name : 'غير معروف',
+                    offline: true,
+                    pendingSync: true,
+                    _id: 'offline_tx_' + Date.now() + '_' + Math.random()
+                };
+                
+                offlineTx.push(treatmentData);
+                localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(offlineTx));
+                showAlert('dashboardAlert', '📴 تم حفظ المعالجة محلياً', 'warning');
+            }
+            
+            closeModal('treatmentModal');
+            
+            var detailsModal = document.getElementById('patientDetailsModal');
+            if (detailsModal && detailsModal.style.display === 'flex') {
+                await showPatientFullDetails(currentPatientId);
+            }
+            
+            saveAllDataToLocal();
+            
+            document.getElementById('toothNumber').value = '';
+            document.getElementById('treatmentTypeSelect').value = '';
+            document.getElementById('treatmentNotesInput').value = '';
+            document.getElementById('treatmentCostInput').value = '';
+            document.getElementById('treatmentPaidInput').value = '';
+            document.getElementById('remainingSpan').textContent = '0';
+            
+            resetToothSelectionSimple();
+            
+        } finally {
+            setTimeout(() => {
+                isSaving = false;
+            }, 1000);
+        }
+        
+    } else {
+        showAlert('dashboardAlert', '⚠️ الرجاء اختيار المعالجة والأسنان', 'error');
+        return;
     }
-}
-        
+            }
+                
         
 async function saveAndShareNow() {
     if (isSaving) {
@@ -4544,3 +4704,337 @@ window.shareSingleTreatment = function(treatmentId, patientId) {
     window.open('https://wa.me/' + phoneNumber + '?text=' + encodeURIComponent(message), '_blank');
     showAlert('dashboardAlert', '✅ تم فتح واتساب لمشاركة تقرير المعالجة', 'success');
 };
+
+// ============================================
+// نظام المعالجة المتقدم - البيانات
+// ============================================
+
+const treatmentsData = {
+    حشوات: {
+        icon: "🦷",
+        options: [
+            { value: "حشوة فضية", name: "حشوة فضية (أملغم)" },
+            { value: "حشوة ضوئية", name: "حشوة ضوئية (كومبوزيت)" },
+            { value: "حشوة ضوئية مع ريبوند", name: "حشوة ضوئية مع ريبوند" },
+            { value: "حشوة تجميلية أماميات", name: "حشوة تجميلية (أسنان أمامية)" }
+        ],
+        teethSelection: "multi" // يمكن اختيار أكثر من سن
+    },
+    خلع: {
+        icon: "🔪",
+        options: [
+            { value: "خلع بسيط", name: "خلع بسيط (عادي)" },
+            { value: "خلع جراحي", name: "خلع جراحي" },
+            { value: "خلع بيدو", name: "خلع أطفال (بيدو)" }
+        ],
+        teethSelection: "multi" // يمكن اختيار أكثر من سن
+    },
+    "علاج عصب": {
+        icon: "⚕️",
+        options: [
+            { value: "سحب عصب بيدو", name: "سحب عصب أطفال (بيدو)" },
+            { value: "علاج عصب أمامي", name: "علاج عصب - سن أمامي" },
+            { value: "علاج عصب خلفي", name: "علاج عصب - سن خلفي" },
+            { value: "إعادة معالجة عصب", name: "إعادة معالجة عصب" }
+        ],
+        teethSelection: "single" // يمكن اختيار سن واحد فقط
+    },
+    تركيبات: {
+        icon: "👑",
+        options: [
+            { value: "تلبيسة زركون", name: "تلبيسة زركون" },
+            { value: "تلبيسة إيماكس", name: "تلبيسة إيماكس" },
+            { value: "تلبيسة معدنية", name: "تلبيسة معدنية" },
+            { value: "تلبيسة تجميلية", name: "تلبيسة تجميلية" },
+            { value: "فص تجميلي", name: "فص تجميلي (فينير)" },
+            { value: "جسر", name: "جسر (أسنان متعددة)" }
+        ],
+        teethSelection: "bridge" // للجسر يمكن اختيار أكثر من سن
+    },
+    تقويم: {
+        icon: "📐",
+        options: [
+            { value: "تقويم ثابت", name: "تقويم ثابت (أسلاك)" },
+            { value: "تقويم شفاف", name: "تقويم شفاف (إنفيزلاين)" },
+            { value: "مثبت تقويم سلك", name: "مثبت تقويم - سلك" },
+            { value: "مثبت تقويم شفاف", name: "مثبت تقويم - شفاف" }
+        ],
+        teethSelection: "jaw" // اختيار فك فقط
+    },
+    تبييض: {
+        icon: "✨",
+        options: [
+            { value: "تبييض ليزر", name: "تبييض ليزر" },
+            { value: "تبييض Antivet", name: "تبييض Antioxi" },
+            { value: "تبييض ضوئي", name: "تبييض ضوئي" },
+            { value: "تبييض منزلي", name: "تبييض منزلي (قوالب)" }
+        ],
+        teethSelection: "jaw" // اختيار فك فقط
+    },
+    أطقم: {
+        icon: "🦷",
+        options: [
+            { value: "طقم كامل علوي", name: "طقم كامل - فك علوي" },
+            { value: "طقم كامل سفلي", name: "طقم كامل - فك سفلي" },
+            { value: "طقم كامل علوي وسفلي", name: "طقم كامل - فكين معاً" },
+            { value: "طقم جزئي علوي", name: "طقم جزئي - فك علوي" },
+            { value: "طقم جزئي سفلي", name: "طقم جزئي - فك سفلي" },
+            { value: "طقم جزئي علوي وسفلي", name: "طقم جزئي - فكين معاً" },
+            { value: "ابتسامة متحركة", name: "ابتسامة متحركة (Overlay)" }
+        ],
+        teethSelection: "none" // لا يحتاج تحديد أسنان
+    },
+    "معالجة لثة": {
+        icon: "🩸",
+        options: [
+            { value: "تنظيف لثة", name: "تنظيف لثة (سكالينج)" },
+            { value: "كشط لثة", name: "كشط لثة (كورتاج)" },
+            { value: "علاج دواعم", name: "علاج دواعم الأسنان" }
+        ],
+        teethSelection: "none"
+    },
+    ابتسامة: {
+        icon: "😁",
+        options: [
+            { value: "ابتسامة هوليود", name: "ابتسامة هوليود (قشور خزفية)" },
+            { value: "ابتسامة متحركة", name: "ابتسامة متحركة" }
+        ],
+        teethSelection: "none"
+    },
+    أخرى: {
+        icon: "📋",
+        options: [
+            { value: "فحص", name: "فحص عام" },
+            { value: "تنظيف", name: "تنظيف أسنان" },
+            { value: "فلورة", name: "فلورة" },
+            { value: "معالجة حساسية", name: "معالجة حساسية الأسنان" }
+        ],
+        teethSelection: "none"
+    }
+};
+
+let selectedTeethList = [];
+let selectedBridgeList = [];
+
+// تغيير القسم الرئيسي
+function onMainCategoryChange() {
+    let category = document.getElementById('mainCategorySelect').value;
+    let subDiv = document.getElementById('subTreatmentDiv');
+    let subSelect = document.getElementById('subTreatmentSelect');
+    
+    if (!category) {
+        subDiv.style.display = 'none';
+        document.getElementById('teethSelectionDiv').style.display = 'none';
+        return;
+    }
+    
+    // ملء قائمة المعالجات الفرعية
+    let treatments = treatmentsData[category];
+    if (treatments) {
+        subSelect.innerHTML = '<option value="">-- اختر --</option>';
+        for (let t of treatments.options) {
+            subSelect.innerHTML += `<option value="${t.value}">${treatments.icon} ${t.name}</option>`;
+        }
+        subDiv.style.display = 'block';
+    } else {
+        subDiv.style.display = 'none';
+    }
+    
+    // إخفاء قسم الأسنان مؤقتاً
+    document.getElementById('teethSelectionDiv').style.display = 'none';
+    selectedTeethList = [];
+    selectedBridgeList = [];
+}
+
+// تغيير المعالجة الفرعية
+function onSubTreatmentChange() {
+    let category = document.getElementById('mainCategorySelect').value;
+    let treatment = document.getElementById('subTreatmentSelect').value;
+    
+    if (!category || !treatment) {
+        document.getElementById('teethSelectionDiv').style.display = 'none';
+        return;
+    }
+    
+    let treatments = treatmentsData[category];
+    let selectionType = treatments.teethSelection;
+    
+    let teethDiv = document.getElementById('teethSelectionDiv');
+    
+    if (selectionType === 'jaw') {
+        // اختيار الفك فقط
+        teethDiv.innerHTML = `
+            <div class="input-group">
+                <label>🦷 اختيار الفك</label>
+                <select id="jawSelect" style="width:100%; padding:12px; border-radius:12px; border:1px solid #e2e8f0;">
+                    <option value="">-- اختر --</option>
+                    <option value="فك علوي">🔝 فك علوي فقط</option>
+                    <option value="فك سفلي">🔽 فك سفلي فقط</option>
+                    <option value="فكين معاً">🔄 فكين معاً (علوي وسفلي)</option>
+                </select>
+            </div>
+        `;
+        teethDiv.style.display = 'block';
+    } 
+    else if (selectionType === 'single' || selectionType === 'multi') {
+        // اختيار سن واحد أو أكثر
+        teethDiv.innerHTML = `
+            <div class="input-group">
+                <label>🦷 اختيار ${selectionType === 'single' ? 'السن' : 'الأسنان'}</label>
+                <div id="teethGrid" style="background:#f8fafc; border-radius:16px; padding:16px;"></div>
+                <div id="selectedTeethDisplay" style="background:#e0f2fe; padding:10px; border-radius:12px; margin-top:10px; font-size:13px;">
+                    <strong>${selectionType === 'single' ? 'السن المحدد:' : 'الأسنان المحددة:'}</strong> 
+                    <span id="selectedTeethListSpan">لا توجد أسنان محددة</span>
+                </div>
+            </div>
+        `;
+        drawTeethGrid(selectionType === 'multi');
+        teethDiv.style.display = 'block';
+    }
+    else if (selectionType === 'bridge') {
+        // للجسر - اختيار أكثر من سن
+        teethDiv.innerHTML = `
+            <div class="input-group">
+                <label>🦷 الأسنان الداعمة للجسر</label>
+                <div id="bridgeTeethGrid" style="background:#f8fafc; border-radius:16px; padding:16px;"></div>
+                <div id="selectedBridgeDisplay" style="background:#dbeafe; padding:10px; border-radius:12px; margin-top:10px; font-size:13px;">
+                    <strong>الأسنان المحددة للجسر:</strong> 
+                    <span id="selectedBridgeListSpan">لا توجد أسنان محددة</span>
+                </div>
+            </div>
+        `;
+        drawBridgeTeethGrid();
+        teethDiv.style.display = 'block';
+    }
+    else {
+        teethDiv.innerHTML = '';
+        teethDiv.style.display = 'none';
+    }
+}
+
+// رسم شبكة الأسنان
+function drawTeethGrid(multiSelect = true) {
+    let container = document.getElementById('teethGrid');
+    if (!container) return;
+    
+    let html = '';
+    
+    // الفك العلوي
+    html += '<div style="font-weight:bold; margin:10px 0 5px; color:#1e40af;">🦷 الفك العلوي</div>';
+    html += '<div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:20px;">';
+    for (let i = 11; i <= 18; i++) {
+        let isSelected = selectedTeethList.includes(i) ? 'selected' : '';
+        html += `<button type="button" class="tooth-select-btn ${isSelected}" data-tooth="${i}" onclick="toggleToothSelection(${i}, ${multiSelect})" style="width:50px; height:50px; background:${isSelected ? '#10b981' : 'white'}; border:2px solid ${isSelected ? '#10b981' : '#cbd5e1'}; border-radius:12px; cursor:pointer; font-weight:bold;">${i}</button>`;
+    }
+    for (let i = 21; i <= 28; i++) {
+        let isSelected = selectedTeethList.includes(i) ? 'selected' : '';
+        html += `<button type="button" class="tooth-select-btn ${isSelected}" data-tooth="${i}" onclick="toggleToothSelection(${i}, ${multiSelect})" style="width:50px; height:50px; background:${isSelected ? '#10b981' : 'white'}; border:2px solid ${isSelected ? '#10b981' : '#cbd5e1'}; border-radius:12px; cursor:pointer; font-weight:bold;">${i}</button>`;
+    }
+    html += '</div>';
+    
+    // الفك السفلي
+    html += '<div style="font-weight:bold; margin:10px 0 5px; color:#1e40af;">🦷 الفك السفلي</div>';
+    html += '<div style="display:flex; flex-wrap:wrap; gap:6px;">';
+    for (let i = 31; i <= 38; i++) {
+        let isSelected = selectedTeethList.includes(i) ? 'selected' : '';
+        html += `<button type="button" class="tooth-select-btn ${isSelected}" data-tooth="${i}" onclick="toggleToothSelection(${i}, ${multiSelect})" style="width:50px; height:50px; background:${isSelected ? '#10b981' : 'white'}; border:2px solid ${isSelected ? '#10b981' : '#cbd5e1'}; border-radius:12px; cursor:pointer; font-weight:bold;">${i}</button>`;
+    }
+    for (let i = 41; i <= 48; i++) {
+        let isSelected = selectedTeethList.includes(i) ? 'selected' : '';
+        html += `<button type="button" class="tooth-select-btn ${isSelected}" data-tooth="${i}" onclick="toggleToothSelection(${i}, ${multiSelect})" style="width:50px; height:50px; background:${isSelected ? '#10b981' : 'white'}; border:2px solid ${isSelected ? '#10b981' : '#cbd5e1'}; border-radius:12px; cursor:pointer; font-weight:bold;">${i}</button>`;
+    }
+    html += '</div>';
+    
+    container.innerHTML = html;
+}
+
+// تبديل اختيار السن
+function toggleToothSelection(toothNumber, multiSelect) {
+    let index = selectedTeethList.indexOf(toothNumber);
+    
+    if (multiSelect) {
+        if (index === -1) {
+            selectedTeethList.push(toothNumber);
+        } else {
+            selectedTeethList.splice(index, 1);
+        }
+    } else {
+        // اختيار واحد فقط
+        selectedTeethList = [toothNumber];
+    }
+    
+    updateTeethDisplay();
+    drawTeethGrid(multiSelect);
+}
+
+// تحديث عرض الأسنان المحددة
+function updateTeethDisplay() {
+    let span = document.getElementById('selectedTeethListSpan');
+    if (span) {
+        if (selectedTeethList.length === 0) {
+            span.textContent = 'لا توجد أسنان محددة';
+        } else {
+            span.textContent = selectedTeethList.join('، ');
+        }
+    }
+}
+
+// رسم شبكة أسنان الجسر
+function drawBridgeTeethGrid() {
+    let container = document.getElementById('bridgeTeethGrid');
+    if (!container) return;
+    
+    let html = '';
+    
+    // الفك العلوي
+    html += '<div style="font-weight:bold; margin:10px 0 5px; color:#1e40af;">🦷 الفك العلوي</div>';
+    html += '<div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:20px;">';
+    for (let i = 11; i <= 18; i++) {
+        let isSelected = selectedBridgeList.includes(i) ? 'selected' : '';
+        html += `<button type="button" class="bridge-tooth-btn ${isSelected}" data-tooth="${i}" onclick="toggleBridgeSelection(${i})" style="width:50px; height:50px; background:${isSelected ? '#3b82f6' : 'white'}; border:2px solid ${isSelected ? '#3b82f6' : '#cbd5e1'}; border-radius:12px; cursor:pointer; font-weight:bold;">${i}</button>`;
+    }
+    for (let i = 21; i <= 28; i++) {
+        let isSelected = selectedBridgeList.includes(i) ? 'selected' : '';
+        html += `<button type="button" class="bridge-tooth-btn ${isSelected}" data-tooth="${i}" onclick="toggleBridgeSelection(${i})" style="width:50px; height:50px; background:${isSelected ? '#3b82f6' : 'white'}; border:2px solid ${isSelected ? '#3b82f6' : '#cbd5e1'}; border-radius:12px; cursor:pointer; font-weight:bold;">${i}</button>`;
+    }
+    html += '</div>';
+    
+    // الفك السفلي
+    html += '<div style="font-weight:bold; margin:10px 0 5px; color:#1e40af;">🦷 الفك السفلي</div>';
+    html += '<div style="display:flex; flex-wrap:wrap; gap:6px;">';
+    for (let i = 31; i <= 38; i++) {
+        let isSelected = selectedBridgeList.includes(i) ? 'selected' : '';
+        html += `<button type="button" class="bridge-tooth-btn ${isSelected}" data-tooth="${i}" onclick="toggleBridgeSelection(${i})" style="width:50px; height:50px; background:${isSelected ? '#3b82f6' : 'white'}; border:2px solid ${isSelected ? '#3b82f6' : '#cbd5e1'}; border-radius:12px; cursor:pointer; font-weight:bold;">${i}</button>`;
+    }
+    for (let i = 41; i <= 48; i++) {
+        let isSelected = selectedBridgeList.includes(i) ? 'selected' : '';
+        html += `<button type="button" class="bridge-tooth-btn ${isSelected}" data-tooth="${i}" onclick="toggleBridgeSelection(${i})" style="width:50px; height:50px; background:${isSelected ? '#3b82f6' : 'white'}; border:2px solid ${isSelected ? '#3b82f6' : '#cbd5e1'}; border-radius:12px; cursor:pointer; font-weight:bold;">${i}</button>`;
+    }
+    html += '</div>';
+    
+    container.innerHTML = html;
+}
+
+// تبديل اختيار أسنان الجسر
+function toggleBridgeSelection(toothNumber) {
+    let index = selectedBridgeList.indexOf(toothNumber);
+    if (index === -1) {
+        selectedBridgeList.push(toothNumber);
+    } else {
+        selectedBridgeList.splice(index, 1);
+    }
+    updateBridgeDisplay();
+    drawBridgeTeethGrid();
+}
+
+// تحديث عرض أسنان الجسر المحددة
+function updateBridgeDisplay() {
+    let span = document.getElementById('selectedBridgeListSpan');
+    if (span) {
+        if (selectedBridgeList.length === 0) {
+            span.textContent = 'لا توجد أسنان محددة';
+        } else {
+            span.textContent = selectedBridgeList.join('، ');
+        }
+    }
+}
