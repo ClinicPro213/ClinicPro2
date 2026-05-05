@@ -3579,6 +3579,7 @@ if (!currentUser.phone) currentUser.phone = '';
     // في نهاية loadDashboard() تأكد من وجود
 checkAndShowAdminButton();
     fixPatientIdsInTreatments()
+    fixAllObjectIdsInTreatments()
             // بعد تحميل المرضى، قم بدمج المعالجات
 restoreAndMergeAllTreatments()
     checkPatientLimit();
@@ -5494,4 +5495,97 @@ async function fixPatientIdsInTreatments() {
     console.log(`✅ تم تحديث ${fixedCount} معالجة`);
     alert(`تم تحديث ${fixedCount} معالجة. سيتم تحديث الصفحة.`);
     location.reload();
+}
+
+
+
+async function fixAllObjectIdsInTreatments() {
+    if (!currentUser) {
+        alert('الرجاء تسجيل الدخول أولاً');
+        return;
+    }
+    
+    console.log('🔄 بدء تحويل جميع ObjectId إلى نص في المعالجات...');
+    showAlert('dashboardAlert', '🔄 جاري إصلاح المعالجات القديمة...', 'success');
+    
+    // جلب جميع المعالجات من السيرفر
+    const response = await fetch('/api/treatments/user/' + currentUser.id);
+    let treatments = await response.json();
+    
+    console.log('📋 عدد المعالجات في السيرفر:', treatments.length);
+    
+    if (treatments.length === 0) {
+        alert('⚠️ لا توجد معالجات في السيرفر');
+        return;
+    }
+    
+    let fixedCount = 0;
+    
+    for (const treatment of treatments) {
+        let needsUpdate = false;
+        let updateData = {};
+        
+        // 1. تحويل patientId من ObjectId إلى نص
+        if (treatment.patientId && typeof treatment.patientId === 'object') {
+            updateData.patientId = treatment.patientId.toString();
+            needsUpdate = true;
+            console.log(`🔧 إصلاح patientId للمعالجة: ${treatment._id}`);
+            console.log(`   من: ${treatment.patientId} -> إلى: ${updateData.patientId}`);
+        }
+        
+        // 2. تحويل userId من ObjectId إلى نص
+        if (treatment.userId && typeof treatment.userId === 'object') {
+            updateData.userId = treatment.userId.toString();
+            needsUpdate = true;
+            console.log(`🔧 إصلاح userId للمعالجة: ${treatment._id}`);
+        }
+        
+        // 3. إضافة payments إذا لم تكن موجودة
+        if (!treatment.payments) {
+            updateData.payments = [];
+            needsUpdate = true;
+        }
+        
+        // 4. إضافة followUps إذا لم تكن موجودة
+        if (!treatment.followUps) {
+            updateData.followUps = [];
+            needsUpdate = true;
+        }
+        
+        if (needsUpdate) {
+            try {
+                const updateResponse = await fetch('/api/treatments/' + treatment._id, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updateData)
+                });
+                
+                if (updateResponse.ok) {
+                    fixedCount++;
+                    console.log(`✅ تم إصلاح المعالجة ${treatment._id}`);
+                } else {
+                    console.log(`❌ فشل إصلاح المعالجة ${treatment._id}`);
+                }
+            } catch(e) {
+                console.log(`❌ خطأ:`, e);
+            }
+            
+            // انتظر قليلاً بين الطلبات
+            await new Promise(r => setTimeout(r, 200));
+        }
+    }
+    
+    console.log(`\n📊 التقرير:`);
+    console.log(`✅ تم إصلاح ${fixedCount} معالجة`);
+    
+    // تحديث localStorage
+    const freshResponse = await fetch('/api/treatments/user/' + currentUser.id);
+    const freshTreatments = await freshResponse.json();
+    localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(freshTreatments));
+    
+    showAlert('dashboardAlert', `✅ تم إصلاح ${fixedCount} معالجة. سيتم تحديث الصفحة...`, 'success');
+    
+    setTimeout(() => {
+        location.reload();
+    }, 2000);
 }
