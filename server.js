@@ -997,6 +997,18 @@ app.delete('/api/treatments/:id', async (req, res) => {
         res.status(500).json({ message: 'خطأ في الحذف' });
     }
 });
+app.put('/api/treatments/:id', async (req, res) => {
+    try {
+        const treatment = await Treatment.findByIdAndUpdate(
+            req.params.id,
+            req.body,
+            { new: true }
+        );
+        res.json({ success: true, treatment });
+    } catch (error) {
+        res.status(500).json({ message: 'خطأ في تحديث المعالجة' });
+    }
+});
 
 // ============ ADMIN ROUTES ============
 app.get('/api/admin/users', async (req, res) => {
