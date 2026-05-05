@@ -93,15 +93,18 @@ const userNotificationSchema = new mongoose.Schema({
 const Notification = mongoose.model('Notification', notificationSchema);
 const UserNotification = mongoose.model('UserNotification', userNotificationSchema);
 // Treatment Schema
+// في ملف models/Treatment.js
 const treatmentSchema = new mongoose.Schema({
-    patientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Patient' },
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    toothNumber: Number,
-    treatmentType: String,
-    description: String,
-    cost: Number,
-    treatmentDate: { type: Date, default: Date.now },
-    notes: String
+    patientId: { type: String, required: true },
+    userId: { type: String, required: true },
+    toothNumber: { type: mongoose.Schema.Types.Mixed, required: true }, // قبول رقم أو نص
+    treatmentType: { type: String, required: true },
+    cost: { type: Number, default: 0 },
+    paid: { type: Number, default: 0 },
+    payments: { type: Array, default: [] },     // حفظ الدفعات
+    followUps: { type: Array, default: [] },    // حفظ العوائد
+    notes: { type: String, default: '' },
+    treatmentDate: { type: Date, default: Date.now }
 });
 
 const Treatment = mongoose.model('Treatment', treatmentSchema);
