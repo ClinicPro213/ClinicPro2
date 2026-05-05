@@ -5149,3 +5149,66 @@ async function restoreAndMergeAllTreatments() {
     
     return mergedTreatments.length;
 }
+
+async function forceRestoreAllTreatments() {
+    if (!currentUser) {
+        console.log('⚠️ لا يوجد مستخدم');
+        return;
+    }
+    
+    console.log('🔄 بدء الاستعادة القسرية...');
+    
+    // 1. جلب المعالجات من السيرفر فقط (نتجاهل المحلية حالياً)
+    let allTreatments = [];
+    
+    if (navigator.onLine) {
+        try {
+            const response = await fetch('/api/treatments/user/' + currentUser.id);
+            if (response.ok) {
+                allTreatments = await response.json();
+                console.log('✅ تم جلب', allTreatments.length, 'معالجة من السيرفر');
+            } else {
+                console.log('❌ فشل جلب المعالجات من السيرفر');
+            }
+        } catch(e) {
+            console.log('❌ خطأ في الاتصال:', e);
+        }
+    }
+    
+    // 2. إذا لم تكن هناك معالجات من السيرفر، حاول من localStorage القديم
+    if (allTreatments.length === 0) {
+        try {
+            // محاولة قراءة من مفتاح قديم محتمل
+            const oldKey = 'offline_treatments';
+            const oldData = localStorage.getItem(oldKey);
+            if (oldData) {
+                allTreatments = JSON.parse(oldData);
+                console.log('✅ تم العثور على معالجات قديمة:', allTreatments.length);
+            }
+        } catch(e) {}
+    }
+    
+    // 3. حفظ المعالجات في المفتاح الصحيح مع التأكد من الحقول المطلوبة
+    const treatmentsToSave = allTreatments.map(t => ({
+        ...t,
+        payments: t.payments || [],
+        followUps: t.followUps || [],
+        offline: false,
+        pendingSync: false
+    }));
+    
+    localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(treatmentsToSave));
+    console.log('✅ تم حفظ', treatmentsToSave.length, 'معالجة في localStorage');
+    
+    // 4. تحديث عرض المريض الحالي
+    if (currentPatientId) {
+        await showPatientFullDetails(currentPatientId);
+    }
+    
+    // 5. إعادة تحميل قائمة المرضى
+    await loadPatients();
+    
+    return treatmentsToSave.length;
+}
+
+
