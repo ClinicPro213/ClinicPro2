@@ -131,6 +131,73 @@ const FollowUpSchema = new mongoose.Schema({
 });
 
 const FollowUp = mongoose.model('FollowUp', FollowUpSchema);
+// ============================================
+// دالة لتحويل patientId و userId فقط في المعالجات
+// ============================================
+async function convertTreatmentIdsToStrings() {
+    console.log('🔄 بدء تحويل patientId و userId في المعالجات...');
+    
+    try {
+        const treatments = await Treatment.find();
+        let updatedCount = 0;
+        
+        for (const treatment of treatments) {
+            let needsUpdate = false;
+            const updateData = {};
+            
+            // تحويل patientId من ObjectId إلى نص
+            if (treatment.patientId && typeof treatment.patientId === 'object') {
+                updateData.patientId = treatment.patientId.toString();
+                needsUpdate = true;
+                console.log(`🔧 معالجة: ${treatment.treatmentType || treatment._id} - patientId كان ObjectId`);
+            }
+            
+            // تحويل userId من ObjectId إلى نص
+            if (treatment.userId && typeof treatment.userId === 'object') {
+                updateData.userId = treatment.userId.toString();
+                needsUpdate = true;
+                console.log(`🔧 معالجة: ${treatment.treatmentType || treatment._id} - userId كان ObjectId`);
+            }
+            
+            if (needsUpdate) {
+                await Treatment.updateOne({ _id: treatment._id }, updateData);
+                updatedCount++;
+                console.log(`✅ تم تحديث المعالجة: ${treatment.treatmentType || treatment._id}`);
+            }
+        }
+        
+        console.log(`\n✅ اكتمل التحويل!`);
+        console.log(`📊 تم تحديث ${updatedCount} معالجة`);
+        
+        return { updatedCount };
+        
+    } catch (error) {
+        console.error('❌ خطأ في التحويل:', error);
+        return { error: error.message };
+    }
+}
+
+// API لتشغيل الدالة (للمدير فقط)
+app.post('/api/admin/convert-treatment-ids', async (req, res) => {
+    try {
+        const { adminKey } = req.body;
+        if (adminKey !== 'CLINICPRO_ADMIN_8899') {
+            return res.status(403).json({ error: 'غير مصرح به - مفتاح غير صحيح' });
+        }
+        
+        const result = await convertTreatmentIdsToStrings();
+        res.json({ success: true, ...result });
+        
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// تشغيل التحويل مباشرة عند بدء السيرفر (مرة واحدة فقط)
+mongoose.connection.once('open', async () => {
+    // تشغيل مرة واحدة فقط - علق هذا السطر بعد التشغيل
+    await convertTreatmentIdsToStrings();
+});
 
 // إضافة عودة جديدة
 app.post('/api/followups', async (req, res) => {
