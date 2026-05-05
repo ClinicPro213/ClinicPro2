@@ -1,6 +1,12 @@
 // ============================================
 
-
+// دالة لتوحيد IDs (تحويل ObjectId إلى نص)
+function normalizeId(id) {
+    if (!id) return '';
+    if (typeof id === 'string') return id;
+    if (id && typeof id === 'object' && id.toString) return id.toString();
+    return String(id);
+}
 // نظام الاشتراكات الجديد
 // ============================================
 
@@ -2693,7 +2699,7 @@ async function showPatientFullDetails(pid) {
     try {
         var patient = null;
         for (var i = 0; i < allPatients.length; i++) {
-            if (allPatients[i]._id === pid) {
+            if (normalizeId(allPatients[i]._id) === normalizeId(pid)) {
                 patient = allPatients[i];
                 break;
             }
@@ -2712,9 +2718,30 @@ async function showPatientFullDetails(pid) {
             try {
                 var r = await fetch('/api/treatments/patient/' + pid);
                 if (r.ok) {
-                    treatments = await r.json();
-                    console.log('🌐 تم جلب', treatments.length, 'معالجة من السيرفر');
-                    
+    var serverTreatments = await r.json();
+    console.log('🌐 تم جلب', serverTreatments.length, 'معالجة من السيرفر');
+    
+    // تطبيع المعرفات في معالجات السيرفر
+    for (var s = 0; s < serverTreatments.length; s++) {
+        serverTreatments[s].patientId = normalizeId(serverTreatments[s].patientId);
+        serverTreatments[s].userId = normalizeId(serverTreatments[s].userId);
+    }
+    treatments = serverTreatments;
+    
+    // حفظ معالجات السيرفر في localStorage...
+    let localTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+    for (const serverTx of treatments) {
+        const exists = localTreatments.some(localTx => normalizeId(localTx._id) === normalizeId(serverTx._id));
+        if (!exists) {
+            localTreatments.push({
+                ...serverTx,
+                offline: false,
+                pendingSync: false,
+                payments: serverTx.payments || []
+            });
+        }
+    }
+    localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(localTreatments));
                     // حفظ معالجات السيرفر في localStorage للمرة القادمة
                     let localTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
                     for (const serverTx of treatments) {
@@ -2746,11 +2773,18 @@ async function showPatientFullDetails(pid) {
             } catch(e) { console.log('Parse error:', e); }
             
             // البحث عن معالجات هذا المريض
-            for (var i = 0; i < localTreatments.length; i++) {
-                if (localTreatments[i].patientId === pid || localTreatments[i].patientName === patient.name) {
-                    treatments.push(localTreatments[i]);
-                }
-            }
+            // تطبيع pid للمقارنة
+var normalizedPid = normalizeId(pid);
+
+for (var i = 0; i < localTreatments.length; i++) {
+    var t = localTreatments[i];
+    var treatmentPatientId = normalizeId(t.patientId);
+    
+    // مقارنة بعد تطبيع كلا المعرفين
+    if (treatmentPatientId === normalizedPid || t.patientName === patient.name) {
+        treatments.push(t);
+    }
+}
             console.log('📋 تم العثور على', treatments.length, 'معالجة في localStorage');
         }
         
