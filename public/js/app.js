@@ -3917,77 +3917,83 @@ window.syncAllDataWithServer = async function() {
 };
 
 
-    // ============ مزامنة المعالجات المعلقة ============
-async function syncPendingTreatments() {
+    async function syncPendingTreatments() {
     if (!navigator.onLine || !currentUser) return false;
     
-    let offlineTreatments = [];
-    try {
-        offlineTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
-    } catch(e) { return false; }
-    
+    let offlineTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
     const pendingTreatments = offlineTreatments.filter(t => t.pendingSync === true);
     
     if (pendingTreatments.length === 0) return false;
     
-    console.log(`📋 جاري مزامنة ${pendingTreatments.length} معالجة معلقة...`);
     let syncedCount = 0;
-    let successIds = [];
     
     for (const treatment of pendingTreatments) {
         try {
+            // البحث عن patientId الصحيح
             let patientId = treatment.patientId;
-            
-            // إذا كان ID المريض لا يزال مؤقتاً
             if (patientId && patientId.toString().startsWith('offline_')) {
                 const matchedPatient = allPatients.find(p => 
                     p.name === treatment.patientName && !p._id.toString().startsWith('offline_')
                 );
                 if (matchedPatient) {
                     patientId = matchedPatient._id;
-                    console.log(`✅ تم العثور على المريض: ${treatment.patientName} -> ${patientId}`);
                 } else {
-                    console.log(`⚠️ لم يتم العثور على المريض "${treatment.patientName}"، تأجيل المزامنة`);
-                    continue;
+                    continue; // انتظر حتى يتم مزامنة المريض أولاً
                 }
             }
             
+            // ✅ معالجة البيانات الجديدة: استخراج الأرقام فقط
+            let toothNumberForServer = treatment.toothNumber;
+            if (typeof toothNumberForServer === 'string' && toothNumberForServer.includes('،')) {
+                // إذا كان نصاً يحتوي على عدة أسنان، خذ الأول فقط أو أرسل كرقم افتراضي
+                const numbers = toothNumberForServer.match(/\d+/g);
+                toothNumberForServer = numbers ? parseInt(numbers[0]) : 11;
+            } else if (typeof toothNumberForServer === 'string') {
+                toothNumberForServer = parseInt(toothNumberForServer) || 11;
+            }
+            
+            // ✅ استخراج نوع المعالجة الأساسي
+            let treatmentTypeForServer = treatment.treatmentType;
+            if (treatmentTypeForServer.includes('-')) {
+                treatmentTypeForServer = treatmentTypeForServer.split('-')[0].trim();
+            }
+            
+            // إرسال فقط الحقول التي يتوقعها السيرفر
             const response = await fetch('/api/treatments', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     patientId: patientId,
                     userId: currentUser.id,
-                    toothNumber: treatment.toothNumber,
-                    treatmentType: treatment.treatmentType,
+                    toothNumber: toothNumberForServer,
+                    treatmentType: treatmentTypeForServer,
                     cost: treatment.cost || 0,
                     paid: treatment.paid || 0,
                     notes: treatment.notes || '',
                     treatmentDate: treatment.treatmentDate || new Date().toISOString()
+                    // ❌ لا ترسل payments أو followUps إلى السيرفر القديم
                 })
             });
             
             if (response.ok) {
-                console.log(`✅ تمت مزامنة المعالجة للسن ${treatment.toothNumber}`);
                 syncedCount++;
-                successIds.push(treatment._id);
-            } else {
-                console.log(`❌ فشلت مزامنة المعالجة للسن ${treatment.toothNumber}`);
+                treatment.pendingSync = false;
+                treatment.offline = false;
             }
         } catch (e) {
-            console.log(`❌ خطأ في مزامنة المعالجة:`, e);
+            console.log('Sync error:', e);
         }
     }
     
-    // حذف المعالجات التي تمت مزامنتها
+    // حفظ التغييرات
+    localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(offlineTreatments));
+    
     if (syncedCount > 0) {
-        const remainingTreatments = offlineTreatments.filter(t => !successIds.includes(t._id));
-        localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(remainingTreatments));
-        console.log(`✅ تم حذف ${syncedCount} معالجة من التخزين المحلي`);
+        showAlert('dashboardAlert', `✅ تمت مزامنة ${syncedCount} معالجة`, 'success');
     }
     
     return syncedCount > 0;
-}
+    }
 
 // ============ مزامنة الصور (معطلة) ============
 async function syncPatientImagesToServer() {
