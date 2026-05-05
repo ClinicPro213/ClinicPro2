@@ -189,6 +189,148 @@ html {
 
 /* مودال إضافة دفع */
 .modal-small { max-width: 400px; }
+
+/* ============================================
+   نظام اختيار الأسنان المتقدم
+   ============================================ */
+
+/* حاوية اختيار الأسنان */
+#teethGrid, #bridgeTeethGrid {
+    background: #f8fafc;
+    border-radius: 20px;
+    padding: 20px;
+    max-height: 350px;
+    overflow-y: auto;
+    border: 1px solid #e2e8f0;
+}
+
+/* تنسيق أزرار الأسنان */
+.tooth-select-btn, .bridge-tooth-btn {
+    width: 55px;
+    height: 55px;
+    background: white;
+    border: 2px solid #cbd5e1;
+    border-radius: 14px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 16px;
+    margin: 4px;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    color: #1e293b;
+}
+
+.tooth-select-btn:hover, .bridge-tooth-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* الزر المحدد للمعالجة العادية */
+.tooth-select-btn.selected {
+    background: linear-gradient(135deg, #10b981, #059669);
+    border-color: #10b981;
+    color: white;
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(16,185,129,0.3);
+}
+
+/* الزر المحدد للجسر */
+.bridge-tooth-btn.selected {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    border-color: #3b82f6;
+    color: white;
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(59,130,246,0.3);
+}
+
+/* عنوان الفك */
+.jaw-title {
+    font-weight: bold;
+    margin: 15px 0 10px;
+    color: #1e40af;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-right: 5px;
+    border-right: 3px solid #3b82f6;
+}
+
+/* منطقة عرض الأسنان المحددة */
+#selectedTeethDisplay, #selectedBridgeDisplay {
+    background: #e0f2fe;
+    padding: 12px 15px;
+    border-radius: 12px;
+    margin-top: 15px;
+    font-size: 13px;
+    color: #1e40af;
+    border: 1px solid #bae6fd;
+}
+
+/* نطاق السعر */
+#priceRangeDiv div {
+    background: #fef3c7 !important;
+    border-right: 3px solid #f59e0b;
+    color: #92400e !important;
+}
+
+/* القوائم المنسدلة */
+#mainCategorySelect, #subTreatmentSelect, #jawSelect {
+    font-family: inherit;
+    cursor: pointer;
+}
+
+#mainCategorySelect:focus, #subTreatmentSelect:focus, #jawSelect:focus {
+    outline: none;
+    border-color: #0f766e;
+    box-shadow: 0 0 0 3px rgba(15,118,110,0.1);
+}
+
+/* استجابة للشاشات الصغيرة */
+@media (max-width: 600px) {
+    .tooth-select-btn, .bridge-tooth-btn {
+        width: 42px;
+        height: 42px;
+        font-size: 13px;
+        margin: 3px;
+        border-radius: 10px;
+    }
+    
+    #teethGrid, #bridgeTeethGrid {
+        padding: 12px;
+    }
+}
+
+@media (max-width: 450px) {
+    .tooth-select-btn, .bridge-tooth-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 11px;
+        margin: 2px;
+        border-radius: 8px;
+    }
+}
+
+/* شريط التمرير */
+#teethGrid::-webkit-scrollbar, #bridgeTeethGrid::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+#teethGrid::-webkit-scrollbar-track, #bridgeTeethGrid::-webkit-scrollbar-track {
+    background: #e2e8f0;
+    border-radius: 10px;
+}
+
+#teethGrid::-webkit-scrollbar-thumb, #bridgeTeethGrid::-webkit-scrollbar-thumb {
+    background: #0f766e;
+    border-radius: 10px;
+}
+
+/* تأثير النقر */
+.tooth-select-btn:active, .bridge-tooth-btn:active {
+    transform: scale(0.95);
+}
 /* ============ قائمة تحديد السن (بسيطة) ============ */
 
 #teethContainer {
