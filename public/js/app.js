@@ -1,5 +1,11 @@
 // ============================================
-
+// دالة لتوحيد المعرفات (تتعامل مع ObjectId والنص)
+function toIdString(id) {
+    if (!id) return '';
+    if (typeof id === 'string') return id;
+    if (typeof id === 'object' && id.toString) return id.toString();
+    return String(id);
+}
 // دالة لتوحيد IDs (تحويل ObjectId إلى نص)
 function normalizeId(id) {
     if (!id) return '';
@@ -2699,7 +2705,7 @@ async function showPatientFullDetails(pid) {
     try {
         var patient = null;
         for (var i = 0; i < allPatients.length; i++) {
-            if (allPatients[i]._id?.toString() === pid?.toString()) {
+            if (toIdString(allPatients[i]._id) === toIdString(pid)) {
                 patient = allPatients[i];
                 break;
             }
@@ -2715,38 +2721,45 @@ async function showPatientFullDetails(pid) {
         
         // 1. محاولة جلب المعالجات من السيرفر (الأولوية القصوى)
         if (navigator.onLine) {
-            try {
-                var r = await fetch('/api/treatments/patient/' + pid);
-                if (r.ok) {
-    var serverTreatments = await r.json();
-    console.log('🌐 تم جلب', serverTreatments.length, 'معالجة من السيرفر');
-    
-    // تطبيع المعرفات في معالجات السيرفر
-    for (var s = 0; s < serverTreatments.length; s++) {
-        serverTreatments[s].patientId = normalizeId(serverTreatments[s].patientId);
-        serverTreatments[s].userId = normalizeId(serverTreatments[s].userId);
-    }
-    treatments = serverTreatments;
-    
-    // حفظ معالجات السيرفر في localStorage...
-    let localTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
-    for (const serverTx of treatments) {
-        const exists = localTreatments.some(localTx => localTx._id?.toString() === serverTx._id?.toString());    if (!exists) {
-            localTreatments.push({
-                ...serverTx,
-                offline: false,
-                pendingSync: false,
-                payments: serverTx.payments || []
-            });
-        }
-    }
-    localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(localTreatments));
-                                    } else {
-                    console.log('⚠️ فشل جلب المعالجات من السيرفر');
+    try {
+        var r = await fetch('/api/treatments/patient/' + pid);
+        if (r.ok) {
+            treatments = await r.json();
+            console.log('🌐 تم جلب', treatments.length, 'معالجة من السيرفر');
+            
+            // ✅ التحويل: تحويل ObjectId إلى نص في المعالجات القادمة من السيرفر
+            for (var s = 0; s < treatments.length; s++) {
+                if (treatments[s].patientId && typeof treatments[s].patientId === 'object') {
+                    treatments[s].patientId = treatments[s].patientId.toString();
                 }
-            } catch (e) {
-                console.log('❌ خطأ في الاتصال بالسيرفر:', e);
+                if (treatments[s].userId && typeof treatments[s].userId === 'object') {
+                    treatments[s].userId = treatments[s].userId.toString();
+                }
+                if (treatments[s]._id && typeof treatments[s]._id === 'object') {
+                    treatments[s]._id = treatments[s]._id.toString();
+                }
             }
+            
+            // حفظ معالجات السيرفر في localStorage
+            let localTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+            for (const serverTx of treatments) {
+                const exists = localTreatments.some(localTx => toIdString(localTx._id) === toIdString(serverTx._id));
+                if (!exists) {
+                    localTreatments.push({
+                        ...serverTx,
+                        offline: false,
+                        pendingSync: false,
+                        payments: serverTx.payments || []
+                    });
+                }
+            }
+            localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(localTreatments));
+        } else {
+            console.log('⚠️ فشل جلب المعالجات من السيرفر');
+        }
+    } catch (e) {
+        console.log('❌ خطأ في الاتصال بالسيرفر:', e);
+    }
         }
         
         // 2. إذا لم يتم جلب أي معالجات من السيرفر، جرب من localStorage
@@ -2766,7 +2779,8 @@ for (var i = 0; i < localTreatments.length; i++) {
     var treatmentPatientId = normalizeId(t.patientId);
     
     // مقارنة بعد تطبيع كلا المعرفين
-if (localTreatments[i].patientId?.toString() === pid?.toString() || localTreatments[i].patientName === patient.name) {      treatments.push(t);
+if (toIdString(localTreatments[i].patientId) === toIdString(pid) || localTreatments[i].patientName === patient.name) {
+    treatments.push(t);
     }
 }
             console.log('📋 تم العثور على', treatments.length, 'معالجة في localStorage');
