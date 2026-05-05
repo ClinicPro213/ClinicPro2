@@ -1997,30 +1997,63 @@ function calcRemaining() {
 
 function showTreatmentModal(pid) {
     currentPatientId = pid;
-    drawTeeth();
     
-    // تفريغ الحقول
-    document.getElementById('toothNumber').value = '';
-    document.getElementById('treatmentTypeSelect').value = '';
-    document.getElementById('treatmentNotesInput').value = '';
-    document.getElementById('treatmentCostInput').value = '';
-    document.getElementById('treatmentPaidInput').value = '';
-    document.getElementById('remainingSpan').textContent = '0';
+    // ✅ التحقق من وجود العناصر قبل استخدامها (النظام القديم)
+    var toothInput = document.getElementById('toothNumber');
+    if (toothInput) toothInput.value = '';
     
-    // إعادة تعيين الاختيارات
+    var treatmentType = document.getElementById('treatmentTypeSelect');
+    if (treatmentType) treatmentType.value = '';
+    
+    var notesInput = document.getElementById('treatmentNotesInput');
+    if (notesInput) notesInput.value = '';
+    
+    var costInput = document.getElementById('treatmentCostInput');
+    if (costInput) costInput.value = '';
+    
+    var paidInput = document.getElementById('treatmentPaidInput');
+    if (paidInput) paidInput.value = '';
+    
+    var remainingSpan = document.getElementById('remainingSpan');
+    if (remainingSpan) remainingSpan.textContent = '0';
+    
+    // ✅ تفريغ النظام الجديد (إن وجد)
+    var mainCategory = document.getElementById('mainCategorySelect');
+    if (mainCategory) mainCategory.value = '';
+    
+    var subTreatmentDiv = document.getElementById('subTreatmentDiv');
+    if (subTreatmentDiv) subTreatmentDiv.style.display = 'none';
+    
+    var teethSelectionDiv = document.getElementById('teethSelectionDiv');
+    if (teethSelectionDiv) teethSelectionDiv.style.display = 'none';
+    
+    // ✅ إعادة تعيين قوائم الأسنان المختارة
+    if (typeof selectedTeethList !== 'undefined') {
+        selectedTeethList = [];
+    }
+    if (typeof selectedBridgeList !== 'undefined') {
+        selectedBridgeList = [];
+    }
+    
+    // ✅ رسم الأسنان
+    if (typeof drawTeeth === 'function') {
+        drawTeeth();
+    }
+    
+    // ✅ إعادة تعيين الاختيارات البسيطة للأسنان
     if (typeof resetToothSelectionSimple === 'function') {
         resetToothSelectionSimple();
     }
     
-    // إزالة التحديد من عناصر واجهة الأسنان
-    document.querySelectorAll('.jaw-btn, .side-btn, .tooth-number-btn').forEach(el => {
+    // ✅ إزالة التحديد من عناصر واجهة الأسنان (إن وجدت)
+    document.querySelectorAll('.jaw-btn, .side-btn, .tooth-number-btn').forEach(function(el) {
         el.classList.remove('active');
     });
     
+    // ✅ عرض النافذة
     var modal = document.getElementById('treatmentModal');
     if (modal) modal.style.display = 'flex';
 }
-
 // ============ حفظ المعالجة على السيرفر مباشرة ============
 
 
