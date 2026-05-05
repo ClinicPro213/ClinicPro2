@@ -1,4 +1,24 @@
 // ============================================
+
+async function convertTreatmentsIds() {
+    if (!confirm('⚠️ هل أنت متأكد؟ هذا سيحول patientId و userId إلى نص. لا يمكن التراجع!')){
+        return;
+    }
+    
+    const response = await fetch('/api/convert-treatments-ids', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ secret: 'CLINICPRO_CONVERT_2024' })
+    });
+    const result = await response.json();
+    
+    if (result.success) {
+        alert(`✅ تم تحويل:\npatientId: ${result.patientIdFixed}\nuserId: ${result.userIdFixed}`);
+        location.reload();
+    } else {
+        alert('❌ فشل التحويل: ' + result.error);
+    }
+}
 // دالة لتوحيد المعرفات (تتعامل مع ObjectId والنص)
 function toIdString(id) {
     if (!id) return '';
