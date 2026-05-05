@@ -5210,5 +5210,26 @@ async function forceRestoreAllTreatments() {
     
     return treatmentsToSave.length;
 }
-
+function fixPatientIdsInTreatments() {
+    let treatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+    let updated = false;
+    
+    for (let t of treatments) {
+        // البحث عن المريض بالاسم
+        const patient = allPatients.find(p => p.name === t.patientName);
+        if (patient && t.patientId !== patient._id) {
+            console.log(`🔧 تحديث patientId من ${t.patientId} إلى ${patient._id} للمعالجة: ${t.treatmentType}`);
+            t.patientId = patient._id;
+            updated = true;
+        }
+    }
+    
+    if (updated) {
+        localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(treatments));
+        console.log('✅ تم تحديث patientId في المعالجات');
+        location.reload(); // إعادة تحميل الصفحة
+    } else {
+        console.log('✅ لا حاجة للتحديث، جميع patientIds صحيحة');
+    }
+}
 
