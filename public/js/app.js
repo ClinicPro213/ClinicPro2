@@ -2704,50 +2704,57 @@ async function showPatientFullDetails(pid) {
         }
         var isOfflinePatient = (patient.pendingSync === true || patient.offline === true);
         
-        // ✅ جلب المعالجات من localStorage أولاً (بدون انتظار السيرفر)
-        var localTreatments = [];
-        try {
-            localTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
-            console.log('📦 المعالجات من localStorage:', localTreatments.length);
-        } catch(e) { console.log('Parse error:', e); }
-        
-        // ✅ البحث عن معالجات هذا المريض
+        // ✅ التعديل هنا: جلب المعالجات من السيرفر أولاً
         var treatments = [];
-        for (var i = 0; i < localTreatments.length; i++) {
-            if (localTreatments[i].patientId === pid || localTreatments[i].patientName === patient.name) {
-                treatments.push(localTreatments[i]);
-            }
-        }
         
-        // ✅ محاولة جلب المعالجات من السيرفر (إذا كان متصلاً) ودمجها
-        var serverTreatments = [];
+        // 1. محاولة جلب المعالجات من السيرفر (الأولوية القصوى)
         if (navigator.onLine) {
             try {
                 var r = await fetch('/api/treatments/patient/' + pid);
                 if (r.ok) {
-                    serverTreatments = await r.json();
-                    console.log('🌐 المعالجات من السيرفر:', serverTreatments.length);
+                    treatments = await r.json();
+                    console.log('🌐 تم جلب', treatments.length, 'معالجة من السيرفر');
                     
-                    // دمج معالجات السيرفر مع المحلية (تجنب التكرار)
-                    for (var s = 0; s < serverTreatments.length; s++) {
-                        var exists = false;
-                        for (var l = 0; l < treatments.length; l++) {
-                            if (treatments[l]._id === serverTreatments[s]._id) {
-                                exists = true;
-                                break;
-                            }
-                        }
+                    // حفظ معالجات السيرفر في localStorage للمرة القادمة
+                    let localTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+                    for (const serverTx of treatments) {
+                        const exists = localTreatments.some(localTx => localTx._id === serverTx._id);
                         if (!exists) {
-                            treatments.push(serverTreatments[s]);
+                            localTreatments.push({
+                                ...serverTx,
+                                offline: false,
+                                pendingSync: false,
+                                payments: serverTx.payments || []
+                            });
                         }
                     }
+                    localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(localTreatments));
+                } else {
+                    console.log('⚠️ فشل جلب المعالجات من السيرفر');
                 }
-            } catch (e) { console.log('Fetch treatments error:', e); }
+            } catch (e) {
+                console.log('❌ خطأ في الاتصال بالسيرفر:', e);
+            }
         }
         
-        console.log('📋 إجمالي المعالجات للمريض:', treatments.length);
+        // 2. إذا لم يتم جلب أي معالجات من السيرفر، جرب من localStorage
+        if (treatments.length === 0) {
+            var localTreatments = [];
+            try {
+                localTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+                console.log('📦 المعالجات من localStorage:', localTreatments.length);
+            } catch(e) { console.log('Parse error:', e); }
+            
+            // البحث عن معالجات هذا المريض
+            for (var i = 0; i < localTreatments.length; i++) {
+                if (localTreatments[i].patientId === pid || localTreatments[i].patientName === patient.name) {
+                    treatments.push(localTreatments[i]);
+                }
+            }
+            console.log('📋 تم العثور على', treatments.length, 'معالجة في localStorage');
+        }
         
-        // ترتيب المعالجات حسب التاريخ
+        // ترتيب المعالجات حسب التاريخ (الباقي كما هو دون تغيير)
         treatments.sort(function(a, b) {
             return new Date(b.treatmentDate) - new Date(a.treatmentDate);
         });
@@ -2813,20 +2820,20 @@ async function showPatientFullDetails(pid) {
                 followUpsHtml += '</div>';
             }
             
-// الأزرار - مع التحقق من الصلاحيات
-var addPaymentBtn = '';
-var addFollowUpBtn = '';
-
-// فقط دكتور عيادة أو مدير يمكنهم إضافة دفعة وعودة
-if (currentUser.subscriptionType === 'clinic' || currentUser.role === 'admin') {
-    addPaymentBtn = '<button class="add-payment-btn" onclick="event.stopPropagation(); showAddPaymentModal(\'' + t._id + '\', \'' + pid + '\')" style="background:#10b981; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px;"><i class="fas fa-plus-circle"></i> إضافة دفعة</button>';
-    
-    addFollowUpBtn = '<button class="add-followup-btn" onclick="event.stopPropagation(); openFollowUpModal(\'' + t._id + '\', \'' + pid + '\')" style="background:#f59e0b; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px; margin-right:5px;"><i class="fas fa-undo-alt"></i> إضافة عودة</button>';
-}
-
-// زر المشاركة والحذف متاحان للجميع
-var shareTreatmentBtn = '<button class="share-treatment-btn" onclick="event.stopPropagation(); shareSingleTreatment(\'' + t._id + '\', \'' + pid + '\')" style="background:#25d366; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px; margin-right:5px;"><i class="fab fa-whatsapp"></i> مشاركة</button>';
-var deleteTreatmentBtn = '<button class="delete-treatment-btn" onclick="event.stopPropagation(); deleteTreatment(\'' + t._id + '\', \'' + pid + '\')" style="background:#ef4444; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px; margin-right:5px;"><i class="fas fa-trash-alt"></i> حذف</button>';
+            // الأزرار - مع التحقق من الصلاحيات
+            var addPaymentBtn = '';
+            var addFollowUpBtn = '';
+            
+            // فقط دكتور عيادة أو مدير يمكنهم إضافة دفعة وعودة
+            if (currentUser.subscriptionType === 'clinic' || currentUser.role === 'admin') {
+                addPaymentBtn = '<button class="add-payment-btn" onclick="event.stopPropagation(); showAddPaymentModal(\'' + t._id + '\', \'' + pid + '\')" style="background:#10b981; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px;"><i class="fas fa-plus-circle"></i> إضافة دفعة</button>';
+                
+                addFollowUpBtn = '<button class="add-followup-btn" onclick="event.stopPropagation(); openFollowUpModal(\'' + t._id + '\', \'' + pid + '\')" style="background:#f59e0b; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px; margin-right:5px;"><i class="fas fa-undo-alt"></i> إضافة عودة</button>';
+            }
+            
+            // زر المشاركة والحذف متاحان للجميع
+            var shareTreatmentBtn = '<button class="share-treatment-btn" onclick="event.stopPropagation(); shareSingleTreatment(\'' + t._id + '\', \'' + pid + '\')" style="background:#25d366; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px; margin-right:5px;"><i class="fab fa-whatsapp"></i> مشاركة</button>';
+            var deleteTreatmentBtn = '<button class="delete-treatment-btn" onclick="event.stopPropagation(); deleteTreatment(\'' + t._id + '\', \'' + pid + '\')" style="background:#ef4444; color:white; border:none; padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; margin-top:8px; margin-right:5px;"><i class="fas fa-trash-alt"></i> حذف</button>';
             
             treatmentsHtml += '<div style="padding:12px; border-bottom:1px solid #e2e8f0; ' + bgStyle + '">';
             treatmentsHtml += '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">';
@@ -2837,7 +2844,8 @@ var deleteTreatmentBtn = '<button class="delete-treatment-btn" onclick="event.st
             treatmentsHtml += paymentHistoryHtml;
             treatmentsHtml += followUpsHtml;
             
-            treatmentsHtml += '<div style="display:flex; gap:5px; flex-wrap:wrap; margin-top:8px;">' + addPaymentBtn + addFollowUpBtn + shareTreatmentBtn + deleteTreatmentBtn + '</div>';     treatmentsHtml += '</div>';
+            treatmentsHtml += '<div style="display:flex; gap:5px; flex-wrap:wrap; margin-top:8px;">' + addPaymentBtn + addFollowUpBtn + shareTreatmentBtn + deleteTreatmentBtn + '</div>';     
+            treatmentsHtml += '</div>';
         }
         
         var remaining = totalCost - totalPaid;
@@ -2860,7 +2868,7 @@ var deleteTreatmentBtn = '<button class="delete-treatment-btn" onclick="event.st
         modalHtml += '</div>';
         modalHtml += '<div style="display:flex; gap:10px; flex-wrap:wrap;">';
         modalHtml += '<button class="btn" onclick="closeModal(\'patientDetailsModal\'); editPatient(\'' + patient._id + '\')" style="flex:1;">تعديل</button>';
-                modalHtml += '<button class="btn btn-secondary" onclick="closeModal(\'patientDetailsModal\'); showTreatmentModal(\'' + patient._id + '\')" style="flex:1;">إضافة معالجة</button>';
+        modalHtml += '<button class="btn btn-secondary" onclick="closeModal(\'patientDetailsModal\'); showTreatmentModal(\'' + patient._id + '\')" style="flex:1;">إضافة معالجة</button>';
         modalHtml += '<button class="btn btn-whatsapp" onclick="sharePatientWithoutImages(\'' + patient._id + '\')" style="flex:1;"><i class="fab fa-whatsapp"></i> مشاركة</button>';
         modalHtml += '</div></div></div>';
         
