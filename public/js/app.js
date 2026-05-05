@@ -2699,7 +2699,7 @@ async function showPatientFullDetails(pid) {
     try {
         var patient = null;
         for (var i = 0; i < allPatients.length; i++) {
-            if (normalizeId(allPatients[i]._id) === normalizeId(pid)) {
+            if (allPatients[i]._id?.toString() === pid?.toString()) {
                 patient = allPatients[i];
                 break;
             }
@@ -2731,8 +2731,7 @@ async function showPatientFullDetails(pid) {
     // حفظ معالجات السيرفر في localStorage...
     let localTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
     for (const serverTx of treatments) {
-        const exists = localTreatments.some(localTx => normalizeId(localTx._id) === normalizeId(serverTx._id));
-        if (!exists) {
+        const exists = localTreatments.some(localTx => localTx._id?.toString() === serverTx._id?.toString());    if (!exists) {
             localTreatments.push({
                 ...serverTx,
                 offline: false,
@@ -2767,8 +2766,7 @@ for (var i = 0; i < localTreatments.length; i++) {
     var treatmentPatientId = normalizeId(t.patientId);
     
     // مقارنة بعد تطبيع كلا المعرفين
-    if (treatmentPatientId === normalizedPid || t.patientName === patient.name) {
-        treatments.push(t);
+if (localTreatments[i].patientId?.toString() === pid?.toString() || localTreatments[i].patientName === patient.name) {      treatments.push(t);
     }
 }
             console.log('📋 تم العثور على', treatments.length, 'معالجة في localStorage');
@@ -5379,3 +5377,70 @@ setTimeout(function() {
         searchBar.insertBefore(fixBtn, searchBar.firstChild);
     }
 }, 2000);
+
+// ============================================
+// دالة لعرض جميع المعالجات في السيرفر (للتشخيص)
+// ============================================
+async function showAllTreatmentsInServer() {
+    if (!currentUser) {
+        alert('الرجاء تسجيل الدخول أولاً');
+        return;
+    }
+    
+    console.log('🔍 جلب جميع المعالجات من السيرفر...');
+    
+    try {
+        const response = await fetch('/api/treatments/user/' + currentUser.id);
+        const treatments = await response.json();
+        
+        console.log('📊 عدد المعالجات في السيرفر:', treatments.length);
+        
+        if (treatments.length === 0) {
+            alert('⚠️ لا توجد معالجات في السيرفر!');
+            return;
+        }
+        
+        // عرض تفاصيل أول 5 معالجات
+        let message = `📊 عدد المعالجات: ${treatments.length}\n\n`;
+        message += `أول 5 معالجات:\n`;
+        message += `━━━━━━━━━━━━━━━━━━━━\n`;
+        
+        for (let i = 0; i < Math.min(treatments.length, 5); i++) {
+            const t = treatments[i];
+            message += `\n${i+1}. ID: ${t._id}\n`;
+            message += `   patientId: ${t.patientId} (نوع: ${typeof t.patientId})\n`;
+            message += `   treatmentType: ${t.treatmentType}\n`;
+            message += `   cost: ${t.cost}\n`;
+            message += `   treatmentDate: ${new Date(t.treatmentDate).toLocaleDateString()}\n`;
+        }
+        
+        alert(message);
+        
+        // حفظ المعالجات في localStorage للعرض
+        localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(treatments));
+        
+        // تحديث عرض المريض الحالي
+        if (currentPatientId) {
+            await showPatientFullDetails(currentPatientId);
+        }
+        
+    } catch(e) {
+        console.error('خطأ:', e);
+        alert('خطأ في جلب المعالجات: ' + e.message);
+    }
+}
+
+// إنشاء زر التشخيص
+setTimeout(function() {
+    const searchBar = document.querySelector('.search-bar');
+    if (searchBar) {
+        const diagBtn = document.createElement('button');
+        diagBtn.className = 'btn';
+        diagBtn.style.background = '#f59e0b';
+        diagBtn.style.marginRight = '10px';
+        diagBtn.innerHTML = '🔍 تشخيص المعالجات';
+        diagBtn.onclick = showAllTreatmentsInServer;
+        searchBar.insertBefore(diagBtn, searchBar.firstChild);
+    }
+}, 2000);
+
