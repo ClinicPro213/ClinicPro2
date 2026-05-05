@@ -5261,3 +5261,121 @@ function fixPatientIdsInTreatments() {
     }
 }
 
+// ============================================
+// دالة إصلاح المعالجات القديمة - تضاف إلى الكود
+// ============================================
+async function fixAllOldTreatmentsFromCode() {
+    if (!currentUser) {
+        showAlert('dashboardAlert', '⚠️ الرجاء تسجيل الدخول أولاً', 'error');
+        return;
+    }
+    
+    showAlert('dashboardAlert', '🔄 جاري إصلاح المعالجات القديمة...', 'success');
+    console.log('🔄 بدء إصلاح جميع المعالجات القديمة...');
+    
+    // جلب جميع المعالجات من السيرفر
+    const response = await fetch('/api/treatments/user/' + currentUser.id);
+    const treatments = await response.json();
+    
+    console.log('📋 عدد المعالجات في السيرفر:', treatments.length);
+    
+    let fixedCount = 0;
+    let errorCount = 0;
+    
+    for (const treatment of treatments) {
+        let needsUpdate = false;
+        let updateData = {};
+        
+        // 1. تحويل patientId من ObjectId إلى نص
+        if (treatment.patientId && typeof treatment.patientId === 'object') {
+            updateData.patientId = treatment.patientId.toString();
+            needsUpdate = true;
+            console.log(`🔧 إصلاح patientId للمعالجة: ${treatment._id}`);
+        }
+        
+        // 2. تحويل userId من ObjectId إلى نص
+        if (treatment.userId && typeof treatment.userId === 'object') {
+            updateData.userId = treatment.userId.toString();
+            needsUpdate = true;
+            console.log(`🔧 إصلاح userId للمعالجة: ${treatment._id}`);
+        }
+        
+        // 3. إضافة payments إذا لم تكن موجودة
+        if (!treatment.payments) {
+            updateData.payments = [];
+            needsUpdate = true;
+            console.log(`🔧 إضافة payments للمعالجة: ${treatment._id}`);
+        }
+        
+        // 4. إضافة followUps إذا لم تكن موجودة
+        if (!treatment.followUps) {
+            updateData.followUps = [];
+            needsUpdate = true;
+            console.log(`🔧 إضافة followUps للمعالجة: ${treatment._id}`);
+        }
+        
+        // 5. حساب paid من notes إذا لم يكن موجوداً
+        if (treatment.paid === undefined && treatment.notes) {
+            const match = treatment.notes.match(/المدفوع:\s*([\d.]+)/);
+            if (match) {
+                updateData.paid = parseFloat(match[1]);
+                needsUpdate = true;
+                console.log(`🔧 حساب paid=${updateData.paid} للمعالجة: ${treatment._id}`);
+            }
+        }
+        
+        if (needsUpdate) {
+            try {
+                const updateResponse = await fetch('/api/treatments/' + treatment._id, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updateData)
+                });
+                
+                if (updateResponse.ok) {
+                    fixedCount++;
+                    console.log(`✅ تم إصلاح المعالجة ${treatment._id}`);
+                } else {
+                    errorCount++;
+                    console.log(`❌ فشل إصلاح المعالجة ${treatment._id}`);
+                }
+            } catch(e) {
+                errorCount++;
+                console.log(`❌ خطأ في المعالجة ${treatment._id}:`, e);
+            }
+            
+            // انتظر قليلاً بين الطلبات
+            await new Promise(r => setTimeout(r, 200));
+        }
+    }
+    
+    // تحديث localStorage بالبيانات الجديدة
+    const freshResponse = await fetch('/api/treatments/user/' + currentUser.id);
+    const freshTreatments = await freshResponse.json();
+    localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(freshTreatments));
+    
+    console.log(`\n📊 التقرير النهائي:`);
+    console.log(`   ✅ تم إصلاح: ${fixedCount} معالجة`);
+    console.log(`   ❌ فشل: ${errorCount} معالجة`);
+    
+    showAlert('dashboardAlert', `✅ تم إصلاح ${fixedCount} معالجة. سيتم تحديث الصفحة...`, 'success');
+    
+    // تحديث الصفحة بعد 2 ثانية
+    setTimeout(() => {
+        location.reload();
+    }, 2000);
+}
+
+// إنشاء زر إصلاح المعالجات القديمة تلقائياً
+setTimeout(function() {
+    const searchBar = document.querySelector('.search-bar');
+    if (searchBar) {
+        const fixBtn = document.createElement('button');
+        fixBtn.className = 'btn';
+        fixBtn.style.background = '#8b5cf6';
+        fixBtn.style.marginRight = '10px';
+        fixBtn.innerHTML = '🔧 إصلاح المعالجات القديمة';
+        fixBtn.onclick = fixAllOldTreatmentsFromCode;
+        searchBar.insertBefore(fixBtn, searchBar.firstChild);
+    }
+}, 2000);
