@@ -2742,21 +2742,7 @@ async function showPatientFullDetails(pid) {
         }
     }
     localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(localTreatments));
-                    // حفظ معالجات السيرفر في localStorage للمرة القادمة
-                    let localTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
-                    for (const serverTx of treatments) {
-                        const exists = localTreatments.some(localTx => localTx._id === serverTx._id);
-                        if (!exists) {
-                            localTreatments.push({
-                                ...serverTx,
-                                offline: false,
-                                pendingSync: false,
-                                payments: serverTx.payments || []
-                            });
-                        }
-                    }
-                    localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(localTreatments));
-                } else {
+                                    } else {
                     console.log('⚠️ فشل جلب المعالجات من السيرفر');
                 }
             } catch (e) {
