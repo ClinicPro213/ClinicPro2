@@ -3917,48 +3917,82 @@ window.syncAllDataWithServer = async function() {
 };
 
 
+
     async function syncPendingTreatments() {
-    if (!navigator.onLine || !currentUser) return false;
+    if (!navigator.onLine || !currentUser) {
+        console.log('📴 لا يمكن المزامنة');
+        return false;
+    }
     
-    let offlineTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+    let offlineTreatments = [];
+    try {
+        offlineTreatments = JSON.parse(localStorage.getItem('offline_treatments_' + currentUser.id) || '[]');
+    } catch(e) { 
+        return false; 
+    }
+    
     const pendingTreatments = offlineTreatments.filter(t => t.pendingSync === true);
     
-    if (pendingTreatments.length === 0) return false;
+    if (pendingTreatments.length === 0) {
+        console.log('✅ لا توجد معالجات معلقة');
+        return false;
+    }
     
+    console.log(`📋 جاري مزامنة ${pendingTreatments.length} معالجة...`);
     let syncedCount = 0;
+    let successIds = [];
     
     for (const treatment of pendingTreatments) {
         try {
-            // البحث عن patientId الصحيح
+            // ⭐ 1. البحث عن الـ ID الصحيح للمريض
             let patientId = treatment.patientId;
+            
             if (patientId && patientId.toString().startsWith('offline_')) {
+                // البحث عن المريض في allPatients (البيانات المدمجة من السيرفر والمحلية)
                 const matchedPatient = allPatients.find(p => 
                     p.name === treatment.patientName && !p._id.toString().startsWith('offline_')
                 );
+                
                 if (matchedPatient) {
                     patientId = matchedPatient._id;
+                    console.log(`✅ تم العثور على المريض: ${treatment.patientName}`);
                 } else {
+                    console.log(`⚠️ المريض "${treatment.patientName}" غير موجود في السيرفر، تأجيل المزامنة`);
                     continue; // انتظر حتى يتم مزامنة المريض أولاً
                 }
             }
             
-            // ✅ معالجة البيانات الجديدة: استخراج الأرقام فقط
-            let toothNumberForServer = treatment.toothNumber;
-            if (typeof toothNumberForServer === 'string' && toothNumberForServer.includes('،')) {
-                // إذا كان نصاً يحتوي على عدة أسنان، خذ الأول فقط أو أرسل كرقم افتراضي
-                const numbers = toothNumberForServer.match(/\d+/g);
-                toothNumberForServer = numbers ? parseInt(numbers[0]) : 11;
-            } else if (typeof toothNumberForServer === 'string') {
-                toothNumberForServer = parseInt(toothNumberForServer) || 11;
+            // ⭐ 2. معالجة toothNumber - استخراج رقم واحد فقط للسيرفر
+            let toothNumberForServer = 11; // قيمة افتراضية
+            
+            if (treatment.toothNumber) {
+                if (typeof treatment.toothNumber === 'number') {
+                    toothNumberForServer = treatment.toothNumber;
+                } else if (typeof treatment.toothNumber === 'string') {
+                    // استخراج أول رقم من النص (مثال: "11، 12، 13" -> 11)
+                    const numbers = treatment.toothNumber.match(/\d+/g);
+                    if (numbers && numbers.length > 0) {
+                        toothNumberForServer = parseInt(numbers[0]);
+                    }
+                }
             }
             
-            // ✅ استخراج نوع المعالجة الأساسي
-            let treatmentTypeForServer = treatment.treatmentType;
-            if (treatmentTypeForServer.includes('-')) {
-                treatmentTypeForServer = treatmentTypeForServer.split('-')[0].trim();
+            // ⭐ 3. معالجة treatmentType - تبسيط النوع للسيرفر
+            let treatmentTypeForServer = treatment.treatmentType || 'معالجة';
+            if (treatmentTypeForServer.length > 50) {
+                // تقطيع النص إذا كان طويلاً جداً
+                treatmentTypeForServer = treatmentTypeForServer.substring(0, 50);
             }
             
-            // إرسال فقط الحقول التي يتوقعها السيرفر
+            // ⭐ 4. حساب المدفوع والمتبقي
+            let paidAmount = treatment.paid || 0;
+            
+            // إذا كان هناك دفعات مسجلة، اجمعها
+            if (treatment.payments && treatment.payments.length > 0) {
+                paidAmount = treatment.payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+            }
+            
+            // ⭐ 5. إرسال البيانات إلى السيرفر
             const response = await fetch('/api/treatments', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -3968,28 +4002,37 @@ window.syncAllDataWithServer = async function() {
                     toothNumber: toothNumberForServer,
                     treatmentType: treatmentTypeForServer,
                     cost: treatment.cost || 0,
-                    paid: treatment.paid || 0,
+                    paid: paidAmount,
                     notes: treatment.notes || '',
                     treatmentDate: treatment.treatmentDate || new Date().toISOString()
-                    // ❌ لا ترسل payments أو followUps إلى السيرفر القديم
                 })
             });
             
             if (response.ok) {
+                const result = await response.json();
+                console.log(`✅ تمت مزامنة المعالجة: ${treatmentTypeForServer}`);
                 syncedCount++;
-                treatment.pendingSync = false;
-                treatment.offline = false;
+                successIds.push(treatment._id);
+            } else {
+                const errorText = await response.text();
+                console.log(`❌ فشل المزامنة: ${errorText}`);
             }
         } catch (e) {
-            console.log('Sync error:', e);
+            console.log(`❌ خطأ:`, e);
         }
     }
     
-    // حفظ التغييرات
-    localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(offlineTreatments));
-    
+    // حذف المعالجات التي تمت مزامنتها
     if (syncedCount > 0) {
+        const remainingTreatments = offlineTreatments.filter(t => !successIds.includes(t._id));
+        localStorage.setItem('offline_treatments_' + currentUser.id, JSON.stringify(remainingTreatments));
         showAlert('dashboardAlert', `✅ تمت مزامنة ${syncedCount} معالجة`, 'success');
+        
+        // تحديث الواجهة
+        await loadPatients();
+        if (currentPatientId) {
+            await showPatientFullDetails(currentPatientId);
+        }
     }
     
     return syncedCount > 0;
