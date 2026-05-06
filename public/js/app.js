@@ -1,4 +1,186 @@
 // ============================================
+// إرسال إشعار إلى تطبيق Android
+function sendNotificationToApp(title, body, link) {
+    if (window.AndroidBridge) {
+        window.AndroidBridge.showNotification(title, body, link || '');
+        console.log("✅ تم إرسال الإشعار إلى تطبيق ClinicPro");
+    } else {
+        console.log("⚠️ التطبيق ليس في وضع WebView، استخدام إشعارات المتصفح");
+        showLocalNotification(title, body, 'info', link);
+    }
+}
+// ============================================
+// نظام الإشعارات الفورية (Push Notifications)
+// ============================================
+
+// طلب صلاحية إرسال الإشعارات
+async function requestNotificationPermission() {
+    if (!('Notification' in window)) {
+        console.log('⚠️ المتصفح لا يدعم الإشعارات');
+        showAlert('dashboardAlert', '⚠️ متصفحك لا يدعم الإشعارات الفورية', 'warning');
+        return false;
+    }
+    
+    // التحقق من الصلاحية الحالية
+    if (Notification.permission === 'granted') {
+        console.log('✅ لديك صلاحية الإشعارات بالفعل');
+        showAlert('dashboardAlert', '✅ لديك صلاحية الإشعارات', 'success');
+        return true;
+    }
+    
+    if (Notification.permission === 'denied') {
+        console.log('❌ تم رفض صلاحية الإشعارات سابقاً');
+        showAlert('dashboardAlert', '❌ تم رفض الإشعارات. يرجى تفعيلها من إعدادات المتصفح', 'error');
+        return false;
+    }
+    
+    // طلب الصلاحية
+    try {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+            console.log('✅ تم منح صلاحية الإشعارات');
+            
+            // إشعار ترحيبي
+            new Notification('🔔 ClinicPro', {
+                body: 'تم تفعيل الإشعارات بنجاح! ستصل إليك التنبيهات فوراً.',
+                icon: '/icons/icon-192.png',
+                badge: '/icons/badge-72.png',
+                vibrate: [200, 100, 200],
+                silent: false
+            });
+            
+            showAlert('dashboardAlert', '✅ تم تفعيل الإشعارات بنجاح', 'success');
+            return true;
+        } else {
+            console.log('❌ تم رفض الإشعارات');
+            showAlert('dashboardAlert', '❌ يرجى السماح بالإشعارات لمتابعة التنبيهات', 'warning');
+            return false;
+        }
+    } catch (e) {
+        console.error('خطأ في طلب الإشعارات:', e);
+        return false;
+    }
+}
+
+// عرض إشعار فوري للمستخدم الحالي
+function showLocalNotification(title, body, type = 'info', link = null) {
+    if (!('Notification' in window)) return;
+    if (Notification.permission !== 'granted') return;
+    
+    try {
+        const notification = new Notification(title, {
+            body: body,
+            icon: '/icons/icon-192.png',
+            badge: '/icons/badge-72.png',
+            tag: 'clinicpro_' + Date.now(),
+            vibrate: [200, 100, 200],
+            silent: false,
+            requireInteraction: true  // يبقى الإشعار حتى يتفاعل معه المستخدم
+        });
+        
+        // عند الضغط على الإشعار
+        notification.onclick = function() {
+            window.focus();
+            if (link) {
+                window.open(link, '_blank');
+            } else {
+                showNotificationsPage();
+            }
+            notification.close();
+        };
+        
+        // إغلاق تلقائي بعد 10 ثواني
+        setTimeout(() => notification.close(), 10000);
+        
+        console.log('✅ تم عرض إشعار فوري:', title);
+    } catch (e) {
+        console.error('خطأ في عرض الإشعار:', e);
+    }
+}
+
+// جلب الإشعارات الجديدة وعرضها فوراً
+async function checkNewNotifications() {
+    if (!currentUser) return;
+    
+    try {
+        // جلب آخر إشعار غير مقروء
+        const response = await fetch('/api/notifications/unread/' + currentUser.id);
+        const data = await response.json();
+        
+        if (data.success && data.notifications && data.notifications.length > 0) {
+            // آخر إشعار غير مقروء
+            const latest = data.notifications[0];
+            
+            // عرض إشعار فوري
+            let typeIcon = '🔔';
+            if (latest.type === 'success') typeIcon = '✅';
+            else if (latest.type === 'warning') typeIcon = '⚠️';
+            else if (latest.type === 'danger') typeIcon = '🔴';
+            
+            showLocalNotification(
+                `${typeIcon} ${latest.title}`,
+                latest.body,
+                latest.type,
+                latest.buttonLink || null
+            );
+            
+            // تحديث شارة الإشعارات
+            await updateNotificationBadge();
+        }
+    } catch (e) {
+        console.log('خطأ في جلب الإشعارات الجديدة:', e);
+    }
+}
+
+// استماع للإشعارات الجديدة من السيرفر (Polling كل 30 ثانية)
+let notificationInterval = null;
+
+function startNotificationPolling() {
+    if (notificationInterval) clearInterval(notificationInterval);
+    
+    notificationInterval = setInterval(async () => {
+        if (currentUser && document.visibilityState === 'visible') {
+            await checkNewNotifications();
+        }
+    }, 30000); // كل 30 ثانية
+}
+
+function stopNotificationPolling() {
+    if (notificationInterval) {
+        clearInterval(notificationInterval);
+        notificationInterval = null;
+    }
+}
+
+// عند إرسال إشعار من المدير، يتم إرساله لجميع المستخدمين المتصلين
+async function sendNotificationAndAlertAll(notificationData) {
+    try {
+        const response = await fetch('/api/notifications', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(notificationData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // إذا كان المستخدم الحالي هو من سيرسل الإشعار، لا نعرض له إشعار مرة أخرى
+            if (currentUser.role !== 'admin') {
+                showLocalNotification(
+                    notificationData.title,
+                    notificationData.body,
+                    notificationData.type,
+                    notificationData.buttonLink
+                );
+            }
+        }
+        
+        return result;
+    } catch (e) {
+        console.error('Error sending notification:', e);
+        return { success: false };
+    }
+}
 
 async function convertTreatmentsIds() {
     if (!confirm('⚠️ هل أنت متأكد؟ هذا سيحول patientId و userId إلى نص. لا يمكن التراجع!')){
@@ -1429,7 +1611,7 @@ async function loadUsersListForNotification() {
     }
 }
 
-// إرسال الإشعار
+// تعديل دالة sendNotification الحالية
 async function sendNotification() {
     if (!currentUser || currentUser.role !== 'admin') {
         showAlert('adminAlert', 'غير مصرح لك بهذه العملية', 'error');
@@ -1451,8 +1633,6 @@ async function sendNotification() {
     var title = document.getElementById('notificationTitle').value.trim();
     var body = document.getElementById('notificationBody').value.trim();
     var type = document.getElementById('notificationType').value;
-    
-    // ✅ الحصول على بيانات الزر والرابط
     var buttonText = document.getElementById('notificationButtonText').value.trim();
     var buttonLink = document.getElementById('notificationButtonLink').value.trim();
     var buttonColor = document.getElementById('notificationButtonColor').value;
@@ -1465,9 +1645,7 @@ async function sendNotification() {
     try {
         var response = await fetch('/api/notifications', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 title: title,
                 body: body,
@@ -1493,9 +1671,7 @@ async function sendNotification() {
             document.getElementById('notificationButtonText').value = '';
             document.getElementById('notificationButtonLink').value = '';
             
-            if (recipient === 'all') {
-                updateNotificationBadge();
-            }
+            showAlert('dashboardAlert', '🔔 تم إرسال الإشعارات بنجاح', 'success');
         } else {
             showAlert('adminAlert', result.message || 'فشل إرسال الإشعار', 'error');
         }
@@ -3555,6 +3731,18 @@ async function loadDashboard() {
     
         updateNotificationBadge();
 
+        // في دالة loadDashboard() بعد تسجيل الدخول، أضف:
+
+// طلب صلاحية الإشعارات (مرة واحدة فقط)
+if (!localStorage.getItem('notifications_requested_' + currentUser.id)) {
+    setTimeout(() => {
+        requestNotificationPermission();
+        localStorage.setItem('notifications_requested_' + currentUser.id, 'true');
+    }, 3000);
+}
+
+// بدء مراقبة الإشعارات الجديدة
+startNotificationPolling();
         
         if (navigator.onLine) {
             try {
