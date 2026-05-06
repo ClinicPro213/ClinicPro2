@@ -93,6 +93,16 @@ body::before {
 .image-viewer {
     display: none !important;
 }
+/* زر تفعيل الإشعارات */
+.notification-permission-btn {
+    background: #8b5cf6 !important;
+    transition: all 0.3s ease;
+}
+
+.notification-permission-btn:hover {
+    background: #7c3aed !important;
+    transform: translateY(-2px);
+}
 /* أزرار اختيار المدة */
 .plan-prices {
     display: flex;
