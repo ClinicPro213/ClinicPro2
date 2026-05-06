@@ -75,9 +75,12 @@ const notificationSchema = new mongoose.Schema({
     body: { type: String, required: true },
     type: { type: String, enum: ['info', 'success', 'warning', 'danger'], default: 'info' },
     targetUsers: { type: String, enum: ['all', 'specific'], default: 'all' },
-    userIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // للمستخدمين المحددين
+    userIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     sentBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     sentByName: { type: String },
+    buttonText: { type: String, default: '' },      // ✅ أضف هذا
+    buttonLink: { type: String, default: '' },      // ✅ أضف هذا
+    buttonColor: { type: String, default: 'blue' }, // ✅ أضف هذا
     createdAt: { type: Date, default: Date.now }
 });
 
@@ -773,15 +776,13 @@ app.get('/api/user/:userId', async (req, res) => {
 // إرسال إشعار (للمدير فقط)
 app.post('/api/notifications', async (req, res) => {
     try {
-        const { title, body, type, targetUsers, userIds, senderId } = req.body;
+        const { title, body, type, targetUsers, userIds, senderId, buttonText, buttonLink, buttonColor } = req.body;
         
-        // التحقق من صلاحيات المدير
         const sender = await User.findById(senderId);
         if (!sender || sender.role !== 'admin') {
             return res.status(403).json({ message: 'غير مصرح لك بإرسال الإشعارات' });
         }
         
-        // إنشاء الإشعار
         const notification = new Notification({
             title,
             body,
@@ -790,10 +791,14 @@ app.post('/api/notifications', async (req, res) => {
             userIds: targetUsers === 'specific' ? userIds : [],
             sentBy: senderId,
             sentByName: sender.fullName,
+            buttonText: buttonText || '',
+            buttonLink: buttonLink || '',
+            buttonColor: buttonColor || 'blue',
             createdAt: new Date()
         });
         
         await notification.save();
+        
         
         // تحديد المستخدمين المستهدفين
         let targetUserIds = [];
@@ -853,7 +858,10 @@ app.get('/api/notifications/user/:userId', async (req, res) => {
             createdAt: un.notificationId.createdAt,
             read: un.read,
             readAt: un.readAt,
-            sentByName: un.notificationId.sentByName
+            sentByName: un.notificationId.sentByName,
+            un.notificationId.buttonText,   // ✅ أضف هذا
+            buttonLink: un.notificationId.buttonLink,   // ✅ أضف هذا
+            buttonColor: un.notificationId.buttonColor  // ✅ أضف هذا
         }));
         
         // حساب عدد غير المقروء
