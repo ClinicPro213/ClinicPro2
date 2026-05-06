@@ -126,6 +126,7 @@
             <button id="subscriptionBtn" class="nav-btn subscription-nav-btn" onclick="showSubscriptionPage()">
                 👑 الاشتراك
             </button>
+            
             <button class="nav-btn whatsapp-btn" onclick="contactWhatsApp()">
                 📱 واتساب
             </button>
@@ -135,6 +136,9 @@
             <button class="nav-btn notifications-btn" onclick="showNotificationsPage()" style="position:relative">
                 🔔 الإشعارات
                 <span id="notificationBadge" class="notification-badge-count">0</span>
+            </button>
+            <button class="nav-btn notification-permission-btn" onclick="requestNotificationPermission()" style="background:#8b5cf6;">
+    🔔 تفعيل الإشعارات
             </button>
         </div>
         <div class="logout-button">
