@@ -1271,6 +1271,7 @@ function closeNotificationsPage() {
 }
 
 // عرض الإشعارات
+// عرض الإشعارات - النسخة المصححة
 async function renderNotifications() {
     var container = document.getElementById('notificationsList');
     if (!container) return;
@@ -1306,14 +1307,19 @@ async function renderNotifications() {
             default: buttonColorStyle = 'background:#3b82f6;';
         }
         
-        // ✅ إضافة زر إذا كان هناك رابط
+        // ✅ إضافة زر إذا كان هناك رابط ونص زر
         var buttonHtml = '';
-        if (n.buttonText && n.buttonLink) {
+        if (n.buttonText && n.buttonText.trim() !== '' && n.buttonLink && n.buttonLink.trim() !== '') {
+            console.log('✅ إضافة زر للإشعار:', n.title, 'نص الزر:', n.buttonText);
             buttonHtml = `
-                <a href="${n.buttonLink}" target="_blank" style="display:inline-block; margin-top:12px; ${buttonColorStyle} color:white; text-decoration:none; padding:8px 16px; border-radius:20px; font-size:13px; font-weight:500;">
-                    <i class="fas fa-external-link-alt"></i> ${escapeHtml(n.buttonText)}
-                </a>
+                <div style="margin-top:12px;">
+                    <a href="${n.buttonLink}" target="_blank" style="display:inline-block; ${buttonColorStyle} color:white; text-decoration:none; padding:8px 16px; border-radius:20px; font-size:13px; font-weight:500; cursor:pointer;">
+                        <i class="fas fa-external-link-alt"></i> ${escapeHtml(n.buttonText)}
+                    </a>
+                </div>
             `;
+        } else {
+            console.log('⚠️ لا يوجد زر للإشعار:', n.title, 'buttonText=', n.buttonText, 'buttonLink=', n.buttonLink);
         }
         
         html += '<div class="notification-item ' + unreadClass + '" onclick="markNotificationRead(\'' + n.id + '\')">';
@@ -1326,7 +1332,7 @@ async function renderNotifications() {
         html += '<div class="notification-date">' + formattedDate + '</div>';
         html += '</div>';
         html += '<div class="notification-body">' + escapeHtml(n.body) + '</div>';
-        html += buttonHtml;
+        html += buttonHtml;  // ✅ إضافة الزر هنا
         if (n.sentByName) {
             html += '<div style="font-size:11px; color:#64748b; margin-top:8px;"><i class="fas fa-user"></i> من: ' + escapeHtml(n.sentByName) + '</div>';
         }
