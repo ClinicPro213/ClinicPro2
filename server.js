@@ -859,9 +859,9 @@ app.get('/api/notifications/user/:userId', async (req, res) => {
             read: un.read,
             readAt: un.readAt,
             sentByName: un.notificationId.sentByName,
-            un.notificationId.buttonText,   // ✅ أضف هذا
-            buttonLink: un.notificationId.buttonLink,   // ✅ أضف هذا
-            buttonColor: un.notificationId.buttonColor  // ✅ أضف هذا
+           buttonText: un.notificationId.buttonText,
+            buttonLink: un.notificationId.buttonLink,
+            buttonColor: un.notificationId.buttonColor
         }));
         
         // حساب عدد غير المقروء
