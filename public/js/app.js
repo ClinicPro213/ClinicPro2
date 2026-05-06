@@ -1296,6 +1296,26 @@ async function renderNotifications() {
         var date = new Date(n.createdAt);
         var formattedDate = date.toLocaleDateString('ar-EG') + ' ' + date.toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
         
+        // ✅ تحديد لون الزر
+        var buttonColorStyle = '';
+        switch(n.buttonColor) {
+            case 'green': buttonColorStyle = 'background:#10b981;'; break;
+            case 'orange': buttonColorStyle = 'background:#f59e0b;'; break;
+            case 'red': buttonColorStyle = 'background:#ef4444;'; break;
+            case 'purple': buttonColorStyle = 'background:#8b5cf6;'; break;
+            default: buttonColorStyle = 'background:#3b82f6;';
+        }
+        
+        // ✅ إضافة زر إذا كان هناك رابط
+        var buttonHtml = '';
+        if (n.buttonText && n.buttonLink) {
+            buttonHtml = `
+                <a href="${n.buttonLink}" target="_blank" style="display:inline-block; margin-top:12px; ${buttonColorStyle} color:white; text-decoration:none; padding:8px 16px; border-radius:20px; font-size:13px; font-weight:500;">
+                    <i class="fas fa-external-link-alt"></i> ${escapeHtml(n.buttonText)}
+                </a>
+            `;
+        }
+        
         html += '<div class="notification-item ' + unreadClass + '" onclick="markNotificationRead(\'' + n.id + '\')">';
         html += '<div class="notification-header">';
         html += '<div class="notification-title">';
@@ -1306,6 +1326,7 @@ async function renderNotifications() {
         html += '<div class="notification-date">' + formattedDate + '</div>';
         html += '</div>';
         html += '<div class="notification-body">' + escapeHtml(n.body) + '</div>';
+        html += buttonHtml;
         if (n.sentByName) {
             html += '<div style="font-size:11px; color:#64748b; margin-top:8px;"><i class="fas fa-user"></i> من: ' + escapeHtml(n.sentByName) + '</div>';
         }
@@ -1425,6 +1446,11 @@ async function sendNotification() {
     var body = document.getElementById('notificationBody').value.trim();
     var type = document.getElementById('notificationType').value;
     
+    // ✅ الحصول على بيانات الزر والرابط
+    var buttonText = document.getElementById('notificationButtonText').value.trim();
+    var buttonLink = document.getElementById('notificationButtonLink').value.trim();
+    var buttonColor = document.getElementById('notificationButtonColor').value;
+    
     if (!title || !body) {
         showAlert('adminAlert', 'الرجاء إدخال عنوان ومحتوى الإشعار', 'error');
         return;
@@ -1442,7 +1468,10 @@ async function sendNotification() {
                 type: type,
                 targetUsers: recipient,
                 userIds: userIds,
-                senderId: currentUser.id
+                senderId: currentUser.id,
+                buttonText: buttonText || null,
+                buttonLink: buttonLink || null,
+                buttonColor: buttonColor || 'blue'
             })
         });
         
@@ -1452,7 +1481,12 @@ async function sendNotification() {
             showAlert('adminAlert', '✅ تم إرسال الإشعار إلى ' + result.recipientCount + ' مستخدم', 'success');
             closeModal('sendNotificationModal');
             
-            // تحديث الإشعارات للمستخدم الحالي إذا كان من المستلمين
+            // تفريغ الحقول
+            document.getElementById('notificationTitle').value = '';
+            document.getElementById('notificationBody').value = '';
+            document.getElementById('notificationButtonText').value = '';
+            document.getElementById('notificationButtonLink').value = '';
+            
             if (recipient === 'all') {
                 updateNotificationBadge();
             }
