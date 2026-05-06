@@ -284,6 +284,20 @@ app.get('/api/force-convert-now', async (req, res) => {
     }
 });
 
+// API لجلب آخر الإشعارات غير المقروءة
+app.get('/api/notifications/unread/:userId', async (req, res) => {
+    try {
+        const notifications = await Notification.find({
+            userId: req.params.userId,
+            read: false
+        }).sort({ createdAt: -1 }).limit(5);
+        
+        res.json({ success: true, notifications });
+    } catch (error) {
+        res.json({ success: false, error: error.message });
+    }
+});
+
 // إضافة عودة جديدة
 app.post('/api/followups', async (req, res) => {
     try {
