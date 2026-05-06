@@ -216,16 +216,13 @@
 <div id="sendNotificationModal" class="modal">
     <div class="modal-content" style="max-width:500px">
         <div class="modal-header">
-            <h3>✈️ إرسال إشعار</h3>
+            <h3><i class="fas fa-paper-plane"></i> إرسال إشعار للمستخدمين</h3>
             <button class="close-btn" onclick="closeModal('sendNotificationModal')">&times;</button>
-            <button class="btn" style="background:#ef4444;" onclick="convertTreatmentsIds()">
-    🔄 تحويل المعرفات في المعالجات
-            </button>
         </div>
         <div class="modal-body">
             <div class="input-group">
                 <label>إلى:</label>
-                <select id="notificationRecipient" class="form-control">
+                <select id="notificationRecipient" class="form-control" onchange="toggleNotificationUserSelect()">
                     <option value="all">جميع المستخدمين</option>
                     <option value="specific">مستخدم محدد</option>
                 </select>
@@ -253,13 +250,43 @@
                     <option value="danger">🔴 مهم</option>
                 </select>
             </div>
+            
+            <!-- ✅ قسم إضافة زر ورابط -->
+            <div class="input-group" style="margin-top:15px; padding-top:15px; border-top:1px solid #e2e8f0;">
+                <label style="display:block; margin-bottom:10px; font-weight:bold;">
+                    <i class="fas fa-link"></i> إضافة زر ورابط (اختياري)
+                </label>
+                <div style="background:#f8fafc; padding:15px; border-radius:12px;">
+                    <div style="margin-bottom:10px;">
+                        <label style="display:block; margin-bottom:5px; font-size:13px;">نص الزر</label>
+                        <input type="text" id="notificationButtonText" class="form-control" placeholder="مثال: اضغط هنا للمزيد" style="width:100%; padding:8px; border-radius:8px;">
+                    </div>
+                    <div style="margin-bottom:10px;">
+                        <label style="display:block; margin-bottom:5px; font-size:13px;">الرابط (URL)</label>
+                        <input type="url" id="notificationButtonLink" class="form-control" placeholder="https://example.com" style="width:100%; padding:8px; border-radius:8px;">
+                    </div>
+                    <div style="margin-bottom:10px;">
+                        <label style="display:block; margin-bottom:5px; font-size:13px;">لون الزر</label>
+                        <select id="notificationButtonColor" class="form-control" style="width:100%; padding:8px; border-radius:8px;">
+                            <option value="blue">🔵 أزرق</option>
+                            <option value="green">🟢 أخضر</option>
+                            <option value="orange">🟠 برتقالي</option>
+                            <option value="red">🔴 أحمر</option>
+                            <option value="purple">🟣 بنفسجي</option>
+                        </select>
+                    </div>
+                    <div style="font-size:12px; color:#64748b; margin-top:8px;">
+                        <i class="fas fa-info-circle"></i> سيظهر زر أسفل الإشعار عند الضغط عليه يفتح الرابط
+                    </div>
+                </div>
+            </div>
+            
             <button class="btn" onclick="sendNotification()" style="margin-top:15px">
-                ✈️ إرسال الإشعار
+                <i class="fas fa-paper-plane"></i> إرسال الإشعار
             </button>
         </div>
     </div>
 </div>
-    
                 
                 
                    <!-- Subscription Page - نظام اشتراكات جديد -->
