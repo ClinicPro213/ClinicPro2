@@ -402,8 +402,8 @@ app.post('/api/register', async (req, res) => {
         username: user.username,
         role: user.role,
         isSubscribed: user.isSubscribed,
-        clinicName: user.clinicName || '',      // ✅ أضف هذا
-        phone: user.phone || ''                 // ✅ أضف هذا
+        clinicName: user.clinicName || '',      
+        phone: user.phone || ''              
     }
 });
     } catch (error) {
